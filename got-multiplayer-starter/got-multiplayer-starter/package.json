@@ -1,0 +1,19 @@
+{
+  "name": "iron-throne-multiplayer-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Temporary multiplayer Game of Thrones-inspired strategy game starter: GitHub Pages frontend + Node/Socket.IO server.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
