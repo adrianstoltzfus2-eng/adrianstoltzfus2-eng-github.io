@@ -2,5 +2,5 @@
 // PUBLIC GITHUB PAGES: after deploying the Node backend, replace this with
 // your Render HTTPS URL, e.g. https://iron-throne-game-server.onrender.com
 window.GOT_CONFIG = {
-  serverUrl: 'http://localhost:3000'
+  serverUrl: 'https://playwesteros.onrender.com'
 };
