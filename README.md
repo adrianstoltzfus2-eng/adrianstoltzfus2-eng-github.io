@@ -1,79 +1,96 @@
-# The Iron Throne — browser + multiplayer setup
+# The Iron Throne — Multiplayer Prototype
 
-This project uses **GitHub Pages for the browser interface** and a separate **Node.js + Socket.IO server** for multiplayer. GitHub Pages cannot run the multiplayer server itself.
+A temporary multiplayer Game of Thrones-inspired strategy game starter. The frontend is static HTML/CSS/JavaScript and can be hosted on **GitHub Pages**. The real-time game server uses **Node.js + Express + Socket.IO** and must be hosted separately (for example, as a Render Web Service). GitHub Pages does not run a Node server or keep a shared live game process.
 
-## Files and layout
+## What this prototype includes
 
-Keep this structure at the root of your GitHub repository:
+- Guest-name login with a browser session token (not secure account authentication)
+- First-come-first-served house selection
+- Major houses: Stark, Lannister, Baratheon — multiple players allowed
+- Minor houses: Targaryen, Tyrell, Greyjoy, Martell, Arryn — one player per house, unlock at 7+ players
+- House buffs / nerfs and one starting dragon for Targaryen
+- Great Council vote for king and tied-election runoff
+- Shared house treasury and force pool for players in the same house
+- Gold income based on the number of capitals a house controls
+- Recruiting infantry / navy, espionage, secret attack orders, and next-round resolution
+- Hidden army counts; a successful spy report reveals the target house's available forces and pending attack target
+- Public court chat, house-to-house secret messages, public/secret alliance offers, alliance acceptance, and breaking an alliance
+- King commands: royal levy or recruitment embargo
+- A public capital board, event chronicle, and reset button for the host
 
-```text
-index.html
-style.css
-app.js
-config.js
-package.json
-render.yaml
-server/
-  index.js
+## Known prototype limits
+
+- **The server keeps game state in memory.** Restarting or redeploying the server resets the game. Nothing is saved to a database yet.
+- **Guest names are not protected by passwords.** This is only for testing with trusted players; do not use sensitive information.
+- One server instance hosts one shared game. It does not yet have game rooms, a persistent user system, a full map movement model, siege progress, a finished victory condition, or production-ready cheat prevention.
+- Battles are a deliberately simplified abstraction: forces are house-wide pools, and a battle targets a capital. Captured capitals increase the house's future income.
+- Any player in a house shares that house's treasury and force pool. Coordinate purchases and attacks with your housemates.
+- The prototype uses a few random battle and spy results. House rules are starter balance values, not final balance.
+
+---
+
+# Run it locally first
+
+Install Node.js 20 or later.
+
+From the project root:
+
+```bash
+npm install
+npm start
 ```
 
-The server lives in `server/index.js`; this file must be present for `npm start` and Render to work.
+The server should print that it is listening on port `3000`. Check `http://localhost:3000/health`; it should return JSON with `ok: true`.
 
-## 1. Test locally first
+In `config.js`, leave this value for local testing:
 
-1. Install Node.js 20 or later.
-2. Open this folder in VS Code.
-3. Open a terminal at this folder and run:
+```js
+serverUrl: 'http://localhost:3000'
+```
 
-   ```bash
-   npm install
-   npm start
-   ```
+Serve the repository root using VS Code Live Server (recommended) or another local static web server. Open the local page, enter a guest name, and open the page in another browser/incognito window to test multiplayer. Keep the Node terminal running while you play.
 
-4. Open `http://localhost:3000/health`. You should see JSON containing `"ok":true`.
-5. In VS Code, use **Live Server** to open the root `index.html`. It usually opens at `http://127.0.0.1:5500` or `http://localhost:5500`.
-6. The supplied `config.js` is set for local testing (`http://localhost:3000`). Keep the terminal running while playing.
-7. Open the Live Server page in another browser or an incognito window to test the shared lobby.
+Do not open `index.html` directly as a `file://` URL; use Live Server or GitHub Pages.
 
-Do not double-click `index.html` to open it with a `file://` address.
+# Deploy the backend (Render)
 
-## 2. Deploy the multiplayer server to Render
+1. Push this entire project to a GitHub repository.
+2. In Render, create a **New → Web Service** connected to that repository. Render's Node deployment guide: <https://render.com/docs/deploy-node-express-app>.
+3. Set the service's root directory to the repository root (leave it blank if the form permits).
+4. Use build command `npm install` and start command `npm start`.
+5. Set the environment variable `ALLOWED_ORIGINS` to your GitHub Pages origin, such as `https://adrianstoltzfus2-eng.github.io`. Do **not** add the repository path or a trailing slash. For local development you may also include `http://localhost:5500,http://127.0.0.1:5500`.
+6. Deploy. Copy the service's HTTPS URL, such as `https://your-game-server.onrender.com`.
+7. Open `config.js` and replace `http://localhost:3000` with that HTTPS URL. Commit and push this change.
+8. If you use `render.yaml` to deploy from a Blueprint, make sure its `ALLOWED_ORIGINS` value includes `https://adrianstoltzfus2-eng.github.io`. Otherwise, set `ALLOWED_ORIGINS` from the Render dashboard.
 
-1. Push the whole project—including `package.json` and `server/index.js`—to your GitHub repository.
-2. In Render, choose **New → Web Service** and connect the repository.
-3. Use the repository root as the service root directory (leave it blank if the UI permits).
-4. Set **Build Command** to `npm install` and **Start Command** to `npm start`.
-5. Add an environment variable named `ALLOWED_ORIGINS`. Set its value to the origin of your GitHub Pages site, plus the local development origins, separated by commas. Example:
+The backend exposes `/health` for a basic health check. On Render's free plan, services can spin down after a period without traffic; this temporary version keeps state only in memory, so a server restart/spin-down can reset the game. Render's web service documentation explains the server deployment and port behavior: <https://render.com/docs/web-services>.
 
-   ```text
-   https://YOUR-USERNAME.github.io,http://localhost:5500,http://127.0.0.1:5500
-   ```
+# Deploy the frontend (GitHub Pages)
 
-   Do not include a repository path (such as `/your-repo`) or a trailing slash in the origin. If you use a custom domain, add that domain's origin instead.
-6. Deploy the service. Copy its HTTPS address, for example `https://iron-throne-game-server.onrender.com`.
-7. Edit `config.js` and replace `http://localhost:3000` with your real Render HTTPS address. Do not include a trailing slash. Commit and push that change.
-8. Visit `https://YOUR-RENDER-SERVICE.onrender.com/health`. You should see `{"ok":true,...}`.
+1. Push the project to GitHub.
+2. In the repository, open **Settings → Pages**.
+3. Under Build and deployment, choose **Deploy from a branch**.
+4. Select branch `main` and folder `/(root)`, then save.
+5. Wait for GitHub Pages to publish the site; open the URL shown in the Pages settings.
+6. Confirm that `config.js` points to the deployed HTTPS backend. The frontend must use HTTPS to communicate with a secure hosted backend.
 
-## 3. Publish the browser interface with GitHub Pages
+GitHub Pages hosts the frontend files in the repository root; it does **not** host `server/index.js` as a running backend. The frontend and backend are two separate deployments.
 
-Because `index.html`, `style.css`, `app.js`, and `config.js` are in the repository root:
+# Run the built-in game-logic tests
 
-1. Open your repository on GitHub and go to **Settings → Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Select branch `main` and folder `/(root)`, then save.
-4. Open the published Pages URL. The page URL commonly looks like `https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/` for a project site.
-5. Make sure `config.js` now points to your Render server, not `localhost`.
+After installing dependencies, run:
 
-If Pages is already publishing from `/docs`, either change the source to `/(root)` as above, or place the four frontend files in `/docs` and keep their paths together. Do not mix a root `index.html` with a `/docs` publishing source.
+```bash
+npm test
+```
 
-## Troubleshooting
+The tests use Node's built-in test runner and check voting, income, house selection, privacy of army counts, attack reservation, and secret alliance visibility.
 
-- **The page loads but says “Server unavailable”:** `config.js` still points to localhost, the Render service is not running, or the Render URL is wrong.
-- **The page loads but login says it cannot reach the server:** open the Render `/health` URL and confirm the JSON response.
-- **Browser console shows a CORS/origin error:** make `ALLOWED_ORIGINS` match the exact site origin (`https://YOUR-USERNAME.github.io`, without the repository path or trailing slash), then save/redeploy the Render service.
-- **Only the browser interface loads:** that is expected until the Node backend is running and the frontend has the backend URL in `config.js`.
-- **The game resets after a server restart or redeploy:** this prototype keeps state in memory; it does not have a database yet.
+# Recommended next build steps
 
-## Prototype limitations
-
-Guest names are not password-protected; use only for testing with trusted players. Players in a house share its resources. The game uses simplified battles and a basic capital model. This is not yet production-ready and does not persist game state across server restarts.
+1. Add secure user accounts and persistent storage (SQLite/PostgreSQL) before opening the game to the public.
+2. Add lobby rooms and a host-controlled game creation flow.
+3. Move capital ownership and garrison units into a more detailed territory model.
+4. Add routes, movement rules, naval landings, siege turns, and defender-specific garrisons.
+5. Add action timers and robust reconnect / stale-order handling.
+6. Add unit tests for house selection, income, espionage privacy, attacks, treaties, and phase progression.
