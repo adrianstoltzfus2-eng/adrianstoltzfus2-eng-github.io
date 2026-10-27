@@ -1,6 +1,6 @@
-// GitHub Pages serves the frontend, but it cannot run the multiplayer server.
-// Local development: keep http://localhost:3000.
-// Deployment: replace this with your HTTPS backend URL, e.g. https://your-game.onrender.com.
+// LOCAL TESTING: leave http://localhost:3000.
+// PUBLIC GITHUB PAGES: after deploying the Node backend, replace this with
+// your Render HTTPS URL, e.g. https://iron-throne-game-server.onrender.com
 window.GOT_CONFIG = {
   serverUrl: 'http://localhost:3000'
 };
