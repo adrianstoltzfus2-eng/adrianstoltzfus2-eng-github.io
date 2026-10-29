@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" type="image/png" href="./assets/iron-throne-icon.png?v=2">
+  <title>War of Westeros — Choose your house</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IM+Fell+English:ital@1&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#08090b;color:#eee7d7}
+    body{font-family:Georgia,serif;user-select:none;-webkit-tap-highlight-color:transparent}
+    #sceneImage,#swords{position:absolute;inset:0;width:100%;height:100%}
+    #sceneImage{object-fit:cover;object-position:center center}
+    #swords{overflow:visible}
+    header{position:absolute;z-index:2;top:max(env(safe-area-inset-top),12px);left:0;right:0;padding:12px 16px 20px;text-align:center;pointer-events:none;background:linear-gradient(180deg,rgba(5,7,9,.76),rgba(5,7,9,.28) 68%,transparent)}
+    h1{margin:0;font:700 clamp(1.45rem,4.6vw,2.8rem)/1.08 Cinzel,Georgia,serif;letter-spacing:.08em;color:#e7dfce;text-shadow:0 2px 14px #000,0 0 25px #000}
+    .rule{width:min(250px,54vw);height:1px;margin:9px auto 7px;background:linear-gradient(90deg,transparent,#c8a86c,transparent);opacity:.8}
+    #w{margin:0;font:italic 1.14rem/1.2 "IM Fell English",Georgia,serif;color:#d2c8b6;text-shadow:0 2px 9px #000}
+    #hint{display:block;margin-top:7px;font:600 .67rem/1.3 Cinzel,Georgia,serif;letter-spacing:.15em;text-transform:uppercase;color:#c8a86c;text-shadow:0 2px 8px #000}
+    #hint.warn{color:#df8c83}
+    #confirmHouse{pointer-events:auto;margin:9px auto 0;padding:8px 17px;border:1px solid #c8a86caa;border-radius:999px;background:#0b0d10e8;color:#ebd8ad;font:700 .68rem Cinzel,Georgia,serif;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 4px 18px #0009}
+    #confirmHouse[hidden]{display:none}
+    .sword-select{cursor:pointer;outline:none;--c:#c8a86c}
+    .sword-select.locked{cursor:not-allowed;opacity:.34;filter:saturate(.45)}
+    .sword-select.mode-inactive{opacity:.29;pointer-events:none}
+    .sword-select .in{transform-box:fill-box;transform-origin:50% 100%;animation:swordRise .88s cubic-bezier(.18,.8,.22,1) both;animation-delay:var(--delay,0s);transition:translate .35s cubic-bezier(.2,.8,.2,1),scale .35s,filter .3s}
+    @keyframes swordRise{from{opacity:0;translate:0 125px;scale:.78}to{opacity:1;translate:0 0;scale:1}}
+    .sword-select:hover .in,.sword-select:focus-visible .in,.sword-select.preview .in{translate:0 -22px;filter:drop-shadow(0 0 9px var(--c))}
+    .sword-select.picked .in{translate:0 -40px;filter:drop-shadow(0 0 15px var(--c))}
+    .lingering{opacity:.34;pointer-events:none;animation:lingerIn 1.1s ease-out both;animation-delay:var(--delay,1s)}
+    .lingering .in{transform-box:fill-box;transform-origin:50% 100%;animation:swordRise 1.1s cubic-bezier(.18,.8,.22,1) both;animation-delay:var(--delay,1s)}
+    @keyframes lingerIn{from{opacity:0}to{opacity:.34}}
+    .mode-pin-panel{position:absolute;z-index:5;top:50%;left:50%;width:min(340px,calc(100vw - 36px));transform:translate(-50%,-50%);padding:24px 22px 20px;border:1px solid #d9be8770;border-top:2px solid #c8a86c;border-radius:10px;background:rgba(13,15,18,.96);box-shadow:0 16px 50px #000c;text-align:center;color:#eee7d7;font-family:Cinzel,Georgia,serif}
+    .mode-pin-panel[hidden]{display:none}
+    .mode-pin-panel label{display:block;margin-bottom:10px;color:#c8a86c;font-size:11px;letter-spacing:.19em}
+    .mode-pin-panel input{width:100%;padding:10px;background:#101318;border:1px solid #d9be8752;border-radius:5px;color:#f3e3bf;text-align:center;font:700 24px Cinzel,Georgia,serif;letter-spacing:.3em;text-transform:uppercase;outline:none}
+    .mode-pin-panel button{margin:12px 4px 0;padding:9px 14px;border:1px solid #d9be8759;border-radius:5px;background:#26241f;color:#ead6a8;font:700 10px Cinzel,Georgia,serif;letter-spacing:.1em;text-transform:uppercase}
+    #pinError{display:block;min-height:14px;margin-top:9px;color:#df8c83;font:11px/1.4 Georgia,serif}
+    body.mode-switching header{opacity:.35;filter:blur(1px);transform:translateY(5px)}
+    header{transition:opacity .3s ease,filter .35s ease,transform .35s ease}
+    body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
+    body.mobile-device #w{font-size:1rem}
+    body.mobile-device #hint{font-size:.6rem;letter-spacing:.11em}
+    @media(prefers-reduced-motion:reduce){.sword-select .in,.lingering{animation:none}.sword-select .in{transition:none}header{transition:none}}
+  </style>
+</head>
+<body>
+  <img id="sceneImage" src="./assets/throne-photo-scene.png" alt="The Iron Throne in a shadowed stone hall">
+  <header>
+    <h1 id="n">War of Westeros</h1><div class="rule"></div><p id="w">Choose your path</p>
+    <small id="hint">Choose a sword to host or join</small>
+    <button id="confirmHouse" type="button" hidden>Confirm choice</button>
+  </header>
+  <svg id="swords" viewBox="0 0 1264 845" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Iron Throne sword choices">
+    <defs>
+      <linearGradient id="bladeMetal" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#20252a"/><stop offset=".2" stop-color="#89949b"/><stop offset=".43" stop-color="#d4d9d7"/><stop offset=".58" stop-color="#626b72"/><stop offset=".78" stop-color="#abb3b5"/><stop offset="1" stop-color="#30363a"/></linearGradient>
+      <linearGradient id="grip" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#161514"/><stop offset=".5" stop-color="#5c5145"/><stop offset="1" stop-color="#171615"/></linearGradient>
+      <filter id="bladeShadow" x="-70%" y="-30%" width="240%" height="170%"><feGaussianBlur stdDeviation="3"/></filter>
+      <symbol id="swordDesign" viewBox="-58 -240 116 310" overflow="visible">
+        <path d="M0-233 11-198 8-28 22-4 17 3 0 0-17 3-22-4-8-28-11-198Z" fill="#050607" opacity=".75" transform="translate(2 4)" filter="url(#bladeShadow)"/>
+        <path d="M0-233 11-198 8-28 22-4 17 3 0 0-17 3-22-4-8-28-11-198Z" fill="url(#bladeMetal)" stroke="#13171a" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M0-228 2-38 0-9-3-37Z" fill="#f0f3ef" opacity=".58"/>
+        <path d="M0-221V-31" stroke="#20262a" stroke-width="2" opacity=".78"/>
+        <path d="M-34-9Q-23-12-12-4L0 3 12-4Q23-12 34-9L31 0Q22 0 12 8H-12Q-22 0-31 0Z" fill="url(#bladeMetal)" stroke="#111416" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M-27-8Q-19-7-12-2M27-8Q19-7 12-2" fill="none" stroke="#e1dfd5" stroke-opacity=".7" stroke-width="1.5"/>
+        <path d="M-8 5H8V48L4 54H-4L-8 48Z" fill="url(#grip)" stroke="#101112" stroke-width="2"/>
+        <path d="M-7 13 7 19M-7 23 7 29M-7 33 7 39M-7 43 5 48" fill="none" stroke="#a49b8c" stroke-opacity=".52" stroke-width="2.3"/>
+        <path d="M-15 49H15L10 57 0 61-10 57Z" fill="url(#bladeMetal)" stroke="#111416" stroke-width="2"/>
+        <circle cy="55" r="4.2" fill="var(--c,#c8a86c)" stroke="#161719" stroke-width="1.5"/>
+      </symbol>
+    </defs>
+    <g id="lingeringSwords" aria-hidden="true"></g>
+    <g id="choiceSwords"></g>
+  </svg>
+  <form id="modePinPanel" class="mode-pin-panel" hidden>
+    <label for="modePinInput">ENTER GAME PIN</label>
+    <input id="modePinInput" maxlength="4" minlength="4" inputmode="text" autocomplete="one-time-code" placeholder="A4F9" required>
+    <div><button type="submit">Join the game</button><button id="cancelPin" type="button">Back</button></div>
+    <small id="pinError" aria-live="polite"></small>
+  </form>
+  <script>
+    const isPhone=()=>Boolean(navigator.userAgentData?.mobile||/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||(matchMedia('(pointer: coarse)').matches&&window.innerWidth<=900));
+    document.body.classList.toggle('mobile-device',isPhone());
+    const H=[
+      {key:'greyjoy',name:'House Greyjoy',motto:'We Do Not Sow',color:'#c9a640'},
+      {key:'tyrell',name:'House Tyrell',motto:'Growing Strong',color:'#7fb04f'},
+      {key:'lannister',name:'House Lannister',motto:'Hear Me Roar',color:'#d02a42'},
+      {key:'stark',name:'House Stark',motto:'Winter Is Coming',color:'#b8c6d2'},
+      {key:'baratheon',name:'House Baratheon',motto:'Ours Is the Fury',color:'#f2d13a'},
+      {key:'targaryen',name:'House Targaryen',motto:'Fire and Blood',color:'#ff6a2b'},
+      {key:'martell',name:'House Martell',motto:'Unbowed, Unbent, Unbroken',color:'#f08a24'},
+      {key:'arryn',name:'House Arryn',motto:'As High as Honor',color:'#6aa3e0'}
+    ].map(h=>({...h,status:'open',note:''}));
+    const ENTRY_CHOICES={3:{mode:'host',name:'Host a game',motto:'Create a new game'},4:{mode:'join',name:'Join a game',motto:'Enter a four-character PIN'}};
+    const HOUSE_X=[470,516,562,608,660,706,752,798],HOUSE_ANGLE=[-8,-6,-4,-2,2,4,6,8];
+    const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
+    const confirmHouse=document.getElementById('confirmHouse'),modePinPanel=document.getElementById('modePinPanel');
+    const modePinInput=document.getElementById('modePinInput'),pinError=document.getElementById('pinError');
+    const choiceSwords=document.getElementById('choiceSwords'),lingeringSwords=document.getElementById('lingeringSwords');
+    const inFrame=window.parent!==window,normHouse=v=>String(v||'').toLowerCase().replace(/^house\s+/,'').trim();
+    let entryMode=new URLSearchParams(location.search).get('mode')==='entry',picked=-1,previewed=-1;
+    const setHint=(text,warn=false)=>{hint.textContent=text;hint.classList.toggle('warn',warn)};
+    const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    function houseAt(i){return H[i]}
+    function drawSwords(){
+      lingeringSwords.innerHTML=[
+        [466,515,-13,1.06],[634,535,2,1.12],[802,515,13,1.06]
+      ].map(([x,y,a,d],i)=>`<g class="lingering" style="--delay:${(1.05+i*.19).toFixed(2)}s" transform="translate(${x} ${y}) rotate(${a}) scale(${d})"><g class="in"><use href="#swordDesign" x="-58" y="-240" width="116" height="310"/></g></g>`).join('');
+      choiceSwords.innerHTML=H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color};--delay:${(i*.095).toFixed(2)}s" transform="translate(${HOUSE_X[i]} 408) rotate(${HOUSE_ANGLE[i]})" role="button" aria-label="${escapeHtml(house.name)}"><g class="in"><use href="#swordDesign" x="-58" y="-240" width="116" height="310"/></g><path d="M0-233V61" fill="none" stroke="transparent" stroke-width="38" pointer-events="stroke"/></g>`).join('');
+      bindSwords();
+    }
+    function show(i){const house=houseAt(i),choice=entryMode?ENTRY_CHOICES[i]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);
+      if(entryMode&&choice)setHint(choice.mode==='host'?'Click to host a game':'Click to join a game');
+      else if(house.status!=='open')setHint(house.note||'Not available',true);
+      else setHint(house.note?`${house.note} · click to choose`:'Click to choose this house');
+    }
+    function reset(){if(picked>=0)return show(picked);if(previewed>=0){const house=houseAt(previewed),choice=entryMode?ENTRY_CHOICES[previewed]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);setHint(entryMode?'Tap again or confirm your choice':'Tap again or confirm your house');return}
+      n.textContent='War of Westeros';w.textContent=entryMode?'Choose your path':'Choose your house';setHint(entryMode?(isPhone()?'Tap a sword to preview':'Choose a sword to host or join'):(isPhone()?'Tap a sword to preview':'Click a sword to swear fealty'));root.style.setProperty('--c','#c8a86c');confirmHouse.hidden=true;
+    }
+    function applyStatus(){document.querySelectorAll('.sword-select').forEach(el=>{const i=+el.dataset.i,disabled=entryMode?!ENTRY_CHOICES[i]:H[i].status!=='open';el.classList.toggle('locked',!entryMode&&disabled);el.classList.toggle('mode-inactive',entryMode&&!ENTRY_CHOICES[i]);el.classList.toggle('picked',i===picked);el.classList.toggle('preview',i===previewed);el.setAttribute('aria-disabled',disabled?'true':'false');el.setAttribute('aria-label',entryMode?(ENTRY_CHOICES[i]?.name||`${H[i].name} unavailable`):H[i].name);el.setAttribute('tabindex',disabled?'-1':'0')})}
+    function transitionMode(mode){const nextEntry=mode==='entry';if(entryMode===nextEntry)return;document.body.classList.add('mode-switching');setTimeout(()=>{entryMode=nextEntry;picked=-1;previewed=-1;confirmHouse.hidden=true;modePinPanel.hidden=true;pinError.textContent='';confirmHouse.textContent=entryMode?'Confirm choice':'Confirm house';applyStatus();reset();requestAnimationFrame(()=>document.body.classList.remove('mode-switching'))},160)}
+    function pick(i){const house=H[i];if(entryMode){const choice=ENTRY_CHOICES[i];if(!choice)return;picked=i;previewed=-1;applyStatus();show(i);if(choice.mode==='host'){confirmHouse.hidden=true;setHint('Opening a new game…');if(inFrame)window.parent.postMessage({type:'iron-throne:host'},location.origin==='null'?'*':location.origin)}else{confirmHouse.hidden=true;setHint('Enter the PIN shared by the host');modePinPanel.hidden=false;pinError.textContent='';modePinInput.value='';setTimeout(()=>modePinInput.focus(),30)}return}
+      if(house.status!=='open'){show(i);setHint(house.note||'Not available',true);return}picked=i;previewed=-1;confirmHouse.hidden=true;applyStatus();show(i);setHint('Sworn. Now give your name…');if(inFrame)window.parent.postMessage({type:'iron-throne:pick',house:house.key,name:house.name},location.origin==='null'?'*':location.origin);else setTimeout(()=>{location.href='./index.html#house='+encodeURIComponent(house.key)},700)
+    }
+    function bindSwords(){document.querySelectorAll('.sword-select').forEach(el=>{const i=+el.dataset.i,preview=()=>{if(entryMode&&!ENTRY_CHOICES[i])return;show(i)};el.addEventListener('pointerenter',preview);el.addEventListener('pointerleave',reset);el.addEventListener('focus',preview);el.addEventListener('blur',reset);el.addEventListener('click',()=>{if(entryMode&&!ENTRY_CHOICES[i])return;if(!isPhone()){pick(i);return}if(entryMode){if(previewed===i){pick(i);return}previewed=i;applyStatus();show(i);setHint('Tap again or confirm your choice');confirmHouse.hidden=false;return}if(H[i].status!=='open'){previewed=-1;confirmHouse.hidden=true;applyStatus();show(i);setHint(H[i].note||'Not available',true);return}if(previewed===i){pick(i);return}previewed=i;applyStatus();show(i);setHint('Tap again or confirm your house');confirmHouse.hidden=false});el.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(i)}})});applyStatus()}
+    confirmHouse.textContent=entryMode?'Confirm choice':'Confirm house';confirmHouse.addEventListener('click',()=>{if(previewed>=0)pick(previewed)});
+    modePinInput.addEventListener('input',()=>{modePinInput.value=modePinInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);pinError.textContent=''});
+    modePinPanel.addEventListener('submit',event=>{event.preventDefault();const pin=modePinInput.value.trim().toUpperCase();if(pin.length!==4){pinError.textContent='Enter all four characters.';return}if(inFrame)window.parent.postMessage({type:'iron-throne:join-pin',pin},location.origin==='null'?'*':location.origin)});
+    document.getElementById('cancelPin').addEventListener('click',()=>{modePinPanel.hidden=true;picked=-1;applyStatus();reset()});
+    addEventListener('message',ev=>{if(ev.source!==window.parent||!ev.data)return;
+      if(ev.data.type==='iron-throne:set-mode'&&['entry','house'].includes(ev.data.mode))transitionMode(ev.data.mode);
+      if(ev.data.type==='iron-throne:mode-error'){const message=String(ev.data.message||'Could not continue.');pinError.textContent=message;setHint(modePinPanel.hidden?message:'Choose a sword to try again',true)}
+      if(ev.data.type==='iron-throne:houses'&&Array.isArray(ev.data.houses)){for(const item of ev.data.houses){const house=H.find(x=>x.key===normHouse(item.name)||x.key===normHouse(item.id));if(!house)continue;house.id=item.id;if(item.name){const nm=String(item.name).replace(/^house\s+/i,'');house.name='House '+nm.charAt(0).toUpperCase()+nm.slice(1)}if(item.motto)house.motto=String(item.motto);if(/^#[0-9a-f]{3,8}$/i.test(item.color||''))house.color=item.color;house.status=['open','locked','claimed'].includes(item.status)?item.status:'open';house.note=String(item.note||'')}if(previewed>=0&&H[previewed].status!=='open'){previewed=-1;confirmHouse.hidden=true}document.querySelectorAll('.sword-select').forEach(el=>el.style.setProperty('--c',H[+el.dataset.i].color));applyStatus()}
+      if(ev.data.type==='iron-throne:reset'){picked=-1;previewed=-1;confirmHouse.hidden=true;modePinPanel.hidden=true;applyStatus();reset()}
+    });
+    drawSwords();if(entryMode){n.textContent='War of Westeros';w.textContent='Choose your path';setHint(isPhone()?'Tap a sword to preview':'Choose a sword to host or join')}
+    if(inFrame)window.parent.postMessage({type:'iron-throne:ready'},location.origin==='null'?'*':location.origin);
+  </script>
+</body>
+</html>

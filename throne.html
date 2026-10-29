@@ -24,6 +24,10 @@ svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #pinError{display:block;min-height:14px;margin-top:9px;color:#df8c83;font:11px/1.4 Georgia,serif}
 .fl{animation:fl 2.4s ease-in-out infinite alternate}
 @keyframes fl{to{opacity:.6}}
+.torch-glow{will-change:opacity;animation:torchGlow 3.6s ease-in-out infinite alternate}
+@keyframes torchGlow{from{opacity:.54}to{opacity:.72}}
+.fa{will-change:opacity;animation:torchFlame 1.35s ease-in-out infinite alternate}
+@keyframes torchFlame{from{opacity:.56}to{opacity:.88}}
 #o{pointer-events:none}
 .br{animation:br 9s ease-in-out infinite alternate}@keyframes br{from{opacity:.82}to{opacity:1}}
 .em{opacity:0;animation:em 3.4s linear infinite}
@@ -33,7 +37,7 @@ svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .hz{animation:hz 50s ease-in-out infinite alternate}@keyframes hz{to{transform:translateX(90px)}}
 @media(prefers-reduced-motion:reduce){.br,.em,.dm,.hz{animation:none}}
 @media(prefers-reduced-motion:reduce){.in{transition:none}.fl{animation:none}}
-.tg{transform-box:fill-box;transform-origin:50% 100%;animation:tg 1s ease-in-out infinite alternate}@keyframes tg{0%{transform:scale(1,.88) skewX(-3deg)}50%{transform:scale(.94,1.06) skewX(2deg)}100%{transform:scale(1.04,.94) skewX(-1deg)}}.em2{opacity:0;animation:em2 4s linear infinite}@keyframes em2{0%{transform:translate(0,0) scale(1);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-420px) scale(.2);opacity:0}}.wallTorchBloom{opacity:.48;animation:wallFlicker 3.1s ease-in-out infinite alternate;mix-blend-mode:screen}.wallTorchBloom:nth-of-type(2n){animation-delay:-1.2s}@keyframes wallFlicker{0%{opacity:.14}27%{opacity:.24}54%{opacity:.17}78%{opacity:.28}100%{opacity:.19}}.windowWallBloom{opacity:.68;animation:windowPulse 12s ease-in-out infinite alternate}@keyframes windowPulse{to{opacity:.94}}@media(prefers-reduced-motion:reduce){.tg,.em2,.wallTorchBloom,.windowWallBloom{animation:none}}
+.tg{transform-box:fill-box;transform-origin:50% 100%;animation:tg 1s ease-in-out infinite alternate}@keyframes tg{0%{transform:scale(1,.88) skewX(-3deg)}50%{transform:scale(.94,1.06) skewX(2deg)}100%{transform:scale(1.04,.94) skewX(-1deg)}}.em2{opacity:0;animation:em2 4s linear infinite}@keyframes em2{0%{transform:translate(0,0) scale(1);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-420px) scale(.2);opacity:0}}.wallTorchBloom{opacity:.48;animation:wallFlicker 3.1s ease-in-out infinite alternate;mix-blend-mode:screen}.wallTorchBloom:nth-of-type(2n){animation-delay:-1.2s}@keyframes wallFlicker{0%{opacity:.14}27%{opacity:.24}54%{opacity:.17}78%{opacity:.28}100%{opacity:.19}}.windowWallBloom{opacity:.68;animation:windowPulse 12s ease-in-out infinite alternate}@keyframes windowPulse{to{opacity:.94}}@media(prefers-reduced-motion:reduce){.tg,.em2,.wallTorchBloom,.windowWallBloom,.torch-glow,.fa{animation:none;will-change:auto}}
 body.mobile-device header{top:max(env(safe-area-inset-top,0px),12px);padding:12px 10px 0}
 body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
 body.mobile-device p{font-size:1rem}
@@ -90,8 +94,8 @@ body.mobile-device #foreground-pillars,body.mobile-device #arches,body.mobile-de
 <linearGradient id="bm2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4e3ee" stop-opacity=".24"/><stop offset=".6" stop-color="#9fb6c6" stop-opacity=".07"/><stop offset="1" stop-color="#8fa6b7" stop-opacity="0"/></linearGradient>
 <radialGradient id="pool"><stop offset="0" stop-color="#cfdeea" stop-opacity=".28"/><stop offset="1" stop-color="#bacbd7" stop-opacity="0"/></radialGradient>
 <filter id="grain" x="0" y="0" width="1" height="1"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix type="saturate" values="0"/></filter>
-<filter id="fire" x="-60%" y="-40%" width="220%" height="180%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".014 .03" numOctaves="3" seed="8" result="t"><animate attributeName="baseFrequency" dur="5s" values=".014 .03;.02 .045;.012 .026;.014 .03" repeatCount="indefinite"/><animate attributeName="seed" dur="40s" values="1;60" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" in2="t" scale="34" xChannelSelector="R" yChannelSelector="G" result="d"/><feGaussianBlur in="d" stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/></feMerge></filter>
-<filter id="fireS" x="-60%" y="-40%" width="220%" height="180%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".02 .05" numOctaves="2" seed="3" result="t"><animate attributeName="baseFrequency" dur="3.5s" values=".02 .05;.03 .07;.02 .05" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" in2="t" scale="22" xChannelSelector="G" yChannelSelector="R" result="d"/><feGaussianBlur in="d" stdDeviation="1"/></filter>
+<filter id="fire" x="-60%" y="-40%" width="220%" height="180%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".014 .03" numOctaves="3" seed="8" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="34" xChannelSelector="R" yChannelSelector="G" result="d"/><feGaussianBlur in="d" stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/></feMerge></filter>
+<filter id="fireS" x="-60%" y="-40%" width="220%" height="180%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".02 .05" numOctaves="2" seed="3" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="22" xChannelSelector="G" yChannelSelector="R" result="d"/><feGaussianBlur in="d" stdDeviation="1"/></filter>
 <linearGradient id="ff1" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff9a2a" stop-opacity=".95"/><stop offset=".35" stop-color="#ff5a10" stop-opacity=".85"/><stop offset=".75" stop-color="#c8200a" stop-opacity=".5"/><stop offset="1" stop-color="#6a0e06" stop-opacity="0"/></linearGradient>
 <linearGradient id="ff2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffd060"/><stop offset=".45" stop-color="#ff8a1c" stop-opacity=".9"/><stop offset="1" stop-color="#e03a0a" stop-opacity="0"/></linearGradient>
 <linearGradient id="ff3" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff0b0"/><stop offset=".5" stop-color="#ffc040" stop-opacity=".9"/><stop offset="1" stop-color="#ff8a1c" stop-opacity="0"/></linearGradient>
@@ -118,7 +122,7 @@ body.mobile-device #foreground-pillars,body.mobile-device #arches,body.mobile-de
 let sd=11;const rnd=()=>(sd=sd*16807%2147483647)/2147483647,R=a=>(rnd()-.5)*a,f=n=>(+n).toFixed(1),D=Math.PI/180,pt=p=>f(p[0])+' '+f(p[1]);
 let entryMode=new URLSearchParams(location.search).get('mode')==='entry';
 // Use the full laptop/desktop width instead of letterboxing the room into a narrow column.
-const HALL_H=1100,HALL_CX=400;let sceneW,sceneLeft,sceneRight,TF=[];
+const HALL_H=1100,HALL_CX=400;let sceneW,sceneLeft,sceneRight;
 const isPhone=()=>Boolean(navigator.userAgentData?.mobile||/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||(matchMedia('(pointer: coarse)').matches&&window.innerWidth<=900));
 document.body.classList.toggle('mobile-device',isPhone());
 // A sword blade pointing up from (0,0): bevelled facets, fuller, taper, bend and nicks
@@ -193,8 +197,8 @@ HB+='</g>';
 // iron wall torches: smaller flames and contained amber light
 function wt(x,y,sc){const i=TI++;
  // A broad, animated radial patch lights the nearby masonry while leaving the distant wall nearly black.
- GG+=`<g data-g="${i}" style="mix-blend-mode:screen"><circle cx="${x}" cy="${f(y-4*sc)}" r="${f(95*sc)}" fill="url(#wm)" opacity=".32"/><circle cx="${x}" cy="${f(y-3*sc)}" r="${f(30*sc)}" fill="url(#wm2)" opacity=".5"/></g>`;
- GF+=`<g style="mix-blend-mode:screen" transform="translate(${x} ${y}) scale(${sc})"><g class="fa" data-i="${i}"><ellipse cx="0" cy="-2" rx="14" ry="4.5" fill="url(#coal)"/><circle cx="-6" cy="-4" r="2.6" fill="#ffb060" opacity=".8"/><circle cx="4" cy="-4.5" r="2.2" fill="#ff8a30" opacity=".75"/><circle cx="9" cy="-3" r="1.6" fill="#ffc070" opacity=".6"/></g>${embers(0,-5,5,18,'em',24)}</g>`;
+ GG+=`<g class="torch-glow" style="mix-blend-mode:screen;animation-duration:${f(3.2+MR()*1.4)}s;animation-delay:-${f(MR()*4)}s"><circle cx="${x}" cy="${f(y-4*sc)}" r="${f(95*sc)}" fill="url(#wm)" opacity=".32"/><circle cx="${x}" cy="${f(y-3*sc)}" r="${f(30*sc)}" fill="url(#wm2)" opacity=".5"/></g>`;
+ GF+=`<g style="mix-blend-mode:screen" transform="translate(${x} ${y}) scale(${sc})"><g class="fa" style="animation-duration:${f(1.05+MR()*.7)}s;animation-delay:-${f(MR()*2)}s"><ellipse cx="0" cy="-2" rx="14" ry="4.5" fill="url(#coal)"/><circle cx="-6" cy="-4" r="2.6" fill="#ffb060" opacity=".8"/><circle cx="4" cy="-4.5" r="2.2" fill="#ff8a30" opacity=".75"/><circle cx="9" cy="-3" r="1.6" fill="#ffc070" opacity=".6"/></g>${embers(0,-5,5,18,'em',24)}</g>`;
  return `<g transform="translate(${x} ${y}) scale(${sc})"><ellipse class="wallTorchBloom" cx="0" cy="-2" rx="120" ry="130" fill="url(#torchWallGlow)" style="animation-delay:-${(i*.83).toFixed(2)}s"/><path d="M-4 10L-12 34L-25 42M4 10L12 34L25 42" fill="none" stroke="#171311" stroke-width="5" stroke-linecap="round"/><path d="M-5 13V56M5 13V56" stroke="#201813" stroke-width="4"/><path d="M-16 -2H16L11 11Q0 19-11 11Z" fill="#17120f" stroke="#050505" stroke-width="1.5"/><path d="M-16 -2H16" stroke="#b86e3d" stroke-opacity=".48" stroke-width="1.5"/><path d="M-7 25H7M-7 40H7" stroke="#34251a" stroke-width="2.5"/></g>`}
 for(const[x,y]of[[400-sceneW*.22,438],[400+sceneW*.22,438]])HB+=wt(x,y,1.0);
 // Floor begins close behind the dais; seams are short and low-contrast rather than long rays.
@@ -328,16 +332,8 @@ document.getElementById('g').innerHTML=s;
 document.getElementById('og').innerHTML=`<g id="hall-torch-glow">${GG}</g>`+`${BEAMS}<g class="hz"><ellipse cx="300" cy="700" rx="700" ry="70" fill="url(#hzg)"/><ellipse cx="560" cy="820" rx="800" ry="60" fill="url(#hzg)"/><ellipse cx="400" cy="600" rx="900" ry="90" fill="url(#hzg)"/></g><g id="hall-torches">${GF}</g>`+DS+`<rect x="-1100" y="-400" width="3000" height="1500" filter="url(#grain)" opacity=".13" style="mix-blend-mode:overlay"/>`+[[sceneLeft,-100],[sceneRight,-100],[sceneLeft,1000],[sceneRight,1000]].map(([x,y])=>`<ellipse cx="${f(x)}" cy="${y}" rx="${f(sceneW*.36)}" ry="500" fill="url(#corner)"/>`).join('')+`<rect x="-3000" y="-2000" width="6600" height="4400" fill="url(#vg2)"/>`+
  `<g id="hall-window-light" transform="translate(0 -145)"><path d="${WIN}" fill="#ffffff" opacity=".7" filter="url(#bl2)" style="mix-blend-mode:screen"/><path d="${WIN}" fill="url(#skyB)"/><path d="M345 -540V70M400 -540V70M455 -540V70M290 -70H510M290 -230H510" stroke="#0a0d10" stroke-width="7"/><path d="${WIN}" fill="none" stroke="#0a0d10" stroke-width="12" stroke-linejoin="round"/><rect x="252" y="68" width="296" height="26" fill="#1b2127" stroke="#000"/><rect x="252" y="68" width="296" height="3" fill="#e8f2f9" opacity=".7"/></g>`+
  `<ellipse cx="400" cy="-66" rx="340" ry="80" fill="url(#dayGlow)" style="mix-blend-mode:screen"/>`}
-TF=[...Array(TI)].map((_,i)=>({g:document.querySelector(`[data-g="${i}"]`),a:[...document.querySelectorAll(`.fa[data-i="${i}"]`)],p:MR()*50}));
 bindSwords();
 }
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches,nz=(t,p)=>.5+.28*Math.sin(t*3.1+p)+.18*Math.sin(t*7.7+p*2.3)+.12*Math.sin(t*13.1+p*.7);
-const frame=ms=>{const t=ms/1000;for(const o of TF){const v=nz(t,o.p),gust=Math.max(0,Math.sin(t*.43+o.p*3)-.82)*4,I=Math.min(1,Math.max(.35,.74+.42*(v-.5)-gust*.25));
- o.g.style.opacity=(I*.85).toFixed(3);
- const sk=(Math.sin(t*2.3+o.p)*6+Math.sin(t*5.1+o.p*3)*4+gust*8).toFixed(1),sy=(.82+.55*v-gust*.2).toFixed(3),sx=(1.06-.18*v).toFixed(3);
- for(const e of o.a)e.style.opacity=(.45+.55*v).toFixed(3)}
- if(!RM)requestAnimationFrame(frame)};
-requestAnimationFrame(frame);
 
 const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
 const confirmHouse=document.getElementById('confirmHouse');
