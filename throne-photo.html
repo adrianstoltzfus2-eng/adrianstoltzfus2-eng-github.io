@@ -27,10 +27,14 @@
     .sword-select{cursor:pointer;outline:none;--c:#c8a86c;pointer-events:auto}
     .sword-select.locked{cursor:not-allowed;opacity:.35}
     .sword-select.mode-inactive{opacity:.24;pointer-events:none}
-    .blade-hit{fill:none;stroke:transparent;stroke-width:25;stroke-linecap:round;pointer-events:stroke}
-    .blade-glint{fill:none;stroke:var(--c);stroke-width:1.2;stroke-linecap:round;opacity:0;filter:drop-shadow(0 0 3px var(--c));transition:opacity .22s ease,stroke-width .22s ease}
-    .sword-select:hover .blade-glint,.sword-select:focus-visible .blade-glint,.sword-select.preview .blade-glint{opacity:.7;stroke-width:2}
-    .sword-select.picked .blade-glint{opacity:.84;stroke-width:2.2}
+    .blade-lift{transform-box:fill-box;transform-origin:50% 100%;transition:translate .3s cubic-bezier(.2,.8,.2,1),filter .25s ease;}
+    .blade-rise{opacity:0;transform-box:fill-box;transform-origin:50% 100%;animation:bladeRise .72s cubic-bezier(.2,.84,.22,1) var(--delay,0s) both}
+    @keyframes bladeRise{0%{opacity:0;transform:translateY(70px) scaleY(.72)}100%{opacity:1;transform:translateY(0) scaleY(1)}}
+    .sword-select:hover .blade-lift,.sword-select:focus-visible .blade-lift,.sword-select.preview .blade-lift{translate:0 -15px;filter:brightness(1.17) drop-shadow(0 0 7px color-mix(in srgb,var(--c) 70%,#c9d1d3))}
+    .sword-select.picked .blade-lift{translate:0 -25px;filter:brightness(1.25) drop-shadow(0 0 12px color-mix(in srgb,var(--c) 75%,#d0d9dc))}
+    .blade-hit{fill:none;stroke:transparent;stroke-width:26;stroke-linecap:round;pointer-events:stroke}
+    .lingering-blade{opacity:0;pointer-events:none;animation:lingerIn .45s ease var(--delay,1.45s) both}
+    @keyframes lingerIn{to{opacity:.56}}
     .mode-pin-panel{position:absolute;z-index:5;top:50%;left:50%;width:min(340px,calc(100vw - 36px));transform:translate(-50%,-50%);padding:24px 22px 20px;border:1px solid #d9be8770;border-top:2px solid #c8a86c;border-radius:10px;background:rgba(13,15,18,.96);box-shadow:0 16px 50px #000c;text-align:center;color:#eee7d7;font-family:Cinzel,Georgia,serif}
     .mode-pin-panel[hidden]{display:none}
     .mode-pin-panel label{display:block;margin-bottom:10px;color:#c8a86c;font-size:11px;letter-spacing:.19em}
@@ -42,18 +46,25 @@
     body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
     body.mobile-device #w{font-size:1rem}
     body.mobile-device #hint{font-size:.6rem;letter-spacing:.11em}
-    @media(prefers-reduced-motion:reduce){#sceneImage{animation:none}.blade-glint,header{transition:none}}
+    @media(prefers-reduced-motion:reduce){#sceneImage{animation:none}.blade-rise{animation:none;opacity:1;transform:none}.lingering-blade{animation:none;opacity:.56}.blade-lift,header{transition:none}}
   </style>
 </head>
 <body>
-  <img id="sceneImage" src="./assets/throne-photo-scene.png?v=2" alt="The Iron Throne in a shadowed stone hall with eight sword blades rising from the crown">
+  <img id="sceneImage" src="./assets/throne-photo-scene.png?v=3" alt="The Iron Throne in a shadowed stone hall">
   <header>
     <h1 id="n">War of Westeros</h1><div class="rule"></div><p id="w">Choose your path</p>
     <small id="hint">Choose a sword to host or join</small>
     <button id="confirmHouse" type="button" hidden>Confirm choice</button>
   </header>
   <svg id="swords" viewBox="0 0 1264 845" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Iron Throne sword choices">
+    <defs>
+      <linearGradient id="forgedSteel" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#293139"/><stop offset=".18" stop-color="#50616a"/><stop offset=".38" stop-color="#839097"/><stop offset=".51" stop-color="#596a72"/><stop offset=".68" stop-color="#39474f"/><stop offset=".86" stop-color="#738188"/><stop offset="1" stop-color="#2b343a"/></linearGradient>
+      <linearGradient id="bladeRidge" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a5afb2" stop-opacity=".52"/><stop offset=".48" stop-color="#7a898e" stop-opacity=".24"/><stop offset="1" stop-color="#313b41" stop-opacity=".05"/></linearGradient>
+      <filter id="bladePatina" x="-35%" y="-8%" width="170%" height="116%"><feTurbulence type="fractalNoise" baseFrequency=".38 .11" numOctaves="2" seed="17" result="grain"/><feColorMatrix in="grain" type="saturate" values="0" result="gray"/><feComponentTransfer in="gray" result="patina"><feFuncA type="table" tableValues="0 .16 .28"/></feComponentTransfer><feComposite in="patina" in2="SourceAlpha" operator="in"/></filter>
+      <clipPath id="throneFront" clipPathUnits="userSpaceOnUse"><path d="M430 845V370Q465 352 487 335Q507 320 521 308Q540 302 555 293Q574 287 590 294L618 285 635 281 654 289Q672 286 688 299Q707 304 722 318Q744 331 760 351L800 386V845Z"/></clipPath>
+    </defs>
     <g id="choiceSwords"></g>
+    <image href="./assets/throne-photo-scene.png?v=3" x="0" y="0" width="1264" height="845" preserveAspectRatio="none" clip-path="url(#throneFront)" pointer-events="none" aria-hidden="true"/>
   </svg>
   <form id="modePinPanel" class="mode-pin-panel" hidden>
     <label for="modePinInput">ENTER GAME PIN</label>
@@ -75,7 +86,21 @@
       {key:'arryn',name:'House Arryn',motto:'As High as Honor',color:'#6aa3e0'}
     ].map(h=>({...h,status:'open',note:''}));
     const ENTRY_CHOICES={3:{mode:'host',name:'Host a game',motto:'Create a new game'},4:{mode:'join',name:'Join a game',motto:'Enter a four-character PIN'}};
-    const BLADE_LINES=['M550 235L575 318','M582 213L596 319','M605 207L615 320','M628 203L628 320','M653 205L653 320','M676 210L668 320','M695 225L685 320','M720 238L700 320'];
+    const BLADE_SPECS=[
+      {tip:[566,224],root:[576,321],width:8.2},
+      {tip:[582,212],root:[597,321],width:8.4},
+      {tip:[605,207],root:[615,321],width:8.1},
+      {tip:[628,205],root:[629,321],width:8.3},
+      {tip:[653,206],root:[653,321],width:8.3},
+      {tip:[676,211],root:[668,321],width:8.1},
+      {tip:[694,224],root:[684,321],width:8.4},
+      {tip:[720,238],root:[700,321],width:8.2}
+    ];
+    const LINGERING_BLADES=[
+      {tip:[550,236],root:[574,321],width:7.1},
+      {tip:[536,258],root:[557,321],width:6.8},
+      {tip:[733,258],root:[715,321],width:7.0}
+    ];
     const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
     const confirmHouse=document.getElementById('confirmHouse'),modePinPanel=document.getElementById('modePinPanel');
     const modePinInput=document.getElementById('modePinInput'),pinError=document.getElementById('pinError');
@@ -85,8 +110,18 @@
     const setHint=(text,warn=false)=>{hint.textContent=text;hint.classList.toggle('warn',warn)};
     const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     function houseAt(i){return H[i]}
+    function bladeArtwork(spec,index){
+      const dx=spec.tip[0]-spec.root[0],dy=spec.tip[1]-spec.root[1],length=Math.hypot(dx,dy),angle=Math.atan2(dx,-dy)*180/Math.PI;
+      const half=spec.width/2,L=length.toFixed(1),a=(-length*.76).toFixed(1),b=(-length*.51).toFixed(1),c=(-length*.28).toFixed(1);
+      const right=[[0,-length],[.65,-length+5],[1.45,-length+12],[1.05,-length+17],[2.2,-length+26],[1.8,-length+31],[half*.74,-length*.62],[half*.92,-length*.34],[half,-10],[half*.78,-3],[half*.45,1],[.7,-2],[0,1.6],[-.7,-2],[-half*.45,1],[-half*.78,-3],[-half,-10],[-half*.92,-length*.34],[-half*.74,-length*.62],[-1.8,-length+31],[-2.2,-length+26],[-1.05,-length+17],[-1.45,-length+12],[-.65,-length+5]];
+      const path='M'+right.map(([x,y])=>`${x.toFixed(1)} ${y.toFixed(1)}`).join('L')+'Z';
+      const scars=`M-2.7 ${a}l1.5 2.1 1.7-2.8M2.4 ${b}l-1.1 2 2.2 1.2M-2.1 ${c}l1.1 1.5 1.5-1.8`;
+      const details=`<path d="${path}" fill="url(#forgedSteel)" stroke="#252b2e" stroke-width=".9" stroke-linejoin="round"/><path d="M0 ${(-length+5).toFixed(1)}L1.3 ${(-length+21).toFixed(1)}Q1.8 ${(-length*.55).toFixed(1)} 1.2 -13L0 -5Z" fill="url(#bladeRidge)" opacity=".77"/><path d="M0 ${(-length+18).toFixed(1)}Q-.5 ${(-length*.56).toFixed(1)} 0 -17" fill="none" stroke="#343b3e" stroke-width="1.1" opacity=".84"/><path d="M-1.7 ${(-length+22).toFixed(1)}Q-1 ${(-length*.57).toFixed(1)} -.8 -20" fill="none" stroke="#c1c6c5" stroke-width=".55" opacity=".58"/><path d="${path}" fill="#b9c0c0" opacity=".24" filter="url(#bladePatina)"/><path d="${scars}" fill="none" stroke="#252c2f" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="M-1.8 ${(-length*.39).toFixed(1)}l1.2 1.4M1.5 ${(-length*.65).toFixed(1)}l-1.1 1.1" stroke="#d3d7d5" stroke-width=".65" opacity=".62"/>`;
+      return `<g transform="translate(${spec.root[0]} ${spec.root[1]}) rotate(${angle.toFixed(2)})"><g class="blade-lift"><g class="blade-rise" style="--delay:${(index*.095).toFixed(2)}s">${details}</g></g>${spec.selectable?`<path class="blade-hit" d="M0 ${(-length).toFixed(1)}V4"/>`:''}</g>`;
+    }
     function drawSwords(){
-      choiceSwords.innerHTML=H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color}" role="button" aria-label="${escapeHtml(house.name)}"><path class="blade-glint" d="${BLADE_LINES[i]}" pointer-events="none"/><path class="blade-hit" d="${BLADE_LINES[i]}"/></g>`).join('');
+      const decorations=LINGERING_BLADES.map((spec,i)=>`<g class="lingering-blade" style="--delay:${(1.45+i*.18).toFixed(2)}s">${bladeArtwork({...spec,selectable:false},i+16)}</g>`).join('');
+      choiceSwords.innerHTML=decorations+H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color}" role="button" aria-label="${escapeHtml(house.name)}">${bladeArtwork({...BLADE_SPECS[i],selectable:true},i)}</g>`).join('');
       bindSwords();
     }
     function show(i){const house=houseAt(i),choice=entryMode?ENTRY_CHOICES[i]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);
