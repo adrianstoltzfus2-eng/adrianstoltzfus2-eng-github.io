@@ -106,33 +106,13 @@
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
 
-  function renderHousePicker() {
-    if (!state.me) return;
-    const mine = state.me.houseId;
-    $('lobbyHousePicker').innerHTML = state.houses.map(h => {
-      const minorTakenByOther = h.type === 'minor' && h.players.some(p => p.id !== state.me.id);
-      const locked = h.type === 'minor' && !state.minorHousesUnlocked;
-      const alreadyChosen = mine === h.id;
-      const disabled = state.phase !== 'LOBBY' || locked || minorTakenByOther;
-      let buttonText = alreadyChosen ? 'Your house ✓' : minorTakenByOther ? 'Claimed' : locked ? 'Unlocks at 7 players' : h.type === 'major' ? 'Join house' : 'Claim house';
-      return `<article class="house-choice ${alreadyChosen ? 'house-choice-selected' : ''} ${disabled && !alreadyChosen ? 'house-choice-disabled' : ''}" style="--house-color:${escapeHtml(h.color)}">
-        <div class="choice-top"><span class="choice-sigil">${escapeHtml(h.sigil)}</span><span class="house-type ${h.type}">${h.type === 'major' ? 'MAJOR' : 'MINOR'}</span></div>
-        <h3>${escapeHtml(h.name)}</h3><p class="house-motto">${escapeHtml(h.motto)}</p>
-        <div class="choice-capital"><span>CAPITAL</span><strong>${escapeHtml(h.capital)}</strong></div>
-        <p class="house-buff"><b>BUFF</b> ${escapeHtml(h.buff)}</p>
-        ${h.nerf ? `<p class="house-nerf"><b>NERF</b> ${escapeHtml(h.nerf)}</p>` : '<p class="house-nerf no-nerf"><b>NERF</b> None</p>'}
-        <div class="choice-footer"><span>${h.players.length} player${h.players.length === 1 ? '' : 's'}</span><button class="button ${alreadyChosen ? 'button-selected' : 'button-secondary'}" type="button" data-action="select-house" data-house-id="${escapeHtml(h.id)}" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonText)}</button></div>
-      </article>`;
-    }).join('');
-    $('lobbyStatus').textContent = state.minorHousesUnlocked ? 'Minor houses are unlocked. Each minor house can be claimed by one player.' : `Minor houses unlock at 7 joined players (${state.players.length}/7).`;
-  }
-
   function renderWaitingRoom() {
     if (!state?.me) return;
     $('lobbyCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
     $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
-      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span><div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}</strong><small>${house ? `${escapeHtml(house.sigil)} House ${escapeHtml(house.name)}` : 'Joining · choosing a house'}${p.connected ? '' : ' · reconnecting'}</small></div></div>`;
+      const banner = house ? `<img class="player-house-banner" src="./heraldry/${escapeHtml(house.id)}.svg" alt="${escapeHtml(house.name)} house banner">` : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
+      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${banner}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'}${p.connected ? '' : ' · reconnecting'}</small></div></div>`;
     }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
     const canStart = state.isHost && state.phase === 'LOBBY';
     $('startGameButton').hidden = !canStart;
@@ -354,7 +334,6 @@
     renderPhase();
     renderHouseRoster();
     renderPlayers();
-    renderHousePicker();
     if (state.phase === 'KING_VOTE') renderVotePanel();
     renderMyHouse();
     renderCapitalBoard();

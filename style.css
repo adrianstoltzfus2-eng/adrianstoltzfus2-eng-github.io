@@ -137,9 +137,11 @@ body.throne-open { overflow: hidden; }
 .member-offline { opacity: .35; }
 .empty-members { color: #666d77; font-size: 8px; }
 .player-roster { display: flex; flex-direction: column; gap: 10px; }
-.player-row { display: flex; gap: 9px; align-items: flex-start; }
-.online-dot { width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: #575d66; flex-shrink: 0; }
+.player-row { display: flex; gap: 12px; align-items: center; padding: 9px; border: 1px solid rgba(217, 190, 135, .1); border-radius: 8px; background: rgba(255,255,255,.018); }
+.online-dot { width: 7px; height: 7px; margin-top: 0; border-radius: 50%; background: #575d66; flex-shrink: 0; }
 .online-dot.online { background: #79ad87; box-shadow: 0 0 10px #79ad8740; }
+.player-house-banner { width: 62px; height: 84px; flex: 0 0 62px; object-fit: contain; border: 1px solid rgba(217, 190, 135, .22); border-radius: 4px; background: #101216; box-shadow: 0 4px 12px rgba(0,0,0,.24); }
+.player-house-pending { display: grid; place-items: center; color: var(--gold); font: 600 26px Cinzel, Georgia, serif; border-style: dashed; }
 .player-row-info { min-width: 0; }
 .player-row-info strong { display: block; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
 .player-row-info small { display: block; color: var(--muted); font-size: 9px; margin-top: 4px; }

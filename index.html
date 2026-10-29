@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=5">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=4" defer></script>
-  <script src="./app.js?v=4" defer></script>
+  <script src="./config.js?v=5" defer></script>
+  <script src="./app.js?v=5" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -60,9 +60,8 @@
     <section class="realm-card panel">
       <p class="eyebrow">THE GREAT HALL</p>
       <h1>Those Gathered</h1>
-      <p class="muted">The houses are assembling. Choose your name and house, then wait for the server owner to begin.</p>
-      <div id="lobbyHousePicker" class="house-picker"></div>
-      <div class="lobby-roster-wrap"><div class="section-head"><h2>Joined and joining</h2><span id="lobbyCount" class="count-pill">0 players</span></div><div id="lobbyRoster" class="player-roster"></div></div>
+      <p class="muted">The houses are assembling. Here are the players who have joined or are joining.</p>
+      <div class="lobby-roster-wrap"><div class="section-head"><h2>Players</h2><span id="lobbyCount" class="count-pill">0 players</span></div><div id="lobbyRoster" class="player-roster"></div></div>
       <button id="startGameButton" class="button button-primary button-full" type="button" hidden>Begin the game <span>→</span></button>
       <p id="lobbyHostNote" class="muted small-text lobby-host-note"></p>
     </section>

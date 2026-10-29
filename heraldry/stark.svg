@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240" role="img" aria-labelledby="title desc">
+  <title id="title">House Stark banner</title><desc id="desc">A pale grey direwolf on a cold white field, framed by silver and charcoal.</desc>
+  <defs><linearGradient id="field" x2="0" y2="1"><stop stop-color="#eef2f2"/><stop offset="1" stop-color="#b9c3c8"/></linearGradient><linearGradient id="fur" x2=".8" y2="1"><stop stop-color="#667783"/><stop offset="1" stop-color="#26333d"/></linearGradient></defs>
+  <path fill="#141a20" d="M18 10h151v192l-76 30-75-30z"/><path fill="url(#field)" stroke="#c7d0d4" stroke-width="3" d="M24 16h139v181l-69 27-70-27z"/>
+  <path fill="#73828b" d="M24 16h139v11H24zM24 188l70 26 69-26v9l-69 27-70-27z" opacity=".8"/>
+  <path fill="url(#fur)" stroke="#17232b" stroke-width="2.3" stroke-linejoin="round" d="m48 139 9-20-3-18 12 8-2-27 18 17 4-33 16 24 11-27 8 32 19-12-7 22 15-3-12 16 7 12-21 4-12 17-20 8-22-5-13-15-15 4z"/>
+  <path fill="#dbe1e3" d="m75 104 21-1 15 8-8 7-22-2-12-5z"/><path fill="#202c34" d="m82 106 13 1-9 4-10-2z"/><path fill="#dce2e3" d="m63 109-8-16 15 8 6 12-12-4zM96 88l-4-22 15 18-2 13zM113 95l10-19 1 24-9 10z"/>
+  <path fill="#11181e" d="m65 133 14 5-3 24-8 5 3-22-12-4zM98 143l17-4 4 22-7 6-2-20-10 3z"/>
+  <circle cx="113" cy="103" r="2.5" fill="#d8b56e"/><path d="M42 48h103M42 178h103" stroke="#8c9aa1" stroke-width="1" opacity=".55"/>
+</svg>

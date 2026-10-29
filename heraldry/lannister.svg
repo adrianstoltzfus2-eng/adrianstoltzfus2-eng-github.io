@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240" role="img" aria-labelledby="title desc">
+ <title id="title">House Lannister banner</title><desc id="desc">A golden rampant lion on a deep crimson field.</desc>
+ <defs><linearGradient id="field" x2="0" y2="1"><stop stop-color="#851e27"/><stop offset="1" stop-color="#420e18"/></linearGradient><linearGradient id="gold" x2="1" y2="1"><stop stop-color="#ffe28a"/><stop offset=".5" stop-color="#d9a832"/><stop offset="1" stop-color="#a96a17"/></linearGradient></defs>
+ <path fill="#171316" d="M18 10h151v192l-76 30-75-30z"/><path fill="url(#field)" stroke="#d7b85f" stroke-width="3" d="M24 16h139v181l-69 27-70-27z"/>
+ <path fill="#6c1520" d="M34 28h119v157l-59 24-60-24z" opacity=".48"/>
+ <path fill="url(#gold)" stroke="#542d12" stroke-width="2.2" stroke-linejoin="round" d="m72 149 9-19-9-12-20 6-8-8 22-10-6-18 15-9 11 12 14-4 10-15 11 2 2 14 17 2 6 11-18 3-11 13-1 17 16 9 14 1 8 10-7 7-22-4-17-8-15 4-5 19 13 14-6 7-18-13-6-18-14 7-2 22-9 4-4-8 4-25 17-16-14-2-18 9-8-5 7-14 21-9 21-1z"/>
+ <path fill="url(#gold)" stroke="#542d12" stroke-width="2" d="m89 87 3-18 10-12 5 17-7 16zM104 83l11-15 14-7-5 16-12 11zM68 95l-11-15-15-7 3 17 14 12z"/>
+ <path fill="#f4d66d" d="m111 105 10-8 12 2-7 9z"/><circle cx="123" cy="104" r="2" fill="#321c15"/>
+ <path d="m105 118 14 5-10 6-10-4zM96 147l12 11M58 162l8 9" stroke="#714314" stroke-width="3" fill="none"/>
+ <path d="M42 48h103M42 178h103" stroke="#d8ad48" stroke-width="1" opacity=".55"/>
+</svg>

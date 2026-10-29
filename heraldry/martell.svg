@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240" role="img" aria-labelledby="title desc">
+ <title id="title">House Martell banner</title><desc id="desc">A gold spear piercing a golden sun on a burnt orange field.</desc>
+ <defs><linearGradient id="field" x2="0" y2="1"><stop stop-color="#bf512c"/><stop offset="1" stop-color="#76251e"/></linearGradient><linearGradient id="gold" x2="1" y2="1"><stop stop-color="#ffe293"/><stop offset=".5" stop-color="#d5a63e"/><stop offset="1" stop-color="#956524"/></linearGradient></defs>
+ <path fill="#171316" d="M18 10h151v192l-76 30-75-30z"/><path fill="url(#field)" stroke="#e0b96c" stroke-width="3" d="M24 16h139v181l-69 27-70-27z"/>
+ <path fill="#a53b27" d="M34 28h119v157l-59 24-60-24z" opacity=".38"/>
+ <g fill="url(#gold)" stroke="#5d321d" stroke-width="2">
+  <path d="m95 53 7 18 15-12-5 20 21-1-15 14 18 10-21 2 7 19-18-11-9 20-7-19-16 13 4-21-21 1 16-14-19-9 22-4-7-19 18 11z"/>
+  <circle cx="93" cy="96" r="24" fill="#e6bd5b"/><circle cx="93" cy="96" r="16" fill="#ae542f"/>
+  <path d="M45 166 136 62l6 5-91 104z"/><path d="m136 62 11-12-2 17-9 7z"/>
+ </g>
+ <path d="m49 158 8 7-11 14-8-7z" fill="#8d5c28"/><path d="M42 48h103M42 178h103" stroke="#e6be74" stroke-width="1" opacity=".55"/>
+</svg>
