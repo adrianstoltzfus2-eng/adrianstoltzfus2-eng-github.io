@@ -13,8 +13,9 @@
     html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#08090b;color:#eee7d7}
     body{font-family:Georgia,serif;user-select:none;-webkit-tap-highlight-color:transparent}
     #sceneImage,#swords{position:absolute;inset:0;width:100%;height:100%}
-    #sceneImage{object-fit:cover;object-position:center center}
-    #swords{overflow:visible}
+    #sceneImage{object-fit:cover;object-position:center center;animation:sceneFade .65s ease-out both}
+    #swords{overflow:visible;pointer-events:none}
+    @keyframes sceneFade{from{opacity:0}to{opacity:1}}
     header{position:absolute;z-index:2;top:max(env(safe-area-inset-top),12px);left:0;right:0;padding:12px 16px 20px;text-align:center;pointer-events:none;background:linear-gradient(180deg,rgba(5,7,9,.76),rgba(5,7,9,.28) 68%,transparent)}
     h1{margin:0;font:700 clamp(1.45rem,4.6vw,2.8rem)/1.08 Cinzel,Georgia,serif;letter-spacing:.08em;color:#e7dfce;text-shadow:0 2px 14px #000,0 0 25px #000}
     .rule{width:min(250px,54vw);height:1px;margin:9px auto 7px;background:linear-gradient(90deg,transparent,#c8a86c,transparent);opacity:.8}
@@ -23,16 +24,13 @@
     #hint.warn{color:#df8c83}
     #confirmHouse{pointer-events:auto;margin:9px auto 0;padding:8px 17px;border:1px solid #c8a86caa;border-radius:999px;background:#0b0d10e8;color:#ebd8ad;font:700 .68rem Cinzel,Georgia,serif;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 4px 18px #0009}
     #confirmHouse[hidden]{display:none}
-    .sword-select{cursor:pointer;outline:none;--c:#c8a86c}
-    .sword-select.locked{cursor:not-allowed;opacity:.34;filter:saturate(.45)}
-    .sword-select.mode-inactive{opacity:.29;pointer-events:none}
-    .sword-select .in{transform-box:fill-box;transform-origin:50% 100%;animation:swordRise .88s cubic-bezier(.18,.8,.22,1) both;animation-delay:var(--delay,0s);transition:translate .35s cubic-bezier(.2,.8,.2,1),scale .35s,filter .3s}
-    @keyframes swordRise{from{opacity:0;translate:0 125px;scale:.78}to{opacity:1;translate:0 0;scale:1}}
-    .sword-select:hover .in,.sword-select:focus-visible .in,.sword-select.preview .in{translate:0 -22px;filter:drop-shadow(0 0 9px var(--c))}
-    .sword-select.picked .in{translate:0 -40px;filter:drop-shadow(0 0 15px var(--c))}
-    .lingering{opacity:.34;pointer-events:none;animation:lingerIn 1.1s ease-out both;animation-delay:var(--delay,1s)}
-    .lingering .in{transform-box:fill-box;transform-origin:50% 100%;animation:swordRise 1.1s cubic-bezier(.18,.8,.22,1) both;animation-delay:var(--delay,1s)}
-    @keyframes lingerIn{from{opacity:0}to{opacity:.34}}
+    .sword-select{cursor:pointer;outline:none;--c:#c8a86c;pointer-events:auto}
+    .sword-select.locked{cursor:not-allowed;opacity:.35}
+    .sword-select.mode-inactive{opacity:.24;pointer-events:none}
+    .blade-hit{fill:none;stroke:transparent;stroke-width:25;stroke-linecap:round;pointer-events:stroke}
+    .blade-glint{fill:none;stroke:var(--c);stroke-width:1.2;stroke-linecap:round;opacity:0;filter:drop-shadow(0 0 3px var(--c));transition:opacity .22s ease,stroke-width .22s ease}
+    .sword-select:hover .blade-glint,.sword-select:focus-visible .blade-glint,.sword-select.preview .blade-glint{opacity:.7;stroke-width:2}
+    .sword-select.picked .blade-glint{opacity:.84;stroke-width:2.2}
     .mode-pin-panel{position:absolute;z-index:5;top:50%;left:50%;width:min(340px,calc(100vw - 36px));transform:translate(-50%,-50%);padding:24px 22px 20px;border:1px solid #d9be8770;border-top:2px solid #c8a86c;border-radius:10px;background:rgba(13,15,18,.96);box-shadow:0 16px 50px #000c;text-align:center;color:#eee7d7;font-family:Cinzel,Georgia,serif}
     .mode-pin-panel[hidden]{display:none}
     .mode-pin-panel label{display:block;margin-bottom:10px;color:#c8a86c;font-size:11px;letter-spacing:.19em}
@@ -44,26 +42,18 @@
     body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
     body.mobile-device #w{font-size:1rem}
     body.mobile-device #hint{font-size:.6rem;letter-spacing:.11em}
-    @media(prefers-reduced-motion:reduce){.sword-select .in,.lingering{animation:none}.sword-select .in{transition:none}header{transition:none}}
+    @media(prefers-reduced-motion:reduce){#sceneImage{animation:none}.blade-glint,header{transition:none}}
   </style>
 </head>
 <body>
-  <img id="sceneImage" src="./assets/throne-photo-scene.png" alt="The Iron Throne in a shadowed stone hall">
+  <img id="sceneImage" src="./assets/throne-photo-scene.png?v=2" alt="The Iron Throne in a shadowed stone hall with eight sword blades rising from the crown">
   <header>
     <h1 id="n">War of Westeros</h1><div class="rule"></div><p id="w">Choose your path</p>
     <small id="hint">Choose a sword to host or join</small>
     <button id="confirmHouse" type="button" hidden>Confirm choice</button>
   </header>
   <svg id="swords" viewBox="0 0 1264 845" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Iron Throne sword choices">
-    <defs>
-      <linearGradient id="bladeMetal" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#202428"/><stop offset=".2" stop-color="#737c81"/><stop offset=".42" stop-color="#c0c6c6"/><stop offset=".56" stop-color="#565e63"/><stop offset=".8" stop-color="#939b9c"/><stop offset="1" stop-color="#252a2e"/></linearGradient>
-      <linearGradient id="bladeEdge" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#899196" stop-opacity=".1"/><stop offset=".48" stop-color="#d9ddda" stop-opacity=".8"/><stop offset="1" stop-color="#899196" stop-opacity=".1"/></linearGradient>
-      <filter id="bladeShadow" x="-70%" y="-30%" width="240%" height="170%"><feGaussianBlur stdDeviation="3"/></filter>
-      <clipPath id="throneFront" clipPathUnits="userSpaceOnUse"><path d="M430 845V370Q465 352 487 335Q507 320 521 308Q540 302 555 293Q574 287 590 294L618 285 635 281 654 289Q672 286 688 299Q707 304 722 318Q744 331 760 351L800 386V845Z"/></clipPath>
-    </defs>
-    <g id="lingeringSwords" aria-hidden="true"></g>
     <g id="choiceSwords"></g>
-    <image href="./assets/throne-photo-scene.png" x="0" y="0" width="1264" height="845" preserveAspectRatio="none" clip-path="url(#throneFront)" pointer-events="none" aria-hidden="true"/>
   </svg>
   <form id="modePinPanel" class="mode-pin-panel" hidden>
     <label for="modePinInput">ENTER GAME PIN</label>
@@ -85,22 +75,18 @@
       {key:'arryn',name:'House Arryn',motto:'As High as Honor',color:'#6aa3e0'}
     ].map(h=>({...h,status:'open',note:''}));
     const ENTRY_CHOICES={3:{mode:'host',name:'Host a game',motto:'Create a new game'},4:{mode:'join',name:'Join a game',motto:'Enter a four-character PIN'}};
-    const HOUSE_X=[520,552,584,616,648,680,712,744],HOUSE_ANGLE=[-13,-10,-7,-4,4,7,10,13],BLADE_LENGTH=[108,118,126,134,134,126,118,108];
+    const BLADE_LINES=['M550 235L575 318','M582 213L596 319','M605 207L615 320','M628 203L628 320','M653 205L653 320','M676 210L668 320','M695 225L685 320','M720 238L700 320'];
     const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
     const confirmHouse=document.getElementById('confirmHouse'),modePinPanel=document.getElementById('modePinPanel');
     const modePinInput=document.getElementById('modePinInput'),pinError=document.getElementById('pinError');
-    const choiceSwords=document.getElementById('choiceSwords'),lingeringSwords=document.getElementById('lingeringSwords');
+    const choiceSwords=document.getElementById('choiceSwords');
     const inFrame=window.parent!==window,normHouse=v=>String(v||'').toLowerCase().replace(/^house\s+/,'').trim();
     let entryMode=new URLSearchParams(location.search).get('mode')==='entry',picked=-1,previewed=-1;
     const setHint=(text,warn=false)=>{hint.textContent=text;hint.classList.toggle('warn',warn)};
     const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     function houseAt(i){return H[i]}
-    function bladeMarkup(length,index){const top=-length,wear1=-Math.round(length*(.34+(index%3)*.035)),wear2=-Math.round(length*(.66-(index%2)*.04));return `<g class="blade-metal"><path d="M0 ${top} 2 ${top+9} 7 ${top+22} 5.5 ${top+27} 7 -20 11 0 5 4 0 -3 -5 4 -11 0 -7 -20 -5.5 ${top+27} -7 ${top+22} -2 ${top+9}Z" fill="#080a0c" opacity=".62" transform="translate(2 3)" filter="url(#bladeShadow)"/><path d="M0 ${top} 2 ${top+9} 7 ${top+22} 5.5 ${top+27} 7 -20 11 0 5 4 0 -3 -5 4 -11 0 -7 -20 -5.5 ${top+27} -7 ${top+22} -2 ${top+9}Z" fill="url(#bladeMetal)" stroke="#171b1e" stroke-width="1.7" stroke-linejoin="round"/><path d="M0 ${top+5} 2 ${top+20} 2.5 ${wear1} 0 -15Z" fill="url(#bladeEdge)" opacity=".84"/><path d="M0 ${top+18}V-22" fill="none" stroke="#282e32" stroke-width="1.4" opacity=".9"/><path d="M-2 ${top+28} 0 ${top+32} 2 ${top+28}M-2 ${wear2} 1 ${wear2+2} 3 ${wear2-1}M-3 -58 -1 -55 2 -57" fill="none" stroke="#d3d7d5" stroke-width=".8" opacity=".68"/><path d="M-4 ${wear1}l2 2 3-3M3 ${wear2-12}l-2 3 3 1" fill="none" stroke="#242a2e" stroke-width="1.1" opacity=".85"/><path d="M-5 ${top+39}Q0 ${top+36} 5 ${top+39}M-5 -42Q0 -45 5 -42" fill="none" stroke="#c0c7c8" stroke-opacity=".32" stroke-width=".7"/></g>`}
     function drawSwords(){
-      lingeringSwords.innerHTML=[
-        [500,350,-11,91,0],[635,354,1,82,1],[770,350,11,91,2]
-      ].map(([x,y,a,length,i])=>`<g class="lingering" style="--delay:${(1.05+i*.2).toFixed(2)}s" transform="translate(${x} ${y}) rotate(${a})">${bladeMarkup(length,i)}</g>`).join('');
-      choiceSwords.innerHTML=H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color};--delay:${(i*.095).toFixed(2)}s" transform="translate(${HOUSE_X[i]} 335) rotate(${HOUSE_ANGLE[i]})" role="button" aria-label="${escapeHtml(house.name)}"><g class="in">${bladeMarkup(BLADE_LENGTH[i],i)}</g><path d="M0 ${-BLADE_LENGTH[i]}V5" fill="none" stroke="transparent" stroke-width="28" pointer-events="stroke"/></g>`).join('');
+      choiceSwords.innerHTML=H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color}" role="button" aria-label="${escapeHtml(house.name)}"><path class="blade-glint" d="${BLADE_LINES[i]}" pointer-events="none"/><path class="blade-hit" d="${BLADE_LINES[i]}"/></g>`).join('');
       bindSwords();
     }
     function show(i){const house=houseAt(i),choice=entryMode?ENTRY_CHOICES[i]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);
