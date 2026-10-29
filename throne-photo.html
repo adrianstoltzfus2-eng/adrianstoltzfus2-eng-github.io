@@ -56,24 +56,14 @@
   </header>
   <svg id="swords" viewBox="0 0 1264 845" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Iron Throne sword choices">
     <defs>
-      <linearGradient id="bladeMetal" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#20252a"/><stop offset=".2" stop-color="#89949b"/><stop offset=".43" stop-color="#d4d9d7"/><stop offset=".58" stop-color="#626b72"/><stop offset=".78" stop-color="#abb3b5"/><stop offset="1" stop-color="#30363a"/></linearGradient>
-      <linearGradient id="grip" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#161514"/><stop offset=".5" stop-color="#5c5145"/><stop offset="1" stop-color="#171615"/></linearGradient>
+      <linearGradient id="bladeMetal" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#202428"/><stop offset=".2" stop-color="#737c81"/><stop offset=".42" stop-color="#c0c6c6"/><stop offset=".56" stop-color="#565e63"/><stop offset=".8" stop-color="#939b9c"/><stop offset="1" stop-color="#252a2e"/></linearGradient>
+      <linearGradient id="bladeEdge" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#899196" stop-opacity=".1"/><stop offset=".48" stop-color="#d9ddda" stop-opacity=".8"/><stop offset="1" stop-color="#899196" stop-opacity=".1"/></linearGradient>
       <filter id="bladeShadow" x="-70%" y="-30%" width="240%" height="170%"><feGaussianBlur stdDeviation="3"/></filter>
-      <symbol id="swordDesign" viewBox="-58 -240 116 310" overflow="visible">
-        <path d="M0-233 11-198 8-28 22-4 17 3 0 0-17 3-22-4-8-28-11-198Z" fill="#050607" opacity=".75" transform="translate(2 4)" filter="url(#bladeShadow)"/>
-        <path d="M0-233 11-198 8-28 22-4 17 3 0 0-17 3-22-4-8-28-11-198Z" fill="url(#bladeMetal)" stroke="#13171a" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M0-228 2-38 0-9-3-37Z" fill="#f0f3ef" opacity=".58"/>
-        <path d="M0-221V-31" stroke="#20262a" stroke-width="2" opacity=".78"/>
-        <path d="M-34-9Q-23-12-12-4L0 3 12-4Q23-12 34-9L31 0Q22 0 12 8H-12Q-22 0-31 0Z" fill="url(#bladeMetal)" stroke="#111416" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M-27-8Q-19-7-12-2M27-8Q19-7 12-2" fill="none" stroke="#e1dfd5" stroke-opacity=".7" stroke-width="1.5"/>
-        <path d="M-8 5H8V48L4 54H-4L-8 48Z" fill="url(#grip)" stroke="#101112" stroke-width="2"/>
-        <path d="M-7 13 7 19M-7 23 7 29M-7 33 7 39M-7 43 5 48" fill="none" stroke="#a49b8c" stroke-opacity=".52" stroke-width="2.3"/>
-        <path d="M-15 49H15L10 57 0 61-10 57Z" fill="url(#bladeMetal)" stroke="#111416" stroke-width="2"/>
-        <circle cy="55" r="4.2" fill="var(--c,#c8a86c)" stroke="#161719" stroke-width="1.5"/>
-      </symbol>
+      <clipPath id="throneFront" clipPathUnits="userSpaceOnUse"><path d="M430 845V370Q465 352 487 335Q507 320 521 308Q540 302 555 293Q574 287 590 294L618 285 635 281 654 289Q672 286 688 299Q707 304 722 318Q744 331 760 351L800 386V845Z"/></clipPath>
     </defs>
     <g id="lingeringSwords" aria-hidden="true"></g>
     <g id="choiceSwords"></g>
+    <image href="./assets/throne-photo-scene.png" x="0" y="0" width="1264" height="845" preserveAspectRatio="none" clip-path="url(#throneFront)" pointer-events="none" aria-hidden="true"/>
   </svg>
   <form id="modePinPanel" class="mode-pin-panel" hidden>
     <label for="modePinInput">ENTER GAME PIN</label>
@@ -95,7 +85,7 @@
       {key:'arryn',name:'House Arryn',motto:'As High as Honor',color:'#6aa3e0'}
     ].map(h=>({...h,status:'open',note:''}));
     const ENTRY_CHOICES={3:{mode:'host',name:'Host a game',motto:'Create a new game'},4:{mode:'join',name:'Join a game',motto:'Enter a four-character PIN'}};
-    const HOUSE_X=[470,516,562,608,660,706,752,798],HOUSE_ANGLE=[-8,-6,-4,-2,2,4,6,8];
+    const HOUSE_X=[520,552,584,616,648,680,712,744],HOUSE_ANGLE=[-13,-10,-7,-4,4,7,10,13],BLADE_LENGTH=[108,118,126,134,134,126,118,108];
     const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
     const confirmHouse=document.getElementById('confirmHouse'),modePinPanel=document.getElementById('modePinPanel');
     const modePinInput=document.getElementById('modePinInput'),pinError=document.getElementById('pinError');
@@ -105,11 +95,12 @@
     const setHint=(text,warn=false)=>{hint.textContent=text;hint.classList.toggle('warn',warn)};
     const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     function houseAt(i){return H[i]}
+    function bladeMarkup(length,index){const top=-length,wear1=-Math.round(length*(.34+(index%3)*.035)),wear2=-Math.round(length*(.66-(index%2)*.04));return `<g class="blade-metal"><path d="M0 ${top} 2 ${top+9} 7 ${top+22} 5.5 ${top+27} 7 -20 11 0 5 4 0 -3 -5 4 -11 0 -7 -20 -5.5 ${top+27} -7 ${top+22} -2 ${top+9}Z" fill="#080a0c" opacity=".62" transform="translate(2 3)" filter="url(#bladeShadow)"/><path d="M0 ${top} 2 ${top+9} 7 ${top+22} 5.5 ${top+27} 7 -20 11 0 5 4 0 -3 -5 4 -11 0 -7 -20 -5.5 ${top+27} -7 ${top+22} -2 ${top+9}Z" fill="url(#bladeMetal)" stroke="#171b1e" stroke-width="1.7" stroke-linejoin="round"/><path d="M0 ${top+5} 2 ${top+20} 2.5 ${wear1} 0 -15Z" fill="url(#bladeEdge)" opacity=".84"/><path d="M0 ${top+18}V-22" fill="none" stroke="#282e32" stroke-width="1.4" opacity=".9"/><path d="M-2 ${top+28} 0 ${top+32} 2 ${top+28}M-2 ${wear2} 1 ${wear2+2} 3 ${wear2-1}M-3 -58 -1 -55 2 -57" fill="none" stroke="#d3d7d5" stroke-width=".8" opacity=".68"/><path d="M-4 ${wear1}l2 2 3-3M3 ${wear2-12}l-2 3 3 1" fill="none" stroke="#242a2e" stroke-width="1.1" opacity=".85"/><path d="M-5 ${top+39}Q0 ${top+36} 5 ${top+39}M-5 -42Q0 -45 5 -42" fill="none" stroke="#c0c7c8" stroke-opacity=".32" stroke-width=".7"/></g>`}
     function drawSwords(){
       lingeringSwords.innerHTML=[
-        [466,515,-13,1.06],[634,535,2,1.12],[802,515,13,1.06]
-      ].map(([x,y,a,d],i)=>`<g class="lingering" style="--delay:${(1.05+i*.19).toFixed(2)}s" transform="translate(${x} ${y}) rotate(${a}) scale(${d})"><g class="in"><use href="#swordDesign" x="-58" y="-240" width="116" height="310"/></g></g>`).join('');
-      choiceSwords.innerHTML=H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color};--delay:${(i*.095).toFixed(2)}s" transform="translate(${HOUSE_X[i]} 408) rotate(${HOUSE_ANGLE[i]})" role="button" aria-label="${escapeHtml(house.name)}"><g class="in"><use href="#swordDesign" x="-58" y="-240" width="116" height="310"/></g><path d="M0-233V61" fill="none" stroke="transparent" stroke-width="38" pointer-events="stroke"/></g>`).join('');
+        [500,350,-11,91,0],[635,354,1,82,1],[770,350,11,91,2]
+      ].map(([x,y,a,length,i])=>`<g class="lingering" style="--delay:${(1.05+i*.2).toFixed(2)}s" transform="translate(${x} ${y}) rotate(${a})">${bladeMarkup(length,i)}</g>`).join('');
+      choiceSwords.innerHTML=H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color};--delay:${(i*.095).toFixed(2)}s" transform="translate(${HOUSE_X[i]} 335) rotate(${HOUSE_ANGLE[i]})" role="button" aria-label="${escapeHtml(house.name)}"><g class="in">${bladeMarkup(BLADE_LENGTH[i],i)}</g><path d="M0 ${-BLADE_LENGTH[i]}V5" fill="none" stroke="transparent" stroke-width="28" pointer-events="stroke"/></g>`).join('');
       bindSwords();
     }
     function show(i){const house=houseAt(i),choice=entryMode?ENTRY_CHOICES[i]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);
