@@ -85,9 +85,16 @@
     return state?.players?.find(p => p.id === playerId)?.username || 'Unknown player';
   }
 
+  const HOUSE_SPRITE_POSITION = {
+    stark: ['0%', '0%'], lannister: ['33.333%', '0%'], baratheon: ['66.667%', '0%'], targaryen: ['100%', '0%'],
+    tyrell: ['0%', '69%'], greyjoy: ['33.333%', '69%'], martell: ['66.667%', '69%'], arryn: ['100%', '69%']
+  };
+
   function houseBanner(house, className = 'house-sigil-art') {
     if (!house?.id) return '';
-    return `<img class="${className}" src="./heraldry/${escapeHtml(house.id)}.svg" alt="${escapeHtml(house.name)} house banner">`;
+    const position = HOUSE_SPRITE_POSITION[house.id];
+    if (!position) return '';
+    return `<span class="${className} house-sprite" style="--sprite-x:${position[0]};--sprite-y:${position[1]}" role="img" aria-label="${escapeHtml(house.name)} house banner"></span>`;
   }
 
   function renderPlayers() {

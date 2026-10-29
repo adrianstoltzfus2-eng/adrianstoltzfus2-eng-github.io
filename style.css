@@ -106,7 +106,7 @@ body.throne-open { overflow: hidden; }
 .chosen-house small { display: block; color: var(--gold); font-size: 8px; font-weight: 700; letter-spacing: .16em; }
 .chosen-house strong { display: block; margin-top: 4px; font: 600 15px Cinzel, Georgia, serif; }
 .chosen-house-identity { display: flex; align-items: center; gap: 10px; }
-.chosen-house-heraldry { width: 32px; height: 44px; object-fit: contain; border-radius: 2px; }
+.chosen-house-heraldry { width: 32px; height: 44px; border-radius: 2px; }
 
 .game-screen { max-width: 1800px; margin: 0 auto; padding: 22px clamp(12px, 2vw, 30px) 70px; }
 .welcome-strip { display: flex; gap: 18px; justify-content: space-between; align-items: center; padding: 24px 26px; margin-bottom: 17px; border-left: 3px solid var(--gold); }
@@ -129,7 +129,8 @@ body.throne-open { overflow: hidden; }
 
 .house-roster { display: flex; flex-direction: column; gap: 10px; }
 .roster-house { display: grid; grid-template-columns: 31px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 8px; border: 1px solid transparent; border-radius: 8px; background: rgba(255,255,255,.018); border-left: 2px solid var(--house-color); }
-.house-sigil-art { width: 38px; height: 54px; object-fit: contain; border: 1px solid rgba(217, 190, 135, .22); border-radius: 3px; background: #101216; }
+.house-sprite { display: inline-block; background-image: url("./assets/Banners.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--sprite-x, 0%) var(--sprite-y, 0%); }
+.house-sigil-art { width: 38px; height: 54px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 3px; background-color: #101216; }
 .roster-house-info { min-width: 0; }
 .roster-house-info strong { display: block; font: 600 11px Cinzel, Georgia, serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .roster-house-info small { display: block; color: var(--muted); font-size: 9px; margin-top: 4px; }
@@ -142,8 +143,8 @@ body.throne-open { overflow: hidden; }
 .player-row { display: flex; gap: 12px; align-items: center; padding: 9px; border: 1px solid rgba(217, 190, 135, .1); border-radius: 8px; background: rgba(255,255,255,.018); }
 .online-dot { width: 7px; height: 7px; margin-top: 0; border-radius: 50%; background: #575d66; flex-shrink: 0; }
 .online-dot.online { background: #79ad87; box-shadow: 0 0 10px #79ad8740; }
-.player-house-banner { width: 62px; height: 84px; flex: 0 0 62px; object-fit: contain; border: 1px solid rgba(217, 190, 135, .22); border-radius: 4px; background: #101216; box-shadow: 0 4px 12px rgba(0,0,0,.24); }
-.player-house-pending { display: grid; place-items: center; color: var(--gold); font: 600 26px Cinzel, Georgia, serif; border-style: dashed; }
+.player-house-banner { width: 74px; height: 90px; flex: 0 0 74px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 4px; background-color: #101216; box-shadow: 0 4px 12px rgba(0,0,0,.24); }
+.player-house-pending { display: grid; place-items: center; color: var(--gold); font: 600 26px Cinzel, Georgia, serif; border-style: dashed; background-image: none; }
 .player-row-info { min-width: 0; }
 .player-row-info strong { display: block; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
 .player-row-info small { display: block; color: var(--muted); font-size: 9px; margin-top: 4px; }
@@ -212,7 +213,7 @@ body.throne-open { overflow: hidden; }
 
 .my-house-banner { display: flex; align-items: center; gap: 10px; padding: 11px; border-left: 2px solid var(--house-color); background: rgba(255,255,255,.025); border-radius: 5px; }
 .my-house-banner > span { font-size: 28px; }
-.my-house-heraldry { width: 46px; height: 64px; object-fit: contain; border: 1px solid rgba(217, 190, 135, .2); border-radius: 3px; background: #101216; }
+.my-house-heraldry { width: 46px; height: 56px; border: 1px solid rgba(217, 190, 135, .2); border-radius: 3px; background-color: #101216; }
 .my-house-banner strong, .my-house-banner small { display: block; }
 .my-house-banner strong { font: 600 14px Cinzel, Georgia, serif; }
 .my-house-banner small { color: var(--muted); font-size: 9px; margin-top: 4px; }
