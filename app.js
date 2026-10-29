@@ -4,9 +4,11 @@
   const SERVER_URL = window.GOT_CONFIG?.serverUrl || 'http://localhost:3000';
   const tokenKey = 'ironThroneClientToken';
   const usernameKey = 'ironThroneUsername';
+  const roomCodeKey = 'warOfWesterosGamePin';
   // House chosen on the throne screen before logging in. Claimed automatically right after login.
   const pickedHouseKey = 'ironThronePickedHouse';
   let pickedHouse = null;
+  let gameCode = localStorage.getItem(roomCodeKey)?.toUpperCase() || '';
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
   const hashHouse = /^#house=([a-z\-]{2,40})$/i.exec(location.hash);
   if (hashHouse) {
@@ -113,6 +115,8 @@
 
   function renderWaitingRoom() {
     if (!state?.me) return;
+    $('lobbyRoomPin').textContent = gameCode || '——';
+    $('hostRoomPin').textContent = gameCode || '——';
     $('lobbyCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
     const setup = state.settings || { maxPlayers: 16, gameType: 'CLASSIC' };
     const gameTypeLabel = setup.gameType === 'LAST_DRAGON' ? 'Last Dragon · rules coming later' : 'Classic';
@@ -271,11 +275,13 @@
   // Flow: throne → name → waiting room → empty game canvas.
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
-    const showThrone = !loggedIn && !pickedHouse;
+    const showMode = !loggedIn && !gameCode;
+    const showThrone = !loggedIn && Boolean(gameCode) && !pickedHouse;
     const hostSetup = loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured;
     const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
+    $('modeScreen').hidden = !showMode;
     $('throneScreen').hidden = !showThrone;
-    $('loginScreen').hidden = loggedIn || showThrone;
+    $('loginScreen').hidden = loggedIn || !gameCode || showThrone;
     $('hostSetupScreen').hidden = !hostSetup;
     $('lobbyScreen').hidden = !waiting;
     $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY';
@@ -382,11 +388,25 @@
   } else {
     socket.on('connect', () => {
       setConnection(true, 'Connected to server');
-      socket.emit('request-state');
-      const savedName = localStorage.getItem(usernameKey);
-      if (savedName) socket.emit('login', { username: savedName, clientToken }, result => {
-        if (!result?.ok) showToast(result?.message || 'Could not restore your session.', 'error');
+      const restoreSession = () => {
+        socket.emit('request-state');
+        const savedName = gameCode ? localStorage.getItem(usernameKey) : null;
+        if (savedName) socket.emit('login', { username: savedName, clientToken }, result => {
+          if (!result?.ok) showToast(result?.message || 'Could not restore your session.', 'error');
+        });
+      };
+      if (gameCode) socket.emit('join-game-room', { pin: gameCode }, result => {
+        if (!result?.ok) {
+          gameCode = '';
+          localStorage.removeItem(roomCodeKey);
+          localStorage.removeItem(usernameKey);
+          render();
+          showToast(result?.message || 'That game PIN is no longer available.', 'error');
+          return;
+        }
+        restoreSession();
       });
+      else restoreSession();
     });
     socket.on('disconnect', () => setConnection(false, 'Disconnected — reconnecting'));
     socket.on('connect_error', () => setConnection(false, 'Server unavailable'));
@@ -426,6 +446,58 @@
       localStorage.setItem(usernameKey, username);
       showToast(result.message || 'Welcome to the realm.', 'success');
       socket.emit('request-state');
+    });
+  });
+  $('modeChoices').addEventListener('click', event => {
+    const choice = event.target.closest('[data-action]')?.dataset.action;
+    if (choice === 'open-join') {
+      $('modeChoices').hidden = true;
+      $('joinGameForm').hidden = false;
+      $('modeTitle').textContent = 'Enter a game PIN';
+      $('modeDescription').textContent = 'Ask the host for the six-character PIN, then join their hall.';
+      $('modeError').textContent = '';
+      $('gamePinInput').focus();
+      return;
+    }
+    if (choice !== 'host-game') return;
+    if (!socket?.connected) { $('modeError').textContent = 'Connecting to the game server. Try again in a moment.'; return; }
+    $('modeError').textContent = '';
+    socket.emit('create-game-room', { clientToken }, result => {
+      if (!result?.ok || !result.pin) { $('modeError').textContent = result?.message || 'Could not create a game.'; return; }
+      gameCode = result.pin;
+      localStorage.setItem(roomCodeKey, gameCode);
+      localStorage.removeItem(usernameKey);
+      setPickedHouse(null);
+      $('usernameInput').value = '';
+      $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
+      render();
+      sendHousesToThrone();
+    });
+  });
+  $('gamePinInput').addEventListener('input', () => { $('gamePinInput').value = $('gamePinInput').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); });
+  $('backToModes').addEventListener('click', () => {
+    $('joinGameForm').hidden = true;
+    $('modeChoices').hidden = false;
+    $('modeTitle').textContent = 'Choose your path';
+    $('modeDescription').textContent = 'Raise a new banner or join a game already underway.';
+    $('modeError').textContent = '';
+  });
+  $('joinGameForm').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!socket?.connected) { $('modeError').textContent = 'Connecting to the game server. Try again in a moment.'; return; }
+    const pin = $('gamePinInput').value.trim().toUpperCase();
+    if (pin.length !== 6) { $('modeError').textContent = 'Enter the complete six-character game PIN.'; return; }
+    $('modeError').textContent = '';
+    socket.emit('join-game-room', { pin }, result => {
+      if (!result?.ok) { $('modeError').textContent = result?.message || 'Could not join that game.'; return; }
+      gameCode = result.pin;
+      localStorage.setItem(roomCodeKey, gameCode);
+      localStorage.removeItem(usernameKey);
+      setPickedHouse(null);
+      $('usernameInput').value = '';
+      $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
+      render();
+      sendHousesToThrone();
     });
   });
   $('hostSetupForm').addEventListener('submit', event => {
@@ -521,6 +593,8 @@
     if (!window.confirm('Return to the start page? You will leave this game session.')) return;
     localStorage.removeItem(usernameKey);
     localStorage.removeItem(tokenKey);
+    localStorage.removeItem(roomCodeKey);
+    gameCode = '';
     setPickedHouse(null);
     const makePart = () => (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
     clientToken = `${makePart()}-${makePart()}`;
@@ -533,6 +607,8 @@
     if (socket?.connected) socket.emit('logout-player', {}, () => {});
     localStorage.removeItem(usernameKey);
     localStorage.removeItem(tokenKey);
+    localStorage.removeItem(roomCodeKey);
+    gameCode = '';
     state = state ? { ...state, me: null, myHouse: null } : null;
     setPickedHouse(null);
     $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);

@@ -3,7 +3,7 @@
 const express = require('express');
 const http = require('node:http');
 const { Server } = require('socket.io');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, randomBytes } = require('node:crypto');
 
 const PORT = Number(process.env.PORT) || 3000;
 const allowedOrigins = new Set(
@@ -52,13 +52,13 @@ const CAPITAL_DEFS = [
   { id: 'the-eyrie', name: 'The Eyrie', region: 'The Vale', icon: '🦅', defense: 4, originalHouseId: 'arryn' }
 ];
 
-const players = new Map();
-const tokenToPlayerId = new Map();
-const alliances = [];
-const allianceOffers = [];
-const publicMessages = [];
-const privateMessages = [];
-const events = [];
+let players = new Map();
+let tokenToPlayerId = new Map();
+let alliances = [];
+let allianceOffers = [];
+let publicMessages = [];
+let privateMessages = [];
+let events = [];
 let houses;
 let capitals;
 let phase;
@@ -119,6 +119,26 @@ function resetWorld(keepPlayers = true) {
   addEvent('important', 'The Great Houses gather. The realm is reset and the lobby is open.');
 }
 resetWorld(false);
+const gameRooms = new Map();
+const roomOwners = new Map();
+function captureWorld() {
+  return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, runoff, candidateIds, voterIds, gameSettings };
+}
+function activateWorld(world) {
+  ({ players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
+}
+const initialWorld = structuredClone(captureWorld());
+function withWorld(roomCode, callback) {
+  const room = gameRooms.get(roomCode);
+  if (!room) return null;
+  const previous = captureWorld();
+  activateWorld(room);
+  try { return callback(); }
+  finally {
+    gameRooms.set(roomCode, captureWorld());
+    activateWorld(previous);
+  }
+}
 
 function findHouse(id) { return houses.find(h => h.id === id) || null; }
 function findCapital(id) { return capitals.find(c => c.id === id) || null; }
@@ -195,8 +215,10 @@ function viewFor(playerId) {
     events: events.map(e => ({ ...e }))
   };
 }
-function broadcastState() {
-  for (const socket of io.sockets.sockets.values()) socket.emit('state', viewFor(socket.data.playerId || null));
+function broadcastState(roomCode) {
+  for (const socket of io.sockets.sockets.values()) {
+    if (socket.data.gameCode === roomCode) socket.emit('state', viewFor(socket.data.playerId || null));
+  }
 }
 function ack(callback, result) {
   if (typeof callback === 'function') callback(result);
@@ -206,11 +228,15 @@ function ok(message) { return { ok: true, message }; }
 function action(socket, eventName, handler) {
   socket.on(eventName, (payload = {}, callback) => {
     try {
-      const player = getPlayerForSocket(socket);
-      const result = handler(player, payload || {}, socket);
-      if (!result || result.ok === false) return ack(callback, result || fail('Action failed.'));
-      broadcastState();
-      ack(callback, result);
+      const roomCode = socket.data.gameCode;
+      if (!roomCode) return ack(callback, fail('Create or join a game before continuing.'));
+      const result = withWorld(roomCode, () => {
+        const player = getPlayerForSocket(socket);
+        const outcome = handler(player, payload || {}, socket);
+        if (outcome?.ok !== false) broadcastState(roomCode);
+        return outcome;
+      });
+      ack(callback, result || fail('That game room is no longer available.'));
     } catch (error) {
       console.error(`Action ${eventName} failed:`, error);
       ack(callback, fail('The server could not complete that action. Try again.'));
@@ -229,70 +255,117 @@ function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)
 
 io.on('connection', socket => {
   socket.data.playerId = null;
-  socket.on('request-state', () => socket.emit('state', viewFor(socket.data.playerId || null)));
+  socket.data.gameCode = null;
+  socket.on('create-game-room', (payload = {}, callback) => {
+    const ownerToken = String(payload.clientToken || '');
+    if (ownerToken.length < 16 || ownerToken.length > 200) return ack(callback, fail('Your browser session token is invalid. Refresh and try again.'));
+    if (socket.data.gameCode) socket.leave(socket.data.gameCode);
+    let pin;
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    do {
+      const bytes = randomBytes(6);
+      pin = [...bytes].map(byte => alphabet[byte & 31]).join('');
+    } while (gameRooms.has(pin));
+    gameRooms.set(pin, structuredClone(initialWorld));
+    roomOwners.set(pin, ownerToken);
+    socket.data.gameCode = pin;
+    socket.data.playerId = null;
+    socket.join(pin);
+    withWorld(pin, () => socket.emit('state', viewFor(null)));
+    ack(callback, { ...ok('Game created.'), pin });
+  });
 
-  socket.on('login', ({ username, clientToken } = {}, callback) => {
-    const name = String(username || '').trim().replace(/\s+/g, ' ');
-    const token = String(clientToken || '');
-    if (name.length < 2 || name.length > 22) return ack(callback, fail('Name must be between 2 and 22 characters.'));
-    if (token.length < 16 || token.length > 200) return ack(callback, fail('This browser session token is invalid. Refresh the page and try again.'));
+  socket.on('join-game-room', ({ pin: requestedPin } = {}, callback) => {
+    const pin = String(requestedPin || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    if (!gameRooms.has(pin)) return ack(callback, fail('No game was found with that PIN. Check it and try again.'));
+    if (socket.data.gameCode) socket.leave(socket.data.gameCode);
+    socket.data.gameCode = pin;
+    socket.data.playerId = null;
+    socket.join(pin);
+    withWorld(pin, () => socket.emit('state', viewFor(null)));
+    ack(callback, { ...ok('Joined the game.'), pin });
+  });
 
-    let playerId = tokenToPlayerId.get(token);
-    let player = playerId ? players.get(playerId) : null;
-    let isNew = false;
-    if (!player) {
-      if (hostId && !gameSettings.configured) return ack(callback, fail('The host is setting up the game. Try joining again in a moment.'));
-      if (phase !== 'LOBBY') return ack(callback, fail('This game has already started.'));
-      if (gameSettings.configured && players.size >= gameSettings.maxPlayers) return ack(callback, fail('This game is full.'));
-      playerId = randomUUID();
-      player = { id: playerId, username: name, token, houseId: null, vote: null, lastSpyRound: 0, connected: true, socketId: socket.id };
-      players.set(playerId, player);
-      tokenToPlayerId.set(token, playerId);
-      isNew = true;
-      if (!hostId) hostId = playerId;
-      addEvent('normal', `${name} entered the realm.`);
-    } else {
-      player.username = name;
-      player.connected = true;
-      player.socketId = socket.id;
-      if (player.houseId && phase === 'LOBBY') {
-        const h = findHouse(player.houseId);
-        if (h) player.houseId = h.id;
+  socket.on('request-state', () => {
+    const roomCode = socket.data.gameCode;
+    if (!roomCode) return socket.emit('state', viewFor(null));
+    withWorld(roomCode, () => socket.emit('state', viewFor(socket.data.playerId || null)));
+  });
+
+  socket.on('login', (payload = {}, callback) => {
+    const roomCode = socket.data.gameCode;
+    if (!roomCode) return ack(callback, fail('Create or join a game before entering the realm.'));
+    const result = withWorld(roomCode, () => {
+      const name = String(payload.username || '').trim().replace(/\s+/g, ' ');
+      const token = String(payload.clientToken || '');
+      if (name.length < 2 || name.length > 22) return fail('Name must be between 2 and 22 characters.');
+      if (token.length < 16 || token.length > 200) return fail('This browser session token is invalid. Refresh the page and try again.');
+
+      let playerId = tokenToPlayerId.get(token);
+      let player = playerId ? players.get(playerId) : null;
+      let isNew = false;
+      if (!player) {
+        if (!hostId && roomOwners.get(roomCode) !== token) return fail('Waiting for the host to enter the game. Try again in a moment.');
+        if (hostId && !gameSettings.configured) return fail('The host is setting up the game. Try joining again in a moment.');
+        if (phase !== 'LOBBY') return fail('This game has already started.');
+        if (gameSettings.configured && players.size >= gameSettings.maxPlayers) return fail('This game is full.');
+        playerId = randomUUID();
+        player = { id: playerId, username: name, token, houseId: null, vote: null, lastSpyRound: 0, connected: true, socketId: socket.id };
+        players.set(playerId, player);
+        tokenToPlayerId.set(token, playerId);
+        isNew = true;
+        if (!hostId) hostId = playerId;
+        addEvent('normal', `${name} entered the realm.`);
+      } else {
+        player.username = name;
+        player.connected = true;
+        player.socketId = socket.id;
+        if (player.houseId && phase === 'LOBBY') {
+          const h = findHouse(player.houseId);
+          if (h) player.houseId = h.id;
+        }
       }
-    }
-    socket.data.playerId = playerId;
-    // If the previous host left while nobody else was online, give the host role
-    // to the next player who joins. A reconnecting host keeps the role.
-    if (!hostId || !players.get(hostId)?.connected) hostId = playerId;
-    broadcastState();
-    ack(callback, ok(isNew ? 'Welcome to the realm.' : 'Welcome back. Your browser session was restored.'));
+      socket.data.playerId = playerId;
+      if (!hostId || !players.get(hostId)?.connected) hostId = playerId;
+      broadcastState(roomCode);
+      return ok(isNew ? 'Welcome to the realm.' : 'Welcome back. Your browser session was restored.');
+    });
+    ack(callback, result || fail('That game room is no longer available.'));
   });
 
   socket.on('logout-player', (_payload, callback) => {
-    const player = getPlayerForSocket(socket);
-    if (player && player.socketId === socket.id) {
+    const roomCode = socket.data.gameCode;
+    if (!roomCode) return ack(callback, ok('Signed out.'));
+    withWorld(roomCode, () => {
+      const player = getPlayerForSocket(socket);
+      if (player && player.socketId === socket.id) {
+        player.connected = false;
+        player.socketId = null;
+        if (player.id === hostId) {
+          const nextHost = connectedPlayers().find(p => p.id !== player.id);
+          if (nextHost) hostId = nextHost.id;
+        }
+      }
+      socket.data.playerId = null;
+      broadcastState(roomCode);
+    });
+    ack(callback, ok('Signed out.'));
+  });
+
+  socket.on('disconnect', () => {
+    const roomCode = socket.data.gameCode;
+    if (!roomCode) return;
+    withWorld(roomCode, () => {
+      const player = getPlayerForSocket(socket);
+      if (!player || player.socketId !== socket.id) return;
       player.connected = false;
       player.socketId = null;
       if (player.id === hostId) {
         const nextHost = connectedPlayers().find(p => p.id !== player.id);
         if (nextHost) hostId = nextHost.id;
       }
-    }
-    socket.data.playerId = null;
-    broadcastState();
-    ack(callback, ok('Signed out.'));
-  });
-
-  socket.on('disconnect', () => {
-    const player = getPlayerForSocket(socket);
-    if (!player || player.socketId !== socket.id) return;
-    player.connected = false;
-    player.socketId = null;
-    if (player.id === hostId) {
-      const nextHost = connectedPlayers().find(p => p.id !== player.id);
-      if (nextHost) hostId = nextHost.id;
-    }
-    broadcastState();
+      broadcastState(roomCode);
+    });
   });
 
   action(socket, 'select-house', (player, payload) => {
