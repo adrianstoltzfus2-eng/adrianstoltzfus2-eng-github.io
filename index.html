@@ -45,7 +45,7 @@
       <div class="panel-kicker">ENTER THE REALM</div>
       <h2>Join the council</h2>
       <div id="chosenHouse" class="chosen-house" hidden></div>
-      <p class="muted">Choose a display name to enter the temporary game lobby.</p>
+      <p class="muted">Choose the name the other houses will know you by.</p>
       <form id="loginForm">
         <label for="usernameInput">Your name</label>
         <input id="usernameInput" name="username" maxlength="22" minlength="2" placeholder="e.g. Eddard Stark" autocomplete="nickname" required>
@@ -54,6 +54,22 @@
       <p class="tiny-note"><strong>Prototype note:</strong> guest names are not password-protected. Do not use private or sensitive information.</p>
       <div id="loginError" class="form-error" aria-live="polite"></div>
     </section>
+  </main>
+
+  <main id="lobbyScreen" class="realm-screen" hidden>
+    <section class="realm-card panel">
+      <p class="eyebrow">THE GREAT HALL</p>
+      <h1>Those Gathered</h1>
+      <p class="muted">The houses are assembling. Choose your name and house, then wait for the server owner to begin.</p>
+      <div id="lobbyHousePicker" class="house-picker"></div>
+      <div class="lobby-roster-wrap"><div class="section-head"><h2>Joined and joining</h2><span id="lobbyCount" class="count-pill">0 players</span></div><div id="lobbyRoster" class="player-roster"></div></div>
+      <button id="startGameButton" class="button button-primary button-full" type="button" hidden>Begin the game <span>→</span></button>
+      <p id="lobbyHostNote" class="muted small-text lobby-host-note"></p>
+    </section>
+  </main>
+
+  <main id="startedScreen" class="realm-screen" hidden>
+    <section class="realm-card panel started-card"><p class="eyebrow">THE REALM AWAITS</p><h1>The game has begun</h1><div class="empty-game-space" aria-label="Game area ready for future content"></div></section>
   </main>
 
   <main id="gameScreen" class="game-screen" hidden>

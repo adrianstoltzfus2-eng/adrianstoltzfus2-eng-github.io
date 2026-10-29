@@ -109,7 +109,7 @@
   function renderHousePicker() {
     if (!state.me) return;
     const mine = state.me.houseId;
-    $('housePicker').innerHTML = state.houses.map(h => {
+    $('lobbyHousePicker').innerHTML = state.houses.map(h => {
       const minorTakenByOther = h.type === 'minor' && h.players.some(p => p.id !== state.me.id);
       const locked = h.type === 'minor' && !state.minorHousesUnlocked;
       const alreadyChosen = mine === h.id;
@@ -125,6 +125,18 @@
       </article>`;
     }).join('');
     $('lobbyStatus').textContent = state.minorHousesUnlocked ? 'Minor houses are unlocked. Each minor house can be claimed by one player.' : `Minor houses unlock at 7 joined players (${state.players.length}/7).`;
+  }
+
+  function renderWaitingRoom() {
+    if (!state?.me) return;
+    $('lobbyCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
+    $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
+      const house = state.houses.find(h => h.id === p.houseId);
+      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span><div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}</strong><small>${house ? `${escapeHtml(house.sigil)} House ${escapeHtml(house.name)}` : 'Joining · choosing a house'}${p.connected ? '' : ' · reconnecting'}</small></div></div>`;
+    }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
+    const canStart = state.isHost && state.phase === 'LOBBY';
+    $('startGameButton').hidden = !canStart;
+    $('lobbyHostNote').textContent = canStart ? 'As server owner, begin when everyone is ready.' : 'The server owner will begin the game when everyone is ready.';
   }
 
   function renderVotePanel() {
@@ -268,13 +280,16 @@
     else localStorage.removeItem(pickedHouseKey);
   }
 
-  // Which screen is showing: throne (no house yet) → name (house picked) → game (logged in).
+  // Flow: throne → name → waiting room → empty game canvas.
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
     const showThrone = !loggedIn && !pickedHouse;
+    const waiting = loggedIn && state?.phase === 'LOBBY';
     $('throneScreen').hidden = !showThrone;
     $('loginScreen').hidden = loggedIn || showThrone;
-    $('gameScreen').hidden = !loggedIn;
+    $('lobbyScreen').hidden = !waiting;
+    $('startedScreen').hidden = !loggedIn || waiting;
+    $('gameScreen').hidden = true;
     document.body.classList.toggle('throne-open', showThrone);
     const chosen = $('chosenHouse');
     if (chosen) {
@@ -329,6 +344,12 @@
     const loggedIn = Boolean(state.me);
     if (!loggedIn) return;
     claimPickedHouse();
+
+    renderWaitingRoom();
+    if (state.phase !== 'LOBBY') {
+      $('roundPill').textContent = 'THE GAME';
+      return;
+    }
 
     renderPhase();
     renderHouseRoster();
@@ -413,6 +434,7 @@
       socket.emit('request-state');
     });
   });
+  $('startGameButton').addEventListener('click', () => emitAction('start-election'));
 
   document.addEventListener('click', event => {
     const tab = event.target.closest('[data-chat-tab]');

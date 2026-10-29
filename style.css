@@ -90,6 +90,17 @@ input::placeholder { color: #69707b; }
 .throne-screen { position: fixed; inset: 0; z-index: 15; background: #07080a; }
 .throne-screen iframe { display: block; width: 100%; height: 100%; border: 0; }
 body.throne-open { overflow: hidden; }
+.realm-screen { min-height: calc(100vh - 76px); padding: clamp(28px, 6vh, 64px) 18px 34px; display: flex; justify-content: center; align-items: flex-start; background: radial-gradient(ellipse at 50% 0%, rgba(126, 93, 46, .13), transparent 58%); }
+.realm-card { width: min(900px, 100%); padding: clamp(22px, 4vw, 42px); border-top: 2px solid var(--gold); background: linear-gradient(155deg, rgba(32, 29, 25, .97), rgba(18, 20, 24, .98)); }
+.realm-card > h1 { margin: 4px 0 10px; font: 600 clamp(28px, 4vw, 44px)/1.15 Cinzel, Georgia, serif; color: #e3d2ad; }
+.realm-card > .muted { line-height: 1.7; }
+.realm-card .house-picker { margin-top: 24px; }
+.lobby-roster-wrap { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.lobby-roster-wrap .section-head { margin-bottom: 16px; }
+.lobby-roster-wrap h2 { margin: 0; font: 600 17px Cinzel, Georgia, serif; }
+.lobby-host-note { text-align: center; margin: 12px 0 0; }
+.started-card { min-height: min(68vh, 720px); }
+.empty-game-space { min-height: 52vh; margin-top: 24px; border: 1px solid rgba(200, 168, 108, .13); border-radius: 8px; background: radial-gradient(ellipse at 50% 0%, rgba(200, 168, 108, .035), transparent 65%), rgba(0, 0, 0, .12); }
 .chosen-house { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding: 11px 12px; border: 1px solid var(--line); border-left: 3px solid var(--house-color, var(--gold)); border-radius: 7px; background: rgba(255,255,255,.025); }
 .chosen-house small { display: block; color: var(--gold); font-size: 8px; font-weight: 700; letter-spacing: .16em; }
 .chosen-house strong { display: block; margin-top: 4px; font: 600 15px Cinzel, Georgia, serif; }
