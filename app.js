@@ -85,23 +85,16 @@
     return state?.players?.find(p => p.id === playerId)?.username || 'Unknown player';
   }
 
-  function renderHouseRoster() {
-    $('houseRoster').innerHTML = state.houses.map(h => {
-      const members = h.players.length ? h.players.map(p => `<span class="member-dot ${p.connected ? '' : 'member-offline'}" title="${escapeHtml(p.username)}">${escapeHtml(p.username.slice(0, 1).toUpperCase())}</span>`).join('') : '<span class="empty-members">No players</span>';
-      const capitals = h.capitalCount === 1 ? '1 capital' : `${h.capitalCount} capitals`;
-      return `<div class="roster-house" style="--house-color:${escapeHtml(h.color)}">
-        <span class="house-sigil">${escapeHtml(h.sigil)}</span>
-        <div class="roster-house-info"><strong>${escapeHtml(h.name)}</strong><small>${escapeHtml(capitals)} · ${h.players.length} player${h.players.length === 1 ? '' : 's'}</small></div>
-        <div class="member-stack">${members}</div>
-      </div>`;
-    }).join('');
+  function houseBanner(house, className = 'house-sigil-art') {
+    if (!house?.id) return '';
+    return `<img class="${className}" src="./heraldry/${escapeHtml(house.id)}.svg" alt="${escapeHtml(house.name)} house banner">`;
   }
 
   function renderPlayers() {
     $('playerCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
     $('playerRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
-      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span><div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}</strong><small>${house ? `${escapeHtml(house.sigil)} House ${escapeHtml(house.name)}` : 'No house chosen'}</small></div></div>`;
+      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${houseBanner(house, 'player-house-banner')}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'}</small></div></div>`;
     }).join('') : '<p class="muted small-text">No players have joined yet.</p>';
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
@@ -111,7 +104,7 @@
     $('lobbyCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
     $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
-      const banner = house ? `<img class="player-house-banner" src="./heraldry/${escapeHtml(house.id)}.svg" alt="${escapeHtml(house.name)} house banner">` : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
+      const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
       return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${banner}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'}${p.connected ? '' : ' · reconnecting'}</small></div></div>`;
     }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
     const canStart = state.isHost && state.phase === 'LOBBY';
@@ -153,7 +146,7 @@
     }
     const def = state.houses.find(h => h.id === house.id);
     $('myHouseTitle').textContent = `House ${house.name}`;
-    $('myHouseCard').innerHTML = `<div class="my-house-banner" style="--house-color:${escapeHtml(def?.color || '#888')}"><span>${escapeHtml(def?.sigil || '♜')}</span><div><strong>${escapeHtml(house.name)}</strong><small>${escapeHtml(def?.capital || '')}</small></div></div>
+    $('myHouseCard').innerHTML = `<div class="my-house-banner" style="--house-color:${escapeHtml(def?.color || '#888')}">${houseBanner(def, 'my-house-heraldry')}<div><strong>${escapeHtml(house.name)}</strong><small>${escapeHtml(def?.capital || '')}</small></div></div>
       <div class="my-house-stats"><div><span>GOLD</span><strong>◆ ${house.money}</strong></div><div><span>INFANTRY</span><strong>${house.infantry}</strong></div><div><span>NAVY</span><strong>${house.navy}</strong></div><div><span>DRAGONS</span><strong>${house.dragons}</strong></div></div>
       <div class="house-trait"><small>HOUSE BUFF</small><p>${escapeHtml(def?.buff || '')}</p></div>
       ${def?.nerf ? `<div class="house-trait trait-nerf"><small>HOUSE NERF</small><p>${escapeHtml(def.nerf)}</p></div>` : ''}
@@ -277,7 +270,7 @@
       chosen.hidden = !pickedHouse || loggedIn;
       if (pickedHouse) {
         chosen.style.setProperty('--house-color', house?.color || '#c8a86c');
-        chosen.innerHTML = `<div><small>YOUR HOUSE</small><strong>${escapeHtml(house?.sigil ? house.sigil + ' ' : '')}House ${escapeHtml(house?.name || pickedHouse.name.replace(/^house\s+/i, ''))}</strong></div><button class="button button-quiet button-small" type="button" data-action="change-house">Change</button>`;
+        chosen.innerHTML = `<div class="chosen-house-identity">${houseBanner(house, 'chosen-house-heraldry')}<div><small>YOUR HOUSE</small><strong>House ${escapeHtml(house?.name || pickedHouse.name.replace(/^house\s+/i, ''))}</strong></div></div><button class="button button-quiet button-small" type="button" data-action="change-house">Change</button>`;
       }
     }
   }
@@ -332,7 +325,6 @@
     }
 
     renderPhase();
-    renderHouseRoster();
     renderPlayers();
     if (state.phase === 'KING_VOTE') renderVotePanel();
     renderMyHouse();
