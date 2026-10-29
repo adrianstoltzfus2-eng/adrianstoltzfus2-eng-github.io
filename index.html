@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
-  <link rel="stylesheet" href="./style.css?v=11">
+  <link rel="stylesheet" href="./style.css?v=13">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=11" defer></script>
-  <script src="./app.js?v=11" defer></script>
+  <script src="./config.js?v=13" defer></script>
+  <script src="./app.js?v=13" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -26,34 +26,9 @@
     </div>
   </header>
 
-  <main id="modeScreen" class="mode-screen" aria-label="Host or join a game">
-    <section class="mode-card panel">
-      <p class="eyebrow">WAR OF WESTEROS</p>
-      <h1 id="modeTitle">Choose your path</h1>
-      <p id="modeDescription" class="muted">Raise a new banner or join a game already underway.</p>
-      <div id="modeChoices" class="mode-choices">
-        <button class="mode-choice" type="button" data-action="host-game">
-          <svg viewBox="0 0 48 110" aria-hidden="true"><path d="M24 4 29 20 25 73 23 73 19 20z" fill="currentColor"/><path d="M8 35Q24 28 40 35L37 41H11zM21 72h6l4 24-7 10-7-10z" fill="currentColor"/><path d="M24 8v61" stroke="#f7e6bd" stroke-opacity=".6" stroke-width="1.4"/></svg>
-          <strong>Host a game</strong><small>Create a room and share its PIN</small>
-        </button>
-        <button class="mode-choice" type="button" data-action="open-join">
-          <svg viewBox="0 0 48 110" aria-hidden="true"><path d="M24 4 29 20 25 73 23 73 19 20z" fill="currentColor"/><path d="M8 35Q24 28 40 35L37 41H11zM21 72h6l4 24-7 10-7-10z" fill="currentColor"/><path d="M24 8v61" stroke="#f7e6bd" stroke-opacity=".6" stroke-width="1.4"/></svg>
-          <strong>Join a game</strong><small>Enter a room PIN from the host</small>
-        </button>
-      </div>
-      <form id="joinGameForm" class="join-game-form" hidden>
-        <label for="gamePinInput">Game PIN</label>
-        <input id="gamePinInput" name="pin" maxlength="6" minlength="6" inputmode="text" autocomplete="one-time-code" placeholder="e.g. A4F9C2" required>
-        <button class="button button-primary button-full" type="submit">Join the game <span>→</span></button>
-        <button id="backToModes" class="button button-quiet button-full" type="button">Back</button>
-      </form>
-      <div id="modeError" class="form-error" aria-live="polite"></div>
-    </section>
-  </main>
-
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
-  <section id="throneScreen" class="throne-screen" aria-label="Choose your house">
-    <iframe id="throneFrame" src="./throne.html?v=4" title="War of Westeros — choose your house"></iframe>
+  <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
+    <iframe id="throneFrame" src="./throne.html?mode=entry&amp;v=6" title="War of Westeros throne selection"></iframe>
   </section>
 
   <main id="loginScreen" class="login-wrap" hidden>

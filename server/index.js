@@ -121,6 +121,43 @@ function resetWorld(keepPlayers = true) {
 resetWorld(false);
 const gameRooms = new Map();
 const roomOwners = new Map();
+const hostDisconnectTimers = new Map();
+const HOST_DISCONNECT_GRACE_MS = 2 * 60 * 1000;
+function cancelHostDisconnect(roomCode) {
+  const timer = hostDisconnectTimers.get(roomCode);
+  if (timer) clearTimeout(timer);
+  hostDisconnectTimers.delete(roomCode);
+}
+function endGameRoom(roomCode, message) {
+  if (!gameRooms.has(roomCode)) return;
+  cancelHostDisconnect(roomCode);
+  io.to(roomCode).emit('game-ended', { message });
+  for (const socket of io.sockets.sockets.values()) {
+    if (socket.data.gameCode !== roomCode) continue;
+    socket.data.gameCode = null;
+    socket.data.playerId = null;
+    socket.data.roomOwnerToken = null;
+    socket.leave(roomCode);
+  }
+  gameRooms.delete(roomCode);
+  roomOwners.delete(roomCode);
+}
+function scheduleHostDisconnect(roomCode) {
+  cancelHostDisconnect(roomCode);
+  const timer = setTimeout(() => {
+    const roomExists = gameRooms.has(roomCode);
+    if (!roomExists) return hostDisconnectTimers.delete(roomCode);
+    const hostOnline = withWorld(roomCode, () => {
+      const host = hostId ? players.get(hostId) : null;
+      if (host) return host.connected;
+      const ownerToken = roomOwners.get(roomCode);
+      return [...io.sockets.sockets.values()].some(socket => socket.data.gameCode === roomCode && socket.data.roomOwnerToken === ownerToken);
+    });
+    if (hostOnline) return hostDisconnectTimers.delete(roomCode);
+    endGameRoom(roomCode, 'This game ended because the host did not reconnect in time.');
+  }, HOST_DISCONNECT_GRACE_MS);
+  hostDisconnectTimers.set(roomCode, timer);
+}
 function captureWorld() {
   return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, runoff, candidateIds, voterIds, gameSettings };
 }
@@ -263,25 +300,28 @@ io.on('connection', socket => {
     let pin;
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     do {
-      const bytes = randomBytes(6);
+      const bytes = randomBytes(4);
       pin = [...bytes].map(byte => alphabet[byte & 31]).join('');
     } while (gameRooms.has(pin));
     gameRooms.set(pin, structuredClone(initialWorld));
     roomOwners.set(pin, ownerToken);
     socket.data.gameCode = pin;
     socket.data.playerId = null;
+    socket.data.roomOwnerToken = ownerToken;
     socket.join(pin);
     withWorld(pin, () => socket.emit('state', viewFor(null)));
     ack(callback, { ...ok('Game created.'), pin });
   });
 
-  socket.on('join-game-room', ({ pin: requestedPin } = {}, callback) => {
-    const pin = String(requestedPin || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  socket.on('join-game-room', ({ pin: requestedPin, clientToken } = {}, callback) => {
+    const pin = String(requestedPin || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
     if (!gameRooms.has(pin)) return ack(callback, fail('No game was found with that PIN. Check it and try again.'));
     if (socket.data.gameCode) socket.leave(socket.data.gameCode);
     socket.data.gameCode = pin;
     socket.data.playerId = null;
+    socket.data.roomOwnerToken = String(clientToken || '') === roomOwners.get(pin) ? String(clientToken) : null;
     socket.join(pin);
+    if (socket.data.roomOwnerToken) cancelHostDisconnect(pin);
     withWorld(pin, () => socket.emit('state', viewFor(null)));
     ack(callback, { ...ok('Joined the game.'), pin });
   });
@@ -326,7 +366,7 @@ io.on('connection', socket => {
         }
       }
       socket.data.playerId = playerId;
-      if (!hostId || !players.get(hostId)?.connected) hostId = playerId;
+      if (playerId === hostId || token === roomOwners.get(roomCode)) cancelHostDisconnect(roomCode);
       broadcastState(roomCode);
       return ok(isNew ? 'Welcome to the realm.' : 'Welcome back. Your browser session was restored.');
     });
@@ -336,36 +376,40 @@ io.on('connection', socket => {
   socket.on('logout-player', (_payload, callback) => {
     const roomCode = socket.data.gameCode;
     if (!roomCode) return ack(callback, ok('Signed out.'));
+    let hostSignedOut = false;
+    let noHost = false;
     withWorld(roomCode, () => {
       const player = getPlayerForSocket(socket);
       if (player && player.socketId === socket.id) {
         player.connected = false;
         player.socketId = null;
-        if (player.id === hostId) {
-          const nextHost = connectedPlayers().find(p => p.id !== player.id);
-          if (nextHost) hostId = nextHost.id;
-        }
+        hostSignedOut = player.id === hostId;
       }
+      noHost = !hostId;
       socket.data.playerId = null;
+      if (socket.data.roomOwnerToken) socket.data.roomOwnerToken = null;
       broadcastState(roomCode);
     });
+    if (hostSignedOut || (roomOwners.get(roomCode) && noHost)) endGameRoom(roomCode, 'The host left. This game has ended.');
     ack(callback, ok('Signed out.'));
   });
 
   socket.on('disconnect', () => {
     const roomCode = socket.data.gameCode;
     if (!roomCode) return;
+    let wasHost = false;
+    let noHost = false;
+    const wasRoomOwner = Boolean(socket.data.roomOwnerToken && socket.data.roomOwnerToken === roomOwners.get(roomCode));
     withWorld(roomCode, () => {
       const player = getPlayerForSocket(socket);
+      noHost = !hostId;
       if (!player || player.socketId !== socket.id) return;
       player.connected = false;
       player.socketId = null;
-      if (player.id === hostId) {
-        const nextHost = connectedPlayers().find(p => p.id !== player.id);
-        if (nextHost) hostId = nextHost.id;
-      }
+      wasHost = player.id === hostId;
       broadcastState(roomCode);
     });
+    if (wasHost || (wasRoomOwner && noHost)) scheduleHostDisconnect(roomCode);
   });
 
   action(socket, 'select-house', (player, payload) => {

@@ -91,23 +91,10 @@ input::placeholder { color: #69707b; }
 .throne-screen { position: fixed; inset: 0; z-index: 15; background: #07080a; }
 .throne-screen iframe { display: block; width: 100%; height: 100%; border: 0; }
 body.throne-open { overflow: hidden; }
-.mode-screen { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at 50% 15%, rgba(126, 93, 46, .2), transparent 55%), #090b0e; }
-.mode-card { width: min(760px, 100%); padding: clamp(24px, 5vw, 48px); text-align: center; border-top: 2px solid var(--gold); background: linear-gradient(155deg, rgba(32, 29, 25, .98), rgba(18, 20, 24, .98)); }
-.mode-card > h1 { margin: 4px 0 10px; font: 600 clamp(30px, 5vw, 46px)/1.15 Cinzel, Georgia, serif; color: #e3d2ad; }
-.mode-card > .muted { line-height: 1.65; }
-.mode-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
-.mode-choice { min-height: 235px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 18px; border: 1px solid rgba(217,190,135,.22); border-radius: 10px; color: var(--gold-bright); background: linear-gradient(160deg, rgba(200,168,108,.08), rgba(255,255,255,.015)); transition: transform .2s, border-color .2s, background .2s; }
-.mode-choice:hover, .mode-choice:focus-visible { transform: translateY(-3px); border-color: rgba(237,212,162,.65); background: linear-gradient(160deg, rgba(200,168,108,.16), rgba(255,255,255,.025)); }
-.mode-choice svg { width: 42px; height: 94px; filter: drop-shadow(0 0 12px rgba(200,168,108,.18)); }
-.mode-choice strong { font: 600 17px Cinzel, Georgia, serif; }
-.mode-choice small { color: var(--muted); font-size: 10px; }
-.join-game-form { max-width: 400px; margin: 26px auto 0; text-align: left; }
-.join-game-form input { text-align: center; font: 700 24px Cinzel, Georgia, serif; letter-spacing: .25em; text-transform: uppercase; }
-.join-game-form .button-full { margin-top: 12px; }
 .room-pin-line { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 16px 0 0; padding: 10px 12px; border: 1px solid rgba(217,190,135,.2); border-radius: 7px; background: rgba(200,168,108,.055); color: var(--gold); font-size: 9px; font-weight: 700; letter-spacing: .12em; }
 .room-pin-line strong { color: var(--gold-bright); font: 700 17px Cinzel, Georgia, serif; letter-spacing: .18em; }
 .room-pin-line span { margin-left: auto; color: var(--muted); font-size: 9px; font-weight: 400; letter-spacing: 0; }
-.mode-screen:not([hidden]), .throne-screen:not([hidden]), .realm-screen:not([hidden]) { animation: screenArrive .38s ease-out both; }
+.throne-screen:not([hidden]), .realm-screen:not([hidden]) { animation: screenArrive .38s ease-out both; }
 .throne-screen:not([hidden]) iframe { animation: throneArrive .68s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes screenArrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes throneArrive { from { opacity: 0; transform: scale(1.045); } to { opacity: 1; transform: scale(1); } }
@@ -156,7 +143,7 @@ body.throne-open { overflow: hidden; }
 
 .house-roster { display: flex; flex-direction: column; gap: 10px; }
 .roster-house { display: grid; grid-template-columns: 31px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 8px; border: 1px solid transparent; border-radius: 8px; background: rgba(255,255,255,.018); border-left: 2px solid var(--house-color); }
-.house-sprite { display: inline-block; background-image: url("./assets/Banners.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--sprite-x, 0%) var(--sprite-y, 0%); }
+.house-sprite { display: inline-block; overflow: hidden; background-image: url("./assets/Banners.png"); background-repeat: no-repeat; background-size: 400% 379%; background-position: var(--sprite-x, 0%) var(--sprite-y, 0%); }
 .house-sigil-art { width: 38px; height: 54px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 3px; background-color: #101216; }
 .roster-house-info { min-width: 0; }
 .roster-house-info strong { display: block; font: 600 11px Cinzel, Georgia, serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -170,7 +157,7 @@ body.throne-open { overflow: hidden; }
 .player-row { display: flex; gap: 12px; align-items: center; padding: 9px; border: 1px solid rgba(217, 190, 135, .1); border-radius: 8px; background: rgba(255,255,255,.018); }
 .online-dot { width: 7px; height: 7px; margin-top: 0; border-radius: 50%; background: #575d66; flex-shrink: 0; }
 .online-dot.online { background: #79ad87; box-shadow: 0 0 10px #79ad8740; }
-.player-house-banner { width: 74px; height: 90px; flex: 0 0 74px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 4px; background-color: #101216; box-shadow: 0 4px 12px rgba(0,0,0,.24); }
+.player-house-banner { width: 74px; height: 90px; flex: 0 0 74px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 4px; background-color: #101216; background-position-y: var(--sprite-y, 0%); box-shadow: 0 4px 12px rgba(0,0,0,.24); }
 .player-house-pending { display: grid; place-items: center; color: var(--gold); font: 600 26px Cinzel, Georgia, serif; border-style: dashed; background-image: none; }
 .player-row-info { min-width: 0; }
 .player-row-info strong { display: block; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
@@ -394,15 +381,6 @@ body.mobile-device .lobby-settings { margin-top: 10px; }
 body.mobile-device .started-card { min-height: calc(100dvh - 100px); }
 body.mobile-device .empty-game-space { min-height: 43dvh; margin-top: 16px; }
 body.mobile-device .footer { display: none; }
-body.mobile-device .mode-screen { padding: 14px 12px; }
-body.mobile-device .mode-card { padding: 22px 16px; }
-body.mobile-device .mode-choices { gap: 9px; margin-top: 20px; }
-body.mobile-device .mode-choice { min-height: 190px; padding: 12px 8px; gap: 8px; }
-body.mobile-device .mode-choice svg { width: 34px; height: 76px; }
-body.mobile-device .mode-choice strong { font-size: 13px; }
-body.mobile-device .mode-choice small { font-size: 8px; line-height: 1.4; }
-body.mobile-device .room-pin-line { gap: 7px; padding: 9px; font-size: 8px; }
-body.mobile-device .room-pin-line span { flex-basis: 100%; margin-left: 0; }
 @media (orientation: landscape) {
   body.mobile-device { overflow: hidden; }
   body.mobile-device .orientation-lock { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(7, 8, 10, .98); text-align: center; }
