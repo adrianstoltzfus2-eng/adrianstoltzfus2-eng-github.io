@@ -109,6 +109,9 @@
   function renderWaitingRoom() {
     if (!state?.me) return;
     $('lobbyCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
+    const setup = state.settings || { maxPlayers: 16, gameType: 'CLASSIC' };
+    const gameTypeLabel = setup.gameType === 'LAST_DRAGON' ? 'Last Dragon · rules coming later' : 'Classic';
+    $('lobbySettings').textContent = `${gameTypeLabel} · ${state.players.length} of ${setup.maxPlayers} players`;
     $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
       const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
@@ -264,13 +267,21 @@
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
     const showThrone = !loggedIn && !pickedHouse;
-    const waiting = loggedIn && state?.phase === 'LOBBY';
+    const hostSetup = loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured;
+    const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
     $('throneScreen').hidden = !showThrone;
     $('loginScreen').hidden = loggedIn || showThrone;
+    $('hostSetupScreen').hidden = !hostSetup;
     $('lobbyScreen').hidden = !waiting;
-    $('startedScreen').hidden = !loggedIn || waiting;
+    $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY';
     $('gameScreen').hidden = true;
     document.body.classList.toggle('throne-open', showThrone);
+    if (hostSetup) {
+      const maxSelect = $('maxPlayersInput');
+      if (!maxSelect.options.length) maxSelect.innerHTML = Array.from({ length: 15 }, (_, i) => i + 2).map(n => `<option value="${n}">${n} players</option>`).join('');
+      maxSelect.value = String(state.settings?.maxPlayers || 4);
+      $('gameTypeInput').value = state.settings?.gameType || 'CLASSIC';
+    }
     const chosen = $('chosenHouse');
     if (chosen) {
       const house = findPickedHouse();
@@ -410,6 +421,14 @@
       localStorage.setItem(usernameKey, username);
       showToast(result.message || 'Welcome to the realm.', 'success');
       socket.emit('request-state');
+    });
+  });
+  $('hostSetupForm').addEventListener('submit', event => {
+    event.preventDefault();
+    $('hostSetupError').textContent = '';
+    socket.emit('set-game-settings', { maxPlayers: Number($('maxPlayersInput').value), gameType: $('gameTypeInput').value }, result => {
+      if (!result?.ok) $('hostSetupError').textContent = result?.message || 'Could not save game setup.';
+      else showToast(result.message || 'Game setup saved.', 'success');
     });
   });
   $('startGameButton').addEventListener('click', () => emitAction('start-election'));

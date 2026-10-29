@@ -68,6 +68,7 @@ let kingPlayerId;
 let runoff;
 let candidateIds;
 let voterIds;
+let gameSettings;
 
 function freshHouses() {
   return HOUSE_DEFS.map(def => ({
@@ -91,6 +92,7 @@ function freshCapitals() {
 function resetWorld(keepPlayers = true) {
   phase = 'LOBBY';
   round = 1;
+  gameSettings = { configured: false, maxPlayers: 4, gameType: 'CLASSIC' };
   kingPlayerId = null;
   runoff = false;
   candidateIds = [];
@@ -173,6 +175,7 @@ function viewFor(playerId) {
   })) : [];
   return {
     phase, round, hostId, king: kingPlayerId && players.has(kingPlayerId) ? { id: kingPlayerId, username: players.get(kingPlayerId).username } : null,
+    settings: { ...gameSettings },
     isHost: Boolean(me && me.id === hostId), isKing: Boolean(me && me.id === kingPlayerId),
     me: me ? { id: me.id, username: me.username, houseId: me.houseId, vote: me.vote, lastSpyRound: me.lastSpyRound } : null,
     myHouse: makePrivateHouseView(myHouse),
@@ -238,6 +241,9 @@ io.on('connection', socket => {
     let player = playerId ? players.get(playerId) : null;
     let isNew = false;
     if (!player) {
+      if (hostId && !gameSettings.configured) return ack(callback, fail('The host is setting up the game. Try joining again in a moment.'));
+      if (phase !== 'LOBBY') return ack(callback, fail('This game has already started.'));
+      if (gameSettings.configured && players.size >= gameSettings.maxPlayers) return ack(callback, fail('This game is full.'));
       playerId = randomUUID();
       player = { id: playerId, username: name, token, houseId: null, vote: null, lastSpyRound: 0, connected: true, socketId: socket.id };
       players.set(playerId, player);
@@ -302,10 +308,25 @@ io.on('connection', socket => {
     return ok(`You have joined House ${h.name}.`);
   });
 
+  action(socket, 'set-game-settings', (player, payload) => {
+    const check = requirePlayer(player); if (check.ok === false) return check;
+    if (!isHost(player)) return fail('Only the host can set up this game.');
+    if (phase !== 'LOBBY') return fail('Game setup is closed after the game begins.');
+    const maxPlayers = Number(payload.maxPlayers);
+    const gameType = String(payload.gameType || '');
+    if (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 16) return fail('Choose a player limit from 2 to 16.');
+    if (maxPlayers < players.size) return fail(`The player limit cannot be lower than the ${players.size} players already joined.`);
+    if (!['CLASSIC', 'LAST_DRAGON'].includes(gameType)) return fail('Choose Classic or Last Dragon.');
+    gameSettings = { configured: true, maxPlayers, gameType };
+    addEvent('important', `The host set up a ${gameType === 'LAST_DRAGON' ? 'Last Dragon' : 'Classic'} game for ${maxPlayers} players.`);
+    return ok('Game setup saved. The hall is open.');
+  });
+
   action(socket, 'start-election', player => {
     const check = requirePlayer(player); if (check.ok === false) return check;
     if (!isHost(player)) return fail('Only the lobby host can begin the election.');
     if (phase !== 'LOBBY') return fail('The election has already started.');
+    if (!gameSettings.configured) return fail('The host must finish game setup first.');
     const eligible = eligiblePlayers();
     if (!eligible.length) return fail('At least one connected player must choose a house first.');
     if (eligible.some(p => !p.houseId)) return fail('Everyone connected must choose a house before the election begins.');

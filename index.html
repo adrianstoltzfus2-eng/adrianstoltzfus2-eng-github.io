@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
-  <link rel="stylesheet" href="./style.css?v=7">
+  <link rel="stylesheet" href="./style.css?v=8">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=7" defer></script>
-  <script src="./app.js?v=7" defer></script>
+  <script src="./config.js?v=8" defer></script>
+  <script src="./app.js?v=8" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -56,11 +56,32 @@
     </section>
   </main>
 
+  <main id="hostSetupScreen" class="realm-screen" hidden>
+    <section class="realm-card panel host-setup-card">
+      <p class="eyebrow">HOST ONLY · MATCH SETUP</p>
+      <h1>Prepare the game</h1>
+      <p class="muted">Choose how many players may join and which game type to use before opening the hall.</p>
+      <form id="hostSetupForm" class="host-setup-form">
+        <label for="maxPlayersInput">Player limit</label>
+        <select id="maxPlayersInput" name="maxPlayers" required></select>
+        <label for="gameTypeInput">Game type</label>
+        <select id="gameTypeInput" name="gameType" required>
+          <option value="CLASSIC">Classic</option>
+          <option value="LAST_DRAGON">Last Dragon · rules coming later</option>
+        </select>
+        <p class="muted small-text setup-note">Last Dragon is a placeholder for now; selecting it won’t change the current game rules.</p>
+        <button class="button button-primary button-full" type="submit">Save setup and open the hall <span>→</span></button>
+        <div id="hostSetupError" class="form-error" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+
   <main id="lobbyScreen" class="realm-screen" hidden>
     <section class="realm-card panel">
       <p class="eyebrow">THE GREAT HALL</p>
       <h1>Those Gathered</h1>
       <p class="muted">The houses are assembling. Here are the players who have joined or are joining.</p>
+      <p id="lobbySettings" class="lobby-settings muted small-text"></p>
       <div class="lobby-roster-wrap"><div class="section-head"><h2>Players</h2><span id="lobbyCount" class="count-pill">0 players</span></div><div id="lobbyRoster" class="player-roster"></div></div>
       <button id="startGameButton" class="button button-primary button-full" type="button" hidden>Begin the game <span>→</span></button>
       <p id="lobbyHostNote" class="muted small-text lobby-host-note"></p>
