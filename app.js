@@ -23,6 +23,11 @@
   }
 
   const $ = id => document.getElementById(id);
+  const isMobileDevice = () => Boolean(navigator.userAgentData?.mobile || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) || (window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 900));
+  const syncMobileLayout = () => document.body.classList.toggle('mobile-device', isMobileDevice());
+  syncMobileLayout();
+  window.addEventListener('resize', syncMobileLayout, { passive: true });
+  window.addEventListener('orientationchange', syncMobileLayout, { passive: true });
   const socket = window.io ? window.io(SERVER_URL, { autoConnect: true, reconnection: true, reconnectionAttempts: Infinity }) : null;
   let state = null;
   let activeChatTab = 'public';

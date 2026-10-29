@@ -26,6 +26,12 @@ svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 @media(prefers-reduced-motion:reduce){.br,.em,.dm,.hz{animation:none}}
 @media(prefers-reduced-motion:reduce){.in{transition:none}.fl{animation:none}}
 .tg{transform-box:fill-box;transform-origin:50% 100%;animation:tg 1s ease-in-out infinite alternate}@keyframes tg{0%{transform:scale(1,.88) skewX(-3deg)}50%{transform:scale(.94,1.06) skewX(2deg)}100%{transform:scale(1.04,.94) skewX(-1deg)}}.em2{opacity:0;animation:em2 4s linear infinite}@keyframes em2{0%{transform:translate(0,0) scale(1);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-420px) scale(.2);opacity:0}}.wallTorchBloom{opacity:.48;animation:wallFlicker 3.1s ease-in-out infinite alternate;mix-blend-mode:screen}.wallTorchBloom:nth-of-type(2n){animation-delay:-1.2s}@keyframes wallFlicker{0%{opacity:.14}27%{opacity:.24}54%{opacity:.17}78%{opacity:.28}100%{opacity:.19}}.windowWallBloom{opacity:.68;animation:windowPulse 12s ease-in-out infinite alternate}@keyframes windowPulse{to{opacity:.94}}@media(prefers-reduced-motion:reduce){.tg,.em2,.wallTorchBloom,.windowWallBloom{animation:none}}
+body.mobile-device header{top:max(env(safe-area-inset-top,0px),12px);padding:12px 10px 0}
+body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
+body.mobile-device p{font-size:1rem}
+body.mobile-device #hint{font-size:.62rem;letter-spacing:.12em;margin-top:6px}
+body.mobile-device svg{height:100dvh}
+body.mobile-device #foreground-pillars,body.mobile-device #arches,body.mobile-device #hall-window,body.mobile-device #hall-window-light,body.mobile-device #hall-torches,body.mobile-device #hall-torch-glow{display:none}
 </style></head>
 <body>
 <header><h1 id="n">War of Westeros</h1><div class="rule"></div><p id="w">Choose your house</p><small id="hint">Click a sword to swear fealty</small></header>
@@ -99,6 +105,8 @@ svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 let sd=11;const rnd=()=>(sd=sd*16807%2147483647)/2147483647,R=a=>(rnd()-.5)*a,f=n=>(+n).toFixed(1),D=Math.PI/180,pt=p=>f(p[0])+' '+f(p[1]);
 // Use the full laptop/desktop width instead of letterboxing the room into a narrow column.
 const HALL_H=1100,HALL_CX=400;let sceneW,sceneLeft,sceneRight,TF=[];
+const isPhone=()=>Boolean(navigator.userAgentData?.mobile||/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||(matchMedia('(pointer: coarse)').matches&&window.innerWidth<=900));
+document.body.classList.toggle('mobile-device',isPhone());
 // A sword blade pointing up from (0,0): bevelled facets, fuller, taper, bend and nicks
 function blade(o){
  if(o.h==null){const k=rnd()<.2;o.h=k?26:212;o.s=k?16:9}
@@ -129,7 +137,7 @@ const normHouse=v=>String(v||'').toLowerCase().replace(/^house\s+/,'').trim();
 function build(){
 sd=11;
 // The scene is sized from the real window each time, so the pillars always sit at the screen edges.
-sceneW=Math.max(800,HALL_H*window.innerWidth/Math.max(1,window.innerHeight));sceneLeft=HALL_CX-sceneW/2;sceneRight=HALL_CX+sceneW/2;
+sceneW=isPhone()?HALL_H*window.innerWidth/Math.max(1,window.innerHeight):Math.max(800,HALL_H*window.innerWidth/Math.max(1,window.innerHeight));sceneLeft=HALL_CX-sceneW/2;sceneRight=HALL_CX+sceneW/2;
 document.querySelectorAll('svg').forEach(el=>el.setAttribute('viewBox',`${f(sceneLeft)} -100 ${f(sceneW)} ${HALL_H}`));
 // ---- hall: dim back wall, wall torches, wide-set pillars with spiked fire pits, high window ----
 const MR=Math.random;
@@ -162,7 +170,7 @@ HB+=`<g id="arches">
 </g>`;
 HB+='<ellipse cx="400" cy="-105" rx="700" ry="620" fill="url(#wl)" opacity=".9"/>';
 // Move the window 145 units upward so only its lower edge remains near the top of the screen.
-HB+='<g transform="translate(0 -145)">';
+HB+='<g id="hall-window" transform="translate(0 -145)">';
 const WIN='M290 70V-210Q290 -430 400 -540Q510 -430 510 -210V70Z';
 HB+=`<path d="${WIN}" fill="#b9d0e0" opacity=".55" filter="url(#bl2)"/><path d="${WIN}" fill="#0b0e11" stroke="#12171c" stroke-width="50" stroke-linejoin="round"/><path d="${WIN}" fill="url(#sky)"/>`+
 `<path d="M345 -540V70M400 -540V70M455 -540V70M290 -70H510M290 -230H510" stroke="#05070a" stroke-width="7"/><path d="${WIN}" fill="none" stroke="#05070a" stroke-width="12" stroke-linejoin="round"/><rect x="252" y="68" width="296" height="26" fill="#161b20" stroke="#000"/><rect x="252" y="68" width="296" height="3" fill="#8fa5b6" opacity=".35"/><ellipse cx="400" cy="74" rx="300" ry="46" fill="url(#pool)"/>`;
@@ -302,8 +310,8 @@ s+=`<g id="foreground-pillars" transform="translate(0 115)">${PILLARS}</g>`;
 document.getElementById('g').innerHTML=s;
 // animated light layer (separate svg so the textured throne is never repainted)
 {let DS='';for(let i=0;i<40;i++)DS+=`<circle class="dm" cx="${f(250+MR()*330)}" cy="${f(-20+MR()*760)}" r="${f(.7+MR()*1.4)}" style="--dx:${f((MR()-.5)*70)}px;--dy:${f((MR()-.3)*60)}px;animation-duration:${f(16+MR()*18)}s;animation-delay:-${f(MR()*30)}s"/>`;
-document.getElementById('og').innerHTML=GG+`${BEAMS}<g class="hz"><ellipse cx="300" cy="700" rx="700" ry="70" fill="url(#hzg)"/><ellipse cx="560" cy="820" rx="800" ry="60" fill="url(#hzg)"/><ellipse cx="400" cy="600" rx="900" ry="90" fill="url(#hzg)"/></g>`+GF+DS+`<rect x="-1100" y="-400" width="3000" height="1500" filter="url(#grain)" opacity=".13" style="mix-blend-mode:overlay"/>`+[[sceneLeft,-100],[sceneRight,-100],[sceneLeft,1000],[sceneRight,1000]].map(([x,y])=>`<ellipse cx="${f(x)}" cy="${y}" rx="${f(sceneW*.36)}" ry="500" fill="url(#corner)"/>`).join('')+`<rect x="-3000" y="-2000" width="6600" height="4400" fill="url(#vg2)"/>`+
- `<g transform="translate(0 -145)"><path d="${WIN}" fill="#ffffff" opacity=".7" filter="url(#bl2)" style="mix-blend-mode:screen"/><path d="${WIN}" fill="url(#skyB)"/><path d="M345 -540V70M400 -540V70M455 -540V70M290 -70H510M290 -230H510" stroke="#0a0d10" stroke-width="7"/><path d="${WIN}" fill="none" stroke="#0a0d10" stroke-width="12" stroke-linejoin="round"/><rect x="252" y="68" width="296" height="26" fill="#1b2127" stroke="#000"/><rect x="252" y="68" width="296" height="3" fill="#e8f2f9" opacity=".7"/></g>`+
+document.getElementById('og').innerHTML=`<g id="hall-torch-glow">${GG}</g>`+`${BEAMS}<g class="hz"><ellipse cx="300" cy="700" rx="700" ry="70" fill="url(#hzg)"/><ellipse cx="560" cy="820" rx="800" ry="60" fill="url(#hzg)"/><ellipse cx="400" cy="600" rx="900" ry="90" fill="url(#hzg)"/></g><g id="hall-torches">${GF}</g>`+DS+`<rect x="-1100" y="-400" width="3000" height="1500" filter="url(#grain)" opacity=".13" style="mix-blend-mode:overlay"/>`+[[sceneLeft,-100],[sceneRight,-100],[sceneLeft,1000],[sceneRight,1000]].map(([x,y])=>`<ellipse cx="${f(x)}" cy="${y}" rx="${f(sceneW*.36)}" ry="500" fill="url(#corner)"/>`).join('')+`<rect x="-3000" y="-2000" width="6600" height="4400" fill="url(#vg2)"/>`+
+ `<g id="hall-window-light" transform="translate(0 -145)"><path d="${WIN}" fill="#ffffff" opacity=".7" filter="url(#bl2)" style="mix-blend-mode:screen"/><path d="${WIN}" fill="url(#skyB)"/><path d="M345 -540V70M400 -540V70M455 -540V70M290 -70H510M290 -230H510" stroke="#0a0d10" stroke-width="7"/><path d="${WIN}" fill="none" stroke="#0a0d10" stroke-width="12" stroke-linejoin="round"/><rect x="252" y="68" width="296" height="26" fill="#1b2127" stroke="#000"/><rect x="252" y="68" width="296" height="3" fill="#e8f2f9" opacity=".7"/></g>`+
  `<ellipse cx="400" cy="-66" rx="340" ry="80" fill="url(#dayGlow)" style="mix-blend-mode:screen"/>`}
 TF=[...Array(TI)].map((_,i)=>({g:document.querySelector(`[data-g="${i}"]`),a:[...document.querySelectorAll(`.fa[data-i="${i}"]`)],p:MR()*50}));
 bindSwords();

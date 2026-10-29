@@ -91,6 +91,7 @@ input::placeholder { color: #69707b; }
 .throne-screen { position: fixed; inset: 0; z-index: 15; background: #07080a; }
 .throne-screen iframe { display: block; width: 100%; height: 100%; border: 0; }
 body.throne-open { overflow: hidden; }
+.orientation-lock { display: none; }
 .realm-screen { min-height: calc(100vh - 76px); padding: clamp(28px, 6vh, 64px) 18px 34px; display: flex; justify-content: center; align-items: flex-start; background: radial-gradient(ellipse at 50% 0%, rgba(126, 93, 46, .13), transparent 58%); }
 .realm-card { width: min(900px, 100%); padding: clamp(22px, 4vw, 42px); border-top: 2px solid var(--gold); background: linear-gradient(155deg, rgba(32, 29, 25, .97), rgba(18, 20, 24, .98)); }
 .realm-card > h1 { margin: 4px 0 10px; font: 600 clamp(28px, 4vw, 44px)/1.15 Cinzel, Georgia, serif; color: #e3d2ad; }
@@ -338,4 +339,45 @@ body.throne-open { overflow: hidden; }
   .chat-form select { grid-column: 1 / -1; }
   .footer { flex-direction: column; padding: 18px; line-height: 1.5; }
   .alliance-row { align-items: flex-start; flex-direction: column; }
+}
+
+/* Phone-only layout. Desktop and laptop sizing stays on the existing rules above. */
+body.mobile-device { overflow-x: hidden; }
+body.mobile-device .topbar { min-height: 58px; padding: 0 12px; gap: 8px; }
+body.mobile-device .brand { gap: 8px; min-width: 0; }
+body.mobile-device .brand-mark { width: 27px; height: 34px; flex: 0 0 27px; }
+body.mobile-device .brand strong { font-size: 10px; letter-spacing: .1em; white-space: nowrap; }
+body.mobile-device .brand small { font-size: 6px; letter-spacing: .1em; }
+body.mobile-device .topbar-right { gap: 5px; }
+body.mobile-device .status-pill, body.mobile-device .round-pill { padding: 6px 7px; font-size: 8px; }
+body.mobile-device .status-pill span { display: none; }
+body.mobile-device .login-wrap { width: 100%; min-height: calc(100vh - 58px); min-height: calc(100dvh - 58px); padding: 14px 12px 22px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; gap: 0; }
+body.mobile-device .login-hero { display: none; }
+body.mobile-device .login-card { width: 100%; max-width: 480px; justify-self: center; padding: 21px 18px; }
+body.mobile-device .login-card h2 { font-size: 22px; }
+body.mobile-device .login-card > .muted { margin-bottom: 18px; }
+body.mobile-device .tiny-note { margin-top: 16px; }
+body.mobile-device .realm-screen { width: 100%; min-height: calc(100vh - 58px); min-height: calc(100dvh - 58px); padding: 12px 11px max(18px, env(safe-area-inset-bottom)); align-items: center; }
+body.mobile-device .realm-card { width: 100%; max-width: 560px; padding: 20px 16px; border-radius: 10px; }
+body.mobile-device .realm-card > h1 { font-size: clamp(25px, 7vw, 34px); }
+body.mobile-device .realm-card > .muted { font-size: 12px; }
+body.mobile-device .host-setup-form { margin-top: 16px; gap: 6px; }
+body.mobile-device .host-setup-form label { margin-top: 5px; }
+body.mobile-device .host-setup-form .button-full { margin-top: 8px; }
+body.mobile-device .lobby-roster-wrap { margin-top: 16px; padding-top: 14px; }
+body.mobile-device .player-roster { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
+body.mobile-device .player-house-banner { width: 60px; height: 74px; flex-basis: 60px; }
+body.mobile-device .player-row { gap: 9px; padding: 7px; }
+body.mobile-device .player-row-info strong { font-size: 10px; }
+body.mobile-device .player-row-info small { font-size: 9px; }
+body.mobile-device .lobby-settings { margin-top: 10px; }
+body.mobile-device .started-card { min-height: calc(100dvh - 100px); }
+body.mobile-device .empty-game-space { min-height: 43dvh; margin-top: 16px; }
+body.mobile-device .footer { display: none; }
+@media (orientation: landscape) {
+  body.mobile-device { overflow: hidden; }
+  body.mobile-device .orientation-lock { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(7, 8, 10, .98); text-align: center; }
+  body.mobile-device .orientation-lock > div { display: grid; gap: 10px; max-width: 320px; }
+  body.mobile-device .orientation-lock strong { font: 600 24px Cinzel, Georgia, serif; color: var(--gold-bright); }
+  body.mobile-device .orientation-lock span { color: var(--muted); line-height: 1.6; }
 }

@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
-  <link rel="stylesheet" href="./style.css?v=8">
+  <link rel="stylesheet" href="./style.css?v=9">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=8" defer></script>
-  <script src="./app.js?v=8" defer></script>
+  <script src="./config.js?v=9" defer></script>
+  <script src="./app.js?v=9" defer></script>
 </head>
 <body>
+  <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
   <header class="topbar">
@@ -27,7 +28,7 @@
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="Choose your house">
-    <iframe id="throneFrame" src="./throne.html?v=3" title="War of Westeros — choose your house"></iframe>
+    <iframe id="throneFrame" src="./throne.html?v=4" title="War of Westeros — choose your house"></iframe>
   </section>
 
   <main id="loginScreen" class="login-wrap" hidden>
