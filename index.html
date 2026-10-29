@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
-  <title>The Iron Throne — Multiplayer Strategy Prototype</title>
-  <link rel="stylesheet" href="./style.css?v=3">
+  <title>War of Westeros — Multiplayer Strategy</title>
+  <link rel="stylesheet" href="./style.css?v=4">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=3" defer></script>
-  <script src="./app.js?v=3" defer></script>
+  <script src="./config.js?v=4" defer></script>
+  <script src="./app.js?v=4" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
   <header class="topbar">
-    <a class="brand" href="./" aria-label="The Iron Throne home">
-      <span class="brand-mark">♜</span>
-      <span><strong>THE IRON THRONE</strong><small>THE GREAT HOUSES · MULTIPLAYER PROTOTYPE</small></span>
+    <a id="homeLink" class="brand" href="./" aria-label="War of Westeros start page">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 48" focusable="false"><path d="M7 6 10 17l4-11 4 12 4-12 4 12 4-12 3 14v4H7zM8 27h24v5H8zM11 32h18v4H11zM14 36h12v5H14zM6 42h28v3H6z" fill="currentColor"/><path d="M20 5v26" stroke="#17191d" stroke-width="1.5"/></svg></span>
+      <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small></span>
     </a>
     <div class="topbar-right">
       <span id="connectionPill" class="status-pill status-offline"><i></i><span>Connecting</span></span>
@@ -25,9 +25,9 @@
     </div>
   </header>
 
-  <!-- Step 1: house selection on the Iron Throne (throne.html). Step 2: name. Step 3: the game. -->
+  <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="Choose your house">
-    <iframe id="throneFrame" src="./throne.html?v=2" title="The Iron Throne — choose your house"></iframe>
+    <iframe id="throneFrame" src="./throne.html?v=3" title="War of Westeros — choose your house"></iframe>
   </section>
 
   <main id="loginScreen" class="login-wrap" hidden>
@@ -201,6 +201,6 @@
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
-  <footer class="footer"><span>THE IRON THRONE · PROTOTYPE BUILD 0.1</span><span>Power is a game of information, timing, and trust.</span></footer>
+  <footer class="footer"><span>WAR OF WESTEROS · PROTOTYPE BUILD 0.1</span><span>Power is a game of information, timing, and trust.</span></footer>
 </body>
 </html>

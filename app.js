@@ -514,6 +514,19 @@
     if (window.confirm('Reset the entire temporary game? All houses, votes, alliances, and armies will reset.')) emitAction('reset-game');
   });
 
+  $('homeLink').addEventListener('click', event => {
+    event.preventDefault();
+    if (!window.confirm('Return to the start page? You will leave this game session.')) return;
+    localStorage.removeItem(usernameKey);
+    localStorage.removeItem(tokenKey);
+    setPickedHouse(null);
+    const makePart = () => (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
+    clientToken = `${makePart()}-${makePart()}`;
+    localStorage.setItem(tokenKey, clientToken);
+    if (socket?.connected) socket.emit('logout-player', {}, () => window.location.reload());
+    setTimeout(() => window.location.reload(), 500);
+  });
+
   $('logoutButton').addEventListener('click', () => {
     if (socket?.connected) socket.emit('logout-player', {}, () => {});
     localStorage.removeItem(usernameKey);

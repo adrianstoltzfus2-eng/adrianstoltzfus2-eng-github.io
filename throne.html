@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Iron Throne — Choose your house</title>
+<title>War of Westeros — Choose your house</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IM+Fell+English:ital@1&display=swap">
 <style>
 :root{--c:#aeb4b9;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -28,7 +28,7 @@ svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .tg{transform-box:fill-box;transform-origin:50% 100%;animation:tg 1s ease-in-out infinite alternate}@keyframes tg{0%{transform:scale(1,.88) skewX(-3deg)}50%{transform:scale(.94,1.06) skewX(2deg)}100%{transform:scale(1.04,.94) skewX(-1deg)}}.em2{opacity:0;animation:em2 4s linear infinite}@keyframes em2{0%{transform:translate(0,0) scale(1);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-420px) scale(.2);opacity:0}}.wallTorchBloom{opacity:.48;animation:wallFlicker 3.1s ease-in-out infinite alternate;mix-blend-mode:screen}.wallTorchBloom:nth-of-type(2n){animation-delay:-1.2s}@keyframes wallFlicker{0%{opacity:.14}27%{opacity:.24}54%{opacity:.17}78%{opacity:.28}100%{opacity:.19}}.windowWallBloom{opacity:.68;animation:windowPulse 12s ease-in-out infinite alternate}@keyframes windowPulse{to{opacity:.94}}@media(prefers-reduced-motion:reduce){.tg,.em2,.wallTorchBloom,.windowWallBloom{animation:none}}
 </style></head>
 <body>
-<header><h1 id="n">The Iron Throne</h1><div class="rule"></div><p id="w">Choose your house</p><small id="hint">Click a sword to swear fealty</small></header>
+<header><h1 id="n">War of Westeros</h1><div class="rule"></div><p id="w">Choose your house</p><small id="hint">Click a sword to swear fealty</small></header>
 <svg viewBox="0 -100 800 1100" preserveAspectRatio="xMidYMax meet" role="img" aria-label="The Iron Throne, a tall fan of swords above a low seat on a stone dais">
 <defs>
 <linearGradient id="wall" gradientUnits="userSpaceOnUse" x1="0" y1="-300" x2="0" y2="1000"><stop offset="0" stop-color="#06080a"/><stop offset="1" stop-color="#14171a"/></linearGradient>
@@ -322,7 +322,7 @@ let picked=-1;
 const setHint=(t,warn)=>{hint.textContent=t;hint.classList.toggle('warn',!!warn)};
 const show=i=>{const h=H[i];n.textContent=h.name;w.textContent=h.motto;root.style.setProperty('--c',h.color);
  if(h.status!=='open')setHint(h.note||'Not available',true);else setHint(h.note?`${h.note} · click to choose`:'Click to choose this house')};
-const reset=()=>{if(picked>=0)return show(picked);n.textContent='The Iron Throne';w.textContent='Choose your house';setHint('Click a sword to swear fealty');root.style.setProperty('--c','#aeb4b9')};
+const reset=()=>{if(picked>=0)return show(picked);n.textContent='War of Westeros';w.textContent='Choose your house';setHint('Click a sword to swear fealty');root.style.setProperty('--c','#aeb4b9')};
 function pick(i){
  const h=H[i];
  if(h.status!=='open'){show(i);setHint(h.note||'Not available',true);return}
