@@ -329,6 +329,8 @@ function pick(i){
  picked=i;applyStatus();show(i);setHint('Sworn. Now give your name…');
  // The game page (same site) listens for this and moves on to the name screen.
  if(inFrame)window.parent.postMessage({type:'iron-throne:pick',house:h.key,name:h.name},location.origin==='null'?'*':location.origin);
+ // Opened by itself (not inside the game page): continue to the game's name screen.
+ else setTimeout(()=>{location.href='./index.html#house='+encodeURIComponent(h.key)},700);
 }
 function applyStatus(){document.querySelectorAll('.sw').forEach(e=>{const i=+e.dataset.i;e.classList.toggle('locked',H[i].status!=='open');e.classList.toggle('picked',i===picked);e.setAttribute('aria-disabled',H[i].status!=='open')})}
 function bindSwords(){document.querySelectorAll('.sw').forEach(e=>{const i=+e.dataset.i;
@@ -339,7 +341,7 @@ addEventListener('message',ev=>{
  if(ev.source!==window.parent||!ev.data)return;
  if(ev.data.type==='iron-throne:houses'&&Array.isArray(ev.data.houses)){
   for(const g of ev.data.houses){const h=H.find(x=>x.key===normHouse(g.name)||x.key===normHouse(g.id));if(!h)continue;
-   h.id=g.id;if(g.name)h.name='House '+String(g.name).replace(/^house\s+/i,'');if(g.motto)h.motto=String(g.motto);
+   h.id=g.id;if(g.name){const nm=String(g.name).replace(/^house\s+/i,'');h.name='House '+nm.charAt(0).toUpperCase()+nm.slice(1)}if(g.motto)h.motto=String(g.motto);
    if(/^#[0-9a-f]{3,8}$/i.test(g.color||''))h.color=g.color;h.status=['open','locked','claimed'].includes(g.status)?g.status:'open';h.note=String(g.note||'')}
   document.querySelectorAll('.sw').forEach(e=>e.style.setProperty('--c',H[+e.dataset.i].color));applyStatus();
  }

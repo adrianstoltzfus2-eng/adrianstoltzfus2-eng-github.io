@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101318">
-  <meta name="description" content="Play Westeros, a browser-based multiplayer strategy game. Choose a Great House, build armies, form alliances, and compete for the Iron Throne.">
-  <title>Play Westeros — The Iron Throne Multiplayer Strategy Game</title>
-  <link rel="stylesheet" href="./style.css">
+  <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
+  <title>The Iron Throne — Multiplayer Strategy Prototype</title>
+  <link rel="stylesheet" href="./style.css?v=2">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js" defer></script>
-  <script src="./app.js" defer></script>
+  <script src="./config.js?v=2" defer></script>
+  <script src="./app.js?v=2" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -25,7 +25,12 @@
     </div>
   </header>
 
-  <main id="loginScreen" class="login-wrap">
+  <!-- Step 1: house selection on the Iron Throne (throne.html). Step 2: name. Step 3: the game. -->
+  <section id="throneScreen" class="throne-screen" aria-label="Choose your house">
+    <iframe id="throneFrame" src="./throne.html?v=2" title="The Iron Throne — choose your house"></iframe>
+  </section>
+
+  <main id="loginScreen" class="login-wrap" hidden>
     <section class="login-hero">
       <p class="eyebrow">A REALM DIVIDED</p>
       <h1>Power is taken.<br><em>Never simply given.</em></h1>
@@ -39,6 +44,7 @@
     <section class="login-card panel">
       <div class="panel-kicker">ENTER THE REALM</div>
       <h2>Join the council</h2>
+      <div id="chosenHouse" class="chosen-house" hidden></div>
       <p class="muted">Choose a display name to enter the temporary game lobby.</p>
       <form id="loginForm">
         <label for="usernameInput">Your name</label>

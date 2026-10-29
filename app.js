@@ -8,6 +8,13 @@
   const pickedHouseKey = 'ironThronePickedHouse';
   let pickedHouse = null;
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
+  const hashHouse = /^#house=([a-z\-]{2,40})$/i.exec(location.hash);
+  if (hashHouse) {
+    const key = decodeURIComponent(hashHouse[1]).toLowerCase();
+    pickedHouse = { key, name: `House ${key.charAt(0).toUpperCase()}${key.slice(1)}` };
+    localStorage.setItem(pickedHouseKey, JSON.stringify(pickedHouse));
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   let clientToken = localStorage.getItem(tokenKey);
   if (!clientToken) {
     const makePart = () => (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
