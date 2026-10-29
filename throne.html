@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" href="./assets/iron-throne-icon.png?v=2">
 <title>War of Westeros — Choose your house</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IM+Fell+English:ital@1&display=swap">
 <style>
@@ -38,6 +39,9 @@ body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
 body.mobile-device p{font-size:1rem}
 body.mobile-device #hint{font-size:.62rem;letter-spacing:.12em;margin-top:6px}
 body.mobile-device #confirmHouse{pointer-events:auto;margin:10px auto 0;padding:9px 18px;border:1px solid color-mix(in srgb,var(--c) 70%,#554936);border-radius:999px;background:rgba(13,14,16,.88);color:var(--c);font:700 .68rem Cinzel,Georgia,serif;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 4px 18px #0009}
+header,#g,.sw,.mode-pin-panel{transition:opacity .3s ease,filter .35s ease,transform .35s ease}
+body.mode-switching header{opacity:.28;filter:blur(1px);transform:translateY(5px)}
+body.mode-switching #g{opacity:.82;filter:brightness(.88)}
 body.mobile-device svg{height:100dvh}
 body.mobile-device #foreground-pillars,body.mobile-device #arches,body.mobile-device #hall-window,body.mobile-device #hall-window-light,body.mobile-device #hall-torches,body.mobile-device #hall-torch-glow{display:none}
 </style></head>
@@ -112,7 +116,7 @@ body.mobile-device #foreground-pillars,body.mobile-device #arches,body.mobile-de
 <form id="modePinPanel" class="mode-pin-panel" hidden><label for="modePinInput">ENTER GAME PIN</label><input id="modePinInput" maxlength="4" minlength="4" inputmode="text" autocomplete="one-time-code" placeholder="A4F9" required><div><button type="submit">Join the game</button><button id="cancelPin" type="button">Back</button></div><small id="pinError" aria-live="polite"></small></form>
 <script>
 let sd=11;const rnd=()=>(sd=sd*16807%2147483647)/2147483647,R=a=>(rnd()-.5)*a,f=n=>(+n).toFixed(1),D=Math.PI/180,pt=p=>f(p[0])+' '+f(p[1]);
-const entryMode=new URLSearchParams(location.search).get('mode')==='entry';
+let entryMode=new URLSearchParams(location.search).get('mode')==='entry';
 // Use the full laptop/desktop width instead of letterboxing the room into a narrow column.
 const HALL_H=1100,HALL_CX=400;let sceneW,sceneLeft,sceneRight,TF=[];
 const isPhone=()=>Boolean(navigator.userAgentData?.mobile||/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||(matchMedia('(pointer: coarse)').matches&&window.innerWidth<=900));
@@ -348,6 +352,17 @@ const show=i=>{const h=H[i],choice=entryMode?ENTRY_CHOICES[i]:null;n.textContent
  if(entryMode&&choice)setHint(choice.mode==='host'?'Click to host a game':'Click to join a game');
  else if(h.status!=='open')setHint(h.note||'Not available',true);else setHint(h.note?`${h.note} · click to choose`:'Click to choose this house')};
 const reset=()=>{if(picked>=0)return show(picked);if(previewed>=0){const h=H[previewed],choice=entryMode?ENTRY_CHOICES[previewed]:null;n.textContent=choice?.name||h.name;w.textContent=choice?.motto||h.motto;root.style.setProperty('--c',h.color);setHint(entryMode?'Tap again or confirm your choice':'Tap again or confirm your house');return}n.textContent='War of Westeros';w.textContent=entryMode?'Choose your path':'Choose your house';setHint(entryMode?(isPhone()?'Tap a sword to preview':'Choose a sword to host or join'):(isPhone()?'Tap a sword to preview':'Click a sword to swear fealty'));root.style.setProperty('--c','#aeb4b9');confirmHouse.hidden=true};
+function transitionMode(mode){
+ const nextEntry=mode==='entry';
+ if(entryMode===nextEntry)return;
+ document.body.classList.add('mode-switching');
+ setTimeout(()=>{
+  entryMode=nextEntry;picked=-1;previewed=-1;confirmHouse.hidden=true;modePinPanel.hidden=true;pinError.textContent='';
+  confirmHouse.textContent=entryMode?'Confirm choice':'Confirm house';
+  applyStatus();reset();
+  requestAnimationFrame(()=>document.body.classList.remove('mode-switching'));
+ },160);
+}
 function pick(i){
  const h=H[i];
  if(entryMode){
@@ -383,6 +398,7 @@ document.getElementById('cancelPin').addEventListener('click',()=>{modePinPanel.
 // Live house data from the game page: [{name,motto,color,status:'open'|'locked'|'claimed',note}]
 addEventListener('message',ev=>{
  if(ev.source!==window.parent||!ev.data)return;
+ if(ev.data.type==='iron-throne:set-mode'&&['entry','house'].includes(ev.data.mode))transitionMode(ev.data.mode);
  if(ev.data.type==='iron-throne:mode-error'){const message=String(ev.data.message||'Could not continue.');pinError.textContent=message;setHint(modePinPanel.hidden?message:'Choose a sword to try again',true)}
  if(ev.data.type==='iron-throne:houses'&&Array.isArray(ev.data.houses)){
   for(const g of ev.data.houses){const h=H.find(x=>x.key===normHouse(g.name)||x.key===normHouse(g.id));if(!h)continue;

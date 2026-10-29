@@ -39,8 +39,8 @@ a { color: inherit; text-decoration: none; }
 
 .topbar { min-height: 76px; padding: 0 clamp(18px, 4vw, 60px); display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); background: rgba(13, 15, 19, .76); backdrop-filter: blur(18px); position: sticky; top: 0; z-index: 10; }
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand-mark { color: var(--gold); display: inline-flex; width: 34px; height: 42px; line-height: 1; filter: drop-shadow(0 0 7px rgba(200, 168, 108, .2)); }
-.brand-mark svg { width: 100%; height: 100%; overflow: visible; }
+.brand-mark { color: var(--gold); display: inline-flex; width: 38px; height: 38px; flex: 0 0 38px; line-height: 1; filter: drop-shadow(0 0 7px rgba(200, 168, 108, .2)); }
+.brand-mark img { width: 100%; height: 100%; object-fit: contain; }
 .brand strong { display: block; font: 700 15px Cinzel, Georgia, serif; letter-spacing: .14em; }
 .brand small { color: var(--muted); display: block; margin-top: 4px; font-size: 9px; letter-spacing: .18em; }
 .topbar-right { display: flex; align-items: center; gap: 14px; }
@@ -116,6 +116,7 @@ body.throne-open { overflow: hidden; }
 .lobby-host-note { text-align: center; margin: 12px 0 0; }
 .started-card { min-height: min(68vh, 720px); }
 .empty-game-space { min-height: 52vh; margin-top: 24px; border: 1px solid rgba(200, 168, 108, .13); border-radius: 8px; background: radial-gradient(ellipse at 50% 0%, rgba(200, 168, 108, .035), transparent 65%), rgba(0, 0, 0, .12); }
+.game-leadership { margin: 14px 0 0; color: #c6b78f; font-size: 11px; }
 .chosen-house { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding: 11px 12px; border: 1px solid var(--line); border-left: 3px solid var(--house-color, var(--gold)); border-radius: 7px; background: rgba(255,255,255,.025); }
 .chosen-house small { display: block; color: var(--gold); font-size: 8px; font-weight: 700; letter-spacing: .16em; }
 .chosen-house strong { display: block; margin-top: 4px; font: 600 15px Cinzel, Georgia, serif; }
@@ -143,7 +144,7 @@ body.throne-open { overflow: hidden; }
 
 .house-roster { display: flex; flex-direction: column; gap: 10px; }
 .roster-house { display: grid; grid-template-columns: 31px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 8px; border: 1px solid transparent; border-radius: 8px; background: rgba(255,255,255,.018); border-left: 2px solid var(--house-color); }
-.house-sprite { display: inline-block; overflow: hidden; background-image: url("./assets/Banners.png"); background-repeat: no-repeat; background-size: 400% 379%; background-position: var(--sprite-x, 0%) var(--sprite-y, 0%); }
+.house-sprite { display: inline-block; overflow: hidden; background-image: url("./assets/house-banners.png"); background-repeat: no-repeat; background-size: 400% 200%; background-position: var(--sprite-x, 0%) var(--sprite-y, 0%); }
 .house-sigil-art { width: 38px; height: 54px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 3px; background-color: #101216; }
 .roster-house-info { min-width: 0; }
 .roster-house-info strong { display: block; font: 600 11px Cinzel, Georgia, serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -157,13 +158,24 @@ body.throne-open { overflow: hidden; }
 .player-row { display: flex; gap: 12px; align-items: center; padding: 9px; border: 1px solid rgba(217, 190, 135, .1); border-radius: 8px; background: rgba(255,255,255,.018); }
 .online-dot { width: 7px; height: 7px; margin-top: 0; border-radius: 50%; background: #575d66; flex-shrink: 0; }
 .online-dot.online { background: #79ad87; box-shadow: 0 0 10px #79ad8740; }
-.player-house-banner { width: 74px; height: 90px; flex: 0 0 74px; border: 1px solid rgba(217, 190, 135, .22); border-radius: 4px; background-color: #101216; background-position-y: var(--sprite-y, 0%); box-shadow: 0 4px 12px rgba(0,0,0,.24); }
+.player-house-banner { width: 74px; height: 90px; flex: 0 0 74px; background-position-y: var(--sprite-y, 0%); }
 .player-house-pending { display: grid; place-items: center; color: var(--gold); font: 600 26px Cinzel, Georgia, serif; border-style: dashed; background-image: none; }
 .player-row-info { min-width: 0; }
 .player-row-info strong { display: block; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
 .player-row-info small { display: block; color: var(--muted); font-size: 9px; margin-top: 4px; }
 .host-tag, .king-tag { color: var(--gold); font-style: normal; font-size: 7px; letter-spacing: .1em; margin-left: 4px; }
 .king-tag { color: #df8c83; }
+.hand-tag { color: #a9c4df; font-style: normal; font-size: 7px; letter-spacing: .1em; margin-left: 4px; }
+.king-selection-card { max-width: 680px; }
+.first-king-identity { display: flex; align-items: center; gap: 18px; margin-top: 24px; padding: 16px; border: 1px solid rgba(217,190,135,.2); border-radius: 9px; background: rgba(200,168,108,.045); }
+.first-king-identity > div { display: grid; gap: 7px; }
+.first-king-identity small { color: var(--gold); font-size: 9px; letter-spacing: .15em; }
+.first-king-identity strong { font: 600 22px Cinzel, Georgia, serif; color: var(--gold-bright); }
+.first-king-banner { width: 74px; height: 90px; }
+.hand-selection-form { margin-top: 25px; }
+.hand-selection-form .muted { margin: 12px 0 0; }
+.hand-selection-form .button-full { margin-top: 18px; }
+.king-waiting-message { margin-top: 24px; padding: 16px; border-left: 2px solid var(--gold); background: rgba(255,255,255,.025); line-height: 1.7; }
 
 .house-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
 .house-choice { border: 1px solid var(--line); border-top: 2px solid var(--house-color); padding: 14px; border-radius: 9px; background: linear-gradient(155deg, rgba(255,255,255,.028), rgba(255,255,255,.008)); display: flex; flex-direction: column; min-width: 0; }

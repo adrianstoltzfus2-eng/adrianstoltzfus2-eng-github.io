@@ -33,7 +33,7 @@ const io = new Server(server, {
 const HOUSE_DEFS = [
   { id: 'stark', name: 'Stark', type: 'major', color: '#91a8c1', sigil: '🐺', motto: 'Winter is Coming', capital: 'Winterfell', buff: 'Northern resilience: +2 defense when Winterfell is attacked.', nerf: null },
   { id: 'lannister', name: 'Lannister', type: 'major', color: '#c8a45c', sigil: '🦁', motto: 'Hear Me Roar!', capital: 'Casterly Rock', buff: 'A rich house: begins with 5 extra gold.', nerf: null },
-  { id: 'baratheon', name: 'Baratheon', type: 'major', color: '#c7b8a0', sigil: '🦌', motto: 'Ours Is the Fury', capital: 'Storm’s End', buff: 'Royal authority: royal levies collect 1 extra gold from each house.', nerf: null },
+  { id: 'baratheon', name: 'Baratheon', type: 'major', color: '#c7b8a0', sigil: '🦌', motto: 'Ours Is the Fury', capital: 'Storm’s End', buff: 'Royal succession: one player of House Baratheon is chosen at random as the first king.', nerf: null },
   { id: 'targaryen', name: 'Targaryen', type: 'minor', color: '#bf6258', sigil: '🐉', motto: 'Fire and Blood', capital: 'Dragonstone', buff: 'Dragonlord: begins with 1 dragon; each dragon adds 5 battle strength and +2 siege strength.', nerf: 'The realm fears dragons: failed spy missions against this house are more likely.' },
   { id: 'tyrell', name: 'Tyrell', type: 'minor', color: '#76a77d', sigil: '🌹', motto: 'Growing Strong', capital: 'Highgarden', buff: 'The Reach: gains 2 extra gold per capital at round start.', nerf: 'Lavish courts: infantry recruitment costs 5 gold each.' },
   { id: 'greyjoy', name: 'greyjoy', type: 'minor', color: '#8f9da7', sigil: '🐙', motto: 'We Do Not Sow', capital: 'Pyke', buff: 'Iron Fleet: ships cost 4 gold each.', nerf: 'Hard shores: infantry recruitment costs 5 gold each.' },
@@ -65,6 +65,7 @@ let phase;
 let round;
 let hostId;
 let kingPlayerId;
+let handPlayerId;
 let runoff;
 let candidateIds;
 let voterIds;
@@ -94,6 +95,7 @@ function resetWorld(keepPlayers = true) {
   round = 1;
   gameSettings = { configured: false, maxPlayers: 4, gameType: 'CLASSIC' };
   kingPlayerId = null;
+  handPlayerId = null;
   runoff = false;
   candidateIds = [];
   voterIds = [];
@@ -114,6 +116,7 @@ function resetWorld(keepPlayers = true) {
       p.vote = null;
       p.lastSpyRound = 0;
       p.isKing = false;
+      p.isHand = false;
     }
   }
   addEvent('important', 'The Great Houses gather. The realm is reset and the lobby is open.');
@@ -159,10 +162,10 @@ function scheduleHostDisconnect(roomCode) {
   hostDisconnectTimers.set(roomCode, timer);
 }
 function captureWorld() {
-  return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, runoff, candidateIds, voterIds, gameSettings };
+  return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
 }
 function activateWorld(world) {
-  ({ players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
+  ({ players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
 }
 const initialWorld = structuredClone(captureWorld());
 function withWorld(roomCode, callback) {
@@ -194,7 +197,7 @@ function recalculateCapitalCounts() {
   for (const h of houses) h.capitalCount = capitals.filter(c => c.ownerHouseId === h.id).length;
 }
 function playerPublic(p) {
-  return { id: p.id, username: p.username, connected: p.connected, houseId: p.houseId, isKing: p.id === kingPlayerId };
+  return { id: p.id, username: p.username, connected: p.connected, houseId: p.houseId, isKing: p.id === kingPlayerId, isHand: p.id === handPlayerId };
 }
 function currentHouseView(h) {
   if (!h) return null;
@@ -232,8 +235,9 @@ function viewFor(playerId) {
   })) : [];
   return {
     phase, round, hostId, king: kingPlayerId && players.has(kingPlayerId) ? { id: kingPlayerId, username: players.get(kingPlayerId).username } : null,
+    hand: handPlayerId && players.has(handPlayerId) ? { id: handPlayerId, username: players.get(handPlayerId).username } : null,
     settings: { ...gameSettings },
-    isHost: Boolean(me && me.id === hostId), isKing: Boolean(me && me.id === kingPlayerId),
+    isHost: Boolean(me && me.id === hostId), isKing: Boolean(me && me.id === kingPlayerId), isHand: Boolean(me && me.id === handPlayerId),
     me: me ? { id: me.id, username: me.username, houseId: me.houseId, vote: me.vote, lastSpyRound: me.lastSpyRound } : null,
     myHouse: makePrivateHouseView(myHouse),
     houses: houses.map(currentHouseView),
@@ -439,62 +443,41 @@ io.on('connection', socket => {
     return ok('Game setup saved. The hall is open.');
   });
 
-  action(socket, 'start-election', player => {
+  action(socket, 'start-game', player => {
     const check = requirePlayer(player); if (check.ok === false) return check;
-    if (!isHost(player)) return fail('Only the lobby host can begin the election.');
-    if (phase !== 'LOBBY') return fail('The election has already started.');
+    if (!isHost(player)) return fail('Only the lobby host can begin the game.');
+    if (phase !== 'LOBBY') return fail('The game has already left the lobby.');
     if (!gameSettings.configured) return fail('The host must finish game setup first.');
-    const eligible = eligiblePlayers();
-    if (!eligible.length) return fail('At least one connected player must choose a house first.');
-    if (eligible.some(p => !p.houseId)) return fail('Everyone connected must choose a house before the election begins.');
-    phase = 'KING_VOTE';
+    const connected = connectedPlayers();
+    if (!connected.length) return fail('At least one connected player must choose a house first.');
+    if (connected.some(p => !p.houseId)) return fail('Everyone connected must choose a house before the game begins.');
+    const baratheons = connected.filter(p => p.houseId === 'baratheon');
+    if (!baratheons.length) return fail('At least one connected player must join House Baratheon to receive its first-king buff.');
+    kingPlayerId = baratheons[randomInt(0, baratheons.length - 1)].id;
+    handPlayerId = null;
+    phase = 'HAND_SELECTION';
     runoff = false;
-    voterIds = eligible.map(p => p.id);
-    candidateIds = [...voterIds];
+    voterIds = [];
+    candidateIds = [];
     for (const p of players.values()) p.vote = null;
-    addEvent('important', 'The Great Council has opened the king election.');
-    return ok('The king election has begun.');
+    addEvent('important', `${players.get(kingPlayerId)?.username || 'A Baratheon player'} was chosen at random as the first king.`);
+    return ok(`${players.get(kingPlayerId)?.username || 'A Baratheon player'} is the first king. They must appoint a Hand of the King.`);
   });
 
-  action(socket, 'vote-king', (player, payload) => {
+  action(socket, 'appoint-hand', (player, payload) => {
     const check = requirePlayer(player); if (check.ok === false) return check;
-    if (phase !== 'KING_VOTE') return fail('The king election is not open.');
-    if (!voterIds.includes(player.id)) return fail('You are not part of this ballot.');
-    if (player.vote) return fail('Your vote has already been recorded.');
-    const candidateId = String(payload.candidateId || '');
-    if (!candidateIds.includes(candidateId)) return fail('That candidate is not eligible in this ballot.');
-    player.vote = candidateId;
-    addEvent('normal', `${player.username} cast a vote in the king election.`);
-    return ok('Your vote has been recorded.');
-  });
-
-  action(socket, 'close-voting', player => {
-    const check = requirePlayer(player); if (check.ok === false) return check;
-    if (!isHost(player)) return fail('Only the host can close the ballot.');
-    if (phase !== 'KING_VOTE') return fail('There is no open ballot.');
-    const tallies = new Map(candidateIds.map(id => [id, 0]));
-    for (const id of voterIds) {
-      const vote = players.get(id)?.vote;
-      if (vote && tallies.has(vote)) tallies.set(vote, tallies.get(vote) + 1);
-    }
-    const maxVotes = Math.max(0, ...tallies.values());
-    if (maxVotes === 0) return fail('No votes have been cast yet.');
-    const leaders = [...tallies.entries()].filter(([, count]) => count === maxVotes).map(([id]) => id);
-    if (leaders.length > 1) {
-      candidateIds = leaders;
-      runoff = true;
-      for (const p of players.values()) p.vote = null;
-      addEvent('important', 'The election was tied. A runoff between the tied candidates has begun.');
-      return ok('The vote is tied. A runoff election has begun.');
-    }
-    kingPlayerId = leaders[0];
-    for (const p of players.values()) p.vote = null;
+    if (phase !== 'HAND_SELECTION') return fail('The king is not choosing a Hand right now.');
+    if (player.id !== kingPlayerId) return fail('Only the king can appoint the Hand of the King.');
+    const targetId = String(payload.playerId || '');
+    const target = players.get(targetId);
+    if (!target) return fail('Choose a player who has joined this game.');
+    handPlayerId = target.id;
+    addEvent('important', `${player.username} appointed ${target.username} as Hand of the King.`);
     phase = 'ACTION';
     round = 1;
-    runoff = false;
     for (const h of houses) h.hasAttackedThisRound = false;
-    addEvent('important', `${players.get(kingPlayerId)?.username || 'A candidate'} was elected king. Round 1 begins.`);
-    return ok(`${players.get(kingPlayerId)?.username || 'A candidate'} has been elected king.`);
+    addEvent('important', 'Round 1 begins. The game is underway.');
+    return ok(`${target.username} is the Hand of the King. Round 1 begins.`);
   });
 
   action(socket, 'purchase', (player, payload) => {

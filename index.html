@@ -6,10 +6,11 @@
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
-  <link rel="stylesheet" href="./style.css?v=13">
+  <link rel="icon" type="image/png" href="./assets/iron-throne-icon.png?v=2">
+  <link rel="stylesheet" href="./style.css?v=16">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=13" defer></script>
-  <script src="./app.js?v=13" defer></script>
+  <script src="./config.js?v=16" defer></script>
+  <script src="./app.js?v=16" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -17,7 +18,7 @@
   <div class="ambient ambient-two"></div>
   <header class="topbar">
     <a id="homeLink" class="brand" href="./" aria-label="War of Westeros start page">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 48" focusable="false"><path d="M7 6 10 17l4-11 4 12 4-12 4 12 4-12 3 14v4H7zM8 27h24v5H8zM11 32h18v4H11zM14 36h12v5H14zM6 42h28v3H6z" fill="currentColor"/><path d="M20 5v26" stroke="#17191d" stroke-width="1.5"/></svg></span>
+      <span class="brand-mark" aria-hidden="true"><img src="./assets/iron-throne-icon.png?v=2" alt=""></span>
       <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small></span>
     </a>
     <div class="topbar-right">
@@ -28,7 +29,7 @@
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
-    <iframe id="throneFrame" src="./throne.html?mode=entry&amp;v=6" title="War of Westeros throne selection"></iframe>
+    <iframe id="throneFrame" src="./throne.html?mode=entry&amp;v=7" title="War of Westeros throne selection"></iframe>
   </section>
 
   <main id="loginScreen" class="login-wrap" hidden>
@@ -91,8 +92,24 @@
     </section>
   </main>
 
+  <main id="kingSelectionScreen" class="realm-screen" hidden>
+    <section class="realm-card panel king-selection-card">
+      <p class="eyebrow">THE FIRST KING</p>
+      <h1>The crown passes to Baratheon</h1>
+      <p class="muted">The first king is chosen at random from the players who joined House Baratheon.</p>
+      <div id="firstKingIdentity" class="first-king-identity"></div>
+      <form id="handSelectionForm" class="hand-selection-form" hidden>
+        <label for="handPlayerSelect">Appoint the Hand of the King</label>
+        <select id="handPlayerSelect" required></select>
+        <p class="muted small-text">Choose any player in the game. The game begins as soon as the appointment is made.</p>
+        <button class="button button-primary button-full" type="submit">Appoint the Hand and begin Round 1 <span>→</span></button>
+      </form>
+      <p id="kingWaitingMessage" class="king-waiting-message muted" hidden></p>
+    </section>
+  </main>
+
   <main id="startedScreen" class="realm-screen" hidden>
-    <section class="realm-card panel started-card"><p class="eyebrow">THE REALM AWAITS</p><h1>The game has begun</h1><div class="empty-game-space" aria-label="Game area ready for future content"></div></section>
+    <section class="realm-card panel started-card"><p class="eyebrow">THE REALM AWAITS</p><h1>The game has begun</h1><p id="gameLeadership" class="muted game-leadership"></p><div class="empty-game-space" aria-label="Game area ready for future content"></div></section>
   </main>
 
   <main id="gameScreen" class="game-screen" hidden>

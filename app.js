@@ -27,7 +27,11 @@
   const $ = id => document.getElementById(id);
   function setThronePage(mode) {
     const frame = $('throneFrame');
-    if (frame) frame.src = mode === 'entry' ? './throne.html?mode=entry&v=6' : './throne.html?v=6';
+    if (frame) frame.src = mode === 'entry' ? './throne.html?mode=entry&v=7' : './throne.html?v=7';
+  }
+  function transitionThrone(mode) {
+    const frame = $('throneFrame');
+    if (frame?.contentWindow) frame.contentWindow.postMessage({ type: 'iron-throne:set-mode', mode }, location.origin === 'null' ? '*' : location.origin);
   }
   setThronePage(gameCode ? 'house' : 'entry');
   const isMobileDevice = () => Boolean(navigator.userAgentData?.mobile || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) || (window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 900));
@@ -42,7 +46,7 @@
 
   const PHASES = {
     LOBBY: ['THE LOBBY', 'The Great Houses', 'Choose a house. The lobby host can begin the Great Council once everyone has joined a house.'],
-    KING_VOTE: ['THE GREAT COUNCIL', 'Choose the king', 'Cast your vote. The lobby host closes the ballot; a tie triggers a runoff.'],
+    HAND_SELECTION: ['THE FIRST KING', 'Appoint the Hand', 'The first king was chosen at random from the players of House Baratheon. The king chooses the Hand of the King before Round 1 begins.'],
     ACTION: ['ROUND ACTIONS', `Round ${state?.round || 1}: prepare your moves`, 'Recruit forces, purchase intelligence, and plan an attack. Army sizes stay private from enemy houses.'],
     COURT: ['THE ROYAL COURT', 'Words and alliances', 'Negotiate, make alliance offers, exchange secret messages, and let the king issue one decree.'],
     RESOLUTION: ['ROUND RESOLUTION', 'The realm answers', 'The host resolves the round. Pending attacks that are due are calculated and the realm chronicle is updated.']
@@ -57,7 +61,7 @@
   }
 
   function phaseLabel(phase) {
-    return ({ LOBBY: 'LOBBY', KING_VOTE: 'KING VOTE', ACTION: `ROUND ${state?.round || 1} · ACTION`, COURT: `ROUND ${state?.round || 1} · COURT`, RESOLUTION: `ROUND ${state?.round || 1} · RESOLUTION` })[phase] || phase;
+    return ({ LOBBY: 'LOBBY', HAND_SELECTION: 'FIRST KING', ACTION: `ROUND ${state?.round || 1} · ACTION`, COURT: `ROUND ${state?.round || 1} · COURT`, RESOLUTION: `ROUND ${state?.round || 1} · RESOLUTION` })[phase] || phase;
   }
 
   function showToast(message, kind = 'normal') {
@@ -99,7 +103,7 @@
 
   const HOUSE_SPRITE_POSITION = {
     stark: ['0%', '0%'], lannister: ['33.333%', '0%'], baratheon: ['66.667%', '0%'], targaryen: ['100%', '0%'],
-    tyrell: ['0%', '61%'], greyjoy: ['33.333%', '61%'], martell: ['66.667%', '61%'], arryn: ['100%', '61%']
+    tyrell: ['0%', '100%'], greyjoy: ['33.333%', '100%'], martell: ['66.667%', '100%'], arryn: ['100%', '100%']
   };
 
   function houseBanner(house, className = 'house-sigil-art') {
@@ -113,7 +117,7 @@
     $('playerCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
     $('playerRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
-      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${houseBanner(house, 'player-house-banner')}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'}</small></div></div>`;
+      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${houseBanner(house, 'player-house-banner')}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}${p.isHand ? ' <em class="hand-tag">HAND</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'}</small></div></div>`;
     }).join('') : '<p class="muted small-text">No players have joined yet.</p>';
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
@@ -132,8 +136,26 @@
       return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${banner}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'}${p.connected ? '' : ' · reconnecting'}</small></div></div>`;
     }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
     const canStart = state.isHost && state.phase === 'LOBBY';
+    const hasBaratheon = state.players.some(p => p.connected && p.houseId === 'baratheon');
     $('startGameButton').hidden = !canStart;
-    $('lobbyHostNote').textContent = canStart ? 'As server owner, begin when everyone is ready.' : 'The server owner will begin the game when everyone is ready.';
+    $('startGameButton').disabled = canStart && !hasBaratheon;
+    $('lobbyHostNote').textContent = canStart ? (hasBaratheon ? 'As server owner, begin when everyone is ready.' : 'A connected player must join House Baratheon to receive its first-king buff.') : 'The server owner will begin the game when everyone is ready.';
+  }
+
+  function renderKingSelection() {
+    const king = state.king;
+    const kingPlayer = state.players.find(player => player.id === king?.id);
+    const house = state.houses.find(item => item.id === kingPlayer?.houseId);
+    $('firstKingIdentity').innerHTML = `${houseBanner(house, 'player-house-banner first-king-banner')}<div><small>FIRST KING · HOUSE BARATHEON</small><strong>${escapeHtml(king?.username || 'Awaiting the king')}</strong></div>`;
+    $('handSelectionForm').hidden = !state.isKing;
+    $('kingWaitingMessage').hidden = state.isKing;
+    $('kingWaitingMessage').textContent = `${king?.username || 'The king'} is choosing the Hand of the King. The game will begin when the appointment is made.`;
+    $('handPlayerSelect').innerHTML = state.players.map(player => {
+      const playerHouse = state.houses.find(item => item.id === player.houseId);
+      return `<option value="${escapeHtml(player.id)}">${escapeHtml(player.username)}${playerHouse ? ` · House ${escapeHtml(playerHouse.name)}` : ''}${player.connected ? '' : ' · reconnecting'}</option>`;
+    }).join('');
+    $('handPlayerSelect').disabled = !state.players.length;
+    $('handSelectionForm').querySelector('button').disabled = !state.players.length;
   }
 
   function renderVotePanel() {
@@ -257,10 +279,10 @@
 
     const controls = $('hostControls');
     if (state.isHost) {
-      const action = ({ LOBBY: ['start-election', 'Begin king election'], KING_VOTE: ['close-voting', 'Close the vote'], ACTION: ['advance-phase', 'Open the court →'], COURT: ['advance-phase', 'Resolve this round →'], RESOLUTION: ['advance-phase', `Begin Round ${state.round + 1} →`] })[state.phase];
+      const action = ({ LOBBY: ['start-game', 'Begin the game'], ACTION: ['advance-phase', 'Open the court →'], COURT: ['advance-phase', 'Resolve this round →'], RESOLUTION: ['advance-phase', `Begin Round ${state.round + 1} →`] })[state.phase];
       controls.innerHTML = `<span class="host-label">YOU ARE HOST</span><button class="button button-primary" data-action="${action[0]}">${action[1]}</button>`;
     } else {
-      const message = state.phase === 'LOBBY' ? 'The host will start the election.' : state.phase === 'KING_VOTE' ? 'Waiting for the host to close the ballot.' : 'Waiting for the host to advance the phase.';
+      const message = state.phase === 'LOBBY' ? 'The host will begin when everyone is ready.' : 'Waiting for the host to advance the phase.';
       controls.innerHTML = `<span class="waiting-label">${escapeHtml(message)}</span>`;
     }
     $('resetGameButton').hidden = !state.isHost;
@@ -287,7 +309,8 @@
     $('loginScreen').hidden = loggedIn || !gameCode || showThrone;
     $('hostSetupScreen').hidden = !hostSetup;
     $('lobbyScreen').hidden = !waiting;
-    $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY';
+    $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
+    $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY' || state?.phase === 'HAND_SELECTION';
     $('gameScreen').hidden = true;
     document.body.classList.toggle('throne-open', showThrone);
     if (hostSetup) {
@@ -351,14 +374,19 @@
     claimPickedHouse();
 
     renderWaitingRoom();
+    if (state.phase === 'HAND_SELECTION') {
+      renderKingSelection();
+      $('roundPill').textContent = 'FIRST KING';
+      return;
+    }
     if (state.phase !== 'LOBBY') {
       $('roundPill').textContent = 'THE GAME';
+      $('gameLeadership').textContent = `King: ${state.king?.username || '—'} · Hand of the King: ${state.hand?.username || '—'}`;
       return;
     }
 
     renderPhase();
     renderPlayers();
-    if (state.phase === 'KING_VOTE') renderVotePanel();
     renderMyHouse();
     renderCapitalBoard();
     renderAlliances();
@@ -446,7 +474,7 @@
         localStorage.removeItem(usernameKey);
         setPickedHouse(null);
         $('usernameInput').value = '';
-        setThronePage('house');
+        transitionThrone('house');
         render();
         sendHousesToThrone();
       });
@@ -462,7 +490,7 @@
         localStorage.removeItem(usernameKey);
         setPickedHouse(null);
         $('usernameInput').value = '';
-        setThronePage('house');
+        transitionThrone('house');
         render();
         sendHousesToThrone();
       });
@@ -501,7 +529,11 @@
       else showToast(result.message || 'Game setup saved.', 'success');
     });
   });
-  $('startGameButton').addEventListener('click', () => emitAction('start-election'));
+  $('startGameButton').addEventListener('click', () => emitAction('start-game'));
+  $('handSelectionForm').addEventListener('submit', event => {
+    event.preventDefault();
+    emitAction('appoint-hand', { playerId: $('handPlayerSelect').value });
+  });
 
   document.addEventListener('click', event => {
     const tab = event.target.closest('[data-chat-tab]');
@@ -521,8 +553,7 @@
       return;
     }
     if (action === 'select-house') emitAction('select-house', { houseId: button.dataset.houseId });
-    else if (action === 'start-election') emitAction('start-election');
-    else if (action === 'close-voting') emitAction('close-voting');
+    else if (action === 'start-game') emitAction('start-game');
     else if (action === 'advance-phase') emitAction('advance-phase');
     else if (action === 'respond-alliance') emitAction('respond-alliance', { offerId: button.dataset.offerId, accept: button.dataset.accept === 'true' });
     else if (action === 'break-alliance') emitAction('break-alliance', { allianceId: button.dataset.allianceId });
