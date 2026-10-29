@@ -86,6 +86,14 @@ input::placeholder { color: #69707b; }
 .tiny-note strong { color: #b1a184; }
 .form-error { color: #df8c83; font-size: 11px; margin-top: 12px; min-height: 15px; }
 
+/* Iron Throne house-selection screen (step 1) */
+.throne-screen { position: fixed; inset: 0; z-index: 15; background: #07080a; }
+.throne-screen iframe { display: block; width: 100%; height: 100%; border: 0; }
+body.throne-open { overflow: hidden; }
+.chosen-house { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding: 11px 12px; border: 1px solid var(--line); border-left: 3px solid var(--house-color, var(--gold)); border-radius: 7px; background: rgba(255,255,255,.025); }
+.chosen-house small { display: block; color: var(--gold); font-size: 8px; font-weight: 700; letter-spacing: .16em; }
+.chosen-house strong { display: block; margin-top: 4px; font: 600 15px Cinzel, Georgia, serif; }
+
 .game-screen { max-width: 1800px; margin: 0 auto; padding: 22px clamp(12px, 2vw, 30px) 70px; }
 .welcome-strip { display: flex; gap: 18px; justify-content: space-between; align-items: center; padding: 24px 26px; margin-bottom: 17px; border-left: 3px solid var(--gold); }
 .welcome-strip h1 { font-size: clamp(22px, 2vw, 30px); margin: 0 0 7px; }

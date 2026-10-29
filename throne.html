@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Iron Throne — Choose your house</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IM+Fell+English:ital@1&display=swap">
+<style>
+:root{--c:#aeb4b9;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:#07080a;overflow:hidden}
+header{position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;text-align:center;padding:20px 16px 0;z-index:2;pointer-events:none}
+h1{margin:0;font:700 clamp(1.5rem,5.2vw,3rem)/1.1 Cinzel,Georgia,serif;letter-spacing:.08em;color:var(--c);text-shadow:0 0 28px color-mix(in srgb,var(--c) 55%,transparent),0 2px 8px #000;transition:color .35s}
+.rule{width:min(260px,50vw);height:2px;margin:12px auto 10px;background:linear-gradient(90deg,transparent,var(--c),transparent)}
+p{margin:0;font:italic 1.2rem/1.3 "IM Fell English",Georgia,serif;color:#c4bdb0;text-shadow:0 1px 6px #000;min-height:1.4em}
+svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.sw{cursor:pointer;outline:none}.sw.locked{cursor:not-allowed}.sw.locked .in{filter:grayscale(1) brightness(.55)}.sw.locked:hover .in{filter:grayscale(1) brightness(.7) drop-shadow(0 0 6px #6b6f74)}#hint{display:block;margin-top:8px;font:600 .72rem/1.3 Cinzel,Georgia,serif;letter-spacing:.18em;text-transform:uppercase;color:#8d8578;text-shadow:0 1px 6px #000;transition:color .3s}#hint.warn{color:#d58c7f}.sw.picked .in{transform:translateY(-60px);filter:drop-shadow(0 0 16px var(--c))}
+.in{transition:transform .5s cubic-bezier(.2,.8,.2,1),filter .35s}
+.sw:hover .in,.sw:focus-visible .in{transform:translateY(-30px);filter:drop-shadow(0 0 9px var(--c))}
+.fl{animation:fl 2.4s ease-in-out infinite alternate}
+@keyframes fl{to{opacity:.6}}
+#o{pointer-events:none}
+.br{animation:br 9s ease-in-out infinite alternate}@keyframes br{from{opacity:.82}to{opacity:1}}
+.em{opacity:0;animation:em 3.4s linear infinite}
+@keyframes em{0%{transform:translate(0,0) scale(1);opacity:0}12%{opacity:.9}100%{transform:translate(var(--dx),-55px) scale(.2);opacity:0}}
+.dm{opacity:0;fill:#dbe8f2;animation:dm 24s linear infinite}
+@keyframes dm{0%{transform:translate(0,0);opacity:0}15%{opacity:.85}85%{opacity:.7}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+.hz{animation:hz 50s ease-in-out infinite alternate}@keyframes hz{to{transform:translateX(90px)}}
+@media(prefers-reduced-motion:reduce){.br,.em,.dm,.hz{animation:none}}
+@media(prefers-reduced-motion:reduce){.in{transition:none}.fl{animation:none}}
+.tg{transform-box:fill-box;transform-origin:50% 100%;animation:tg 1s ease-in-out infinite alternate}@keyframes tg{0%{transform:scale(1,.88) skewX(-3deg)}50%{transform:scale(.94,1.06) skewX(2deg)}100%{transform:scale(1.04,.94) skewX(-1deg)}}.em2{opacity:0;animation:em2 4s linear infinite}@keyframes em2{0%{transform:translate(0,0) scale(1);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-420px) scale(.2);opacity:0}}.wallTorchBloom{opacity:.48;animation:wallFlicker 3.1s ease-in-out infinite alternate;mix-blend-mode:screen}.wallTorchBloom:nth-of-type(2n){animation-delay:-1.2s}@keyframes wallFlicker{0%{opacity:.14}27%{opacity:.24}54%{opacity:.17}78%{opacity:.28}100%{opacity:.19}}.windowWallBloom{opacity:.68;animation:windowPulse 12s ease-in-out infinite alternate}@keyframes windowPulse{to{opacity:.94}}@media(prefers-reduced-motion:reduce){.tg,.em2,.wallTorchBloom,.windowWallBloom{animation:none}}
+</style></head>
+<body>
+<header><h1 id="n">The Iron Throne</h1><div class="rule"></div><p id="w">Choose your house</p><small id="hint">Click a sword to swear fealty</small></header>
+<svg viewBox="0 -100 800 1100" preserveAspectRatio="xMidYMax meet" role="img" aria-label="The Iron Throne, a tall fan of swords above a low seat on a stone dais">
+<defs>
+<linearGradient id="wall" gradientUnits="userSpaceOnUse" x1="0" y1="-300" x2="0" y2="1000"><stop offset="0" stop-color="#06080a"/><stop offset="1" stop-color="#14171a"/></linearGradient>
+<linearGradient id="win" gradientUnits="userSpaceOnUse" x1="0" y1="-60" x2="0" y2="520"><stop offset="0" stop-color="#b4c6d4" stop-opacity=".5"/><stop offset="1" stop-color="#8aa0b2" stop-opacity=".1"/></linearGradient>
+<linearGradient id="shaft" gradientUnits="userSpaceOnUse" x1="0" y1="-60" x2="0" y2="980"><stop offset="0" stop-color="#cfdce6" stop-opacity=".13"/><stop offset="1" stop-color="#cfdce6" stop-opacity="0"/></linearGradient>
+<linearGradient id="pil"><stop offset="0" stop-color="#08090b"/><stop offset=".5" stop-color="#1c1f23"/><stop offset="1" stop-color="#08090b"/></linearGradient>
+<linearGradient id="ledge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d646c"/><stop offset=".3" stop-color="#2b2f34"/><stop offset="1" stop-color="#0f1113"/></linearGradient>
+<radialGradient id="warm"><stop offset="0" stop-color="#ff9640" stop-opacity=".55"/><stop offset="1" stop-color="#ff7a1c" stop-opacity="0"/></radialGradient>
+<radialGradient id="vig" gradientUnits="userSpaceOnUse" cx="400" cy="460" r="800"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".88"/></radialGradient>
+<filter id="bl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+<filter id="st" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".5 .12" numOctaves="3" seed="2" result="n"/><feColorMatrix in="n" values=".5 .5 .5 0 .1 .5 .5 .5 0 .1 .5 .5 .5 0 .1 0 0 0 0 1" result="g"/><feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1="1.2" k2=".5" result="o"/><feComposite in="o" in2="SourceAlpha" operator="in"/></filter>
+<filter id="tx" x="-4%" y="-2%" width="108%" height="104%" color-interpolation-filters="sRGB">
+<feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" seed="3" result="n"/>
+<feColorMatrix in="n" values=".33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1" result="g"/>
+<feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1=".35" k2=".8" result="t"/>
+<feTurbulence type="fractalNoise" baseFrequency=".012 .03" numOctaves="3" seed="9" result="m"/>
+<feColorMatrix in="m" values=".55 0 0 0 .58 .5 0 0 0 .55 .42 0 0 0 .5 0 0 0 0 1" result="s"/>
+<feComposite in="t" in2="s" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="u"/>
+<feSpecularLighting in="n" surfaceScale="1" specularConstant=".32" specularExponent="22" lighting-color="#d4dde5" result="sp"><feDistantLight azimuth="235" elevation="45"/></feSpecularLighting>
+<feComposite in="sp" in2="SourceAlpha" operator="in" result="sp2"/>
+<feComposite in="u" in2="sp2" operator="arithmetic" k1="0" k2="1" k3=".55" k4="0" result="o"/>
+<feComposite in="o" in2="SourceAlpha" operator="in"/>
+</filter>
+<linearGradient id="hw" gradientUnits="userSpaceOnUse" x1="0" y1="-400" x2="0" y2="1100"><stop offset="0" stop-color="#030508"/><stop offset=".5" stop-color="#0c1319"/><stop offset=".8" stop-color="#121a20"/><stop offset="1" stop-color="#0b1013"/></linearGradient>
+<linearGradient id="fg" gradientUnits="userSpaceOnUse" x1="0" y1="810" x2="0" y2="1100"><stop offset="0" stop-color="#211a18"/><stop offset=".22" stop-color="#100d0d"/><stop offset="1" stop-color="#030304"/></linearGradient>
+<linearGradient id="pil2"><stop offset="0" stop-color="#05070a"/><stop offset=".35" stop-color="#1b2228"/><stop offset=".7" stop-color="#0f1418"/><stop offset="1" stop-color="#040608"/></linearGradient>
+<linearGradient id="bm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bcd2e2" stop-opacity=".2"/><stop offset="1" stop-color="#bcd2e2" stop-opacity="0"/></linearGradient>
+<linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6e6f2" stop-opacity=".75"/><stop offset="1" stop-color="#8fa9bc" stop-opacity=".35"/></linearGradient>
+<radialGradient id="wm"><stop offset="0" stop-color="#ff9d4c" stop-opacity=".58"/><stop offset=".32" stop-color="#ed6a2b" stop-opacity=".23"/><stop offset="1" stop-color="#9d3716" stop-opacity="0"/></radialGradient>
+<radialGradient id="hzg"><stop offset="0" stop-color="#b4c4d0" stop-opacity=".1"/><stop offset="1" stop-color="#b4c4d0" stop-opacity="0"/></radialGradient>
+<radialGradient id="vg2" gradientUnits="userSpaceOnUse" cx="410" cy="470" r="820" gradientTransform="translate(410 470) scale(1.45 1) translate(-410 -470)"><stop offset=".22" stop-color="#000" stop-opacity="0"/><stop offset=".62" stop-color="#000" stop-opacity=".74"/><stop offset="1" stop-color="#000" stop-opacity="1"/></radialGradient>
+<filter id="b3" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter>
+
+<linearGradient id="bw" gradientUnits="userSpaceOnUse" x1="0" y1="-700" x2="0" y2="850"><stop offset="0" stop-color="#040303"/><stop offset=".30" stop-color="#0b0506"/><stop offset=".56" stop-color="#150a0b"/><stop offset=".78" stop-color="#0b0506"/><stop offset="1" stop-color="#020202"/></linearGradient>
+<filter id="wt" filterUnits="userSpaceOnUse" x="-1800" y="-700" width="4400" height="1600" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".035 .09" numOctaves="4" seed="5" result="n"/><feColorMatrix in="n" values=".6 .6 .6 0 0 .6 .6 .6 0 0 .6 .6 .6 0 0 0 0 0 0 1" result="g"/><feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1=".6" k2=".5" result="o"/><feComposite in="o" in2="SourceAlpha" operator="in"/></filter>
+<radialGradient id="wl"><stop offset="0" stop-color="#8db0cc" stop-opacity=".045"/><stop offset=".5" stop-color="#6f93ae" stop-opacity=".018"/><stop offset="1" stop-color="#6f93ae" stop-opacity="0"/></radialGradient>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d7383"/><stop offset=".5" stop-color="#c3d5e2"/><stop offset="1" stop-color="#e9f2f8"/></linearGradient>
+<filter id="bl2" x="-60%" y="-40%" width="220%" height="180%"><feGaussianBlur stdDeviation="30"/></filter>
+<linearGradient id="pilL"><stop offset="0" stop-color="#010203"/><stop offset=".55" stop-color="#080b0e"/><stop offset=".88" stop-color="#26323c"/><stop offset="1" stop-color="#46586a"/></linearGradient>
+<linearGradient id="pilR"><stop offset="0" stop-color="#46586a"/><stop offset=".12" stop-color="#26323c"/><stop offset=".45" stop-color="#080b0e"/><stop offset="1" stop-color="#010203"/></linearGradient>
+<linearGradient id="bm2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4e3ee" stop-opacity=".24"/><stop offset=".6" stop-color="#9fb6c6" stop-opacity=".07"/><stop offset="1" stop-color="#8fa6b7" stop-opacity="0"/></linearGradient>
+<radialGradient id="pool"><stop offset="0" stop-color="#cfdeea" stop-opacity=".28"/><stop offset="1" stop-color="#bacbd7" stop-opacity="0"/></radialGradient>
+<filter id="grain" x="0" y="0" width="1" height="1"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix type="saturate" values="0"/></filter>
+<filter id="fire" x="-60%" y="-40%" width="220%" height="180%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".014 .03" numOctaves="3" seed="8" result="t"><animate attributeName="baseFrequency" dur="5s" values=".014 .03;.02 .045;.012 .026;.014 .03" repeatCount="indefinite"/><animate attributeName="seed" dur="40s" values="1;60" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" in2="t" scale="34" xChannelSelector="R" yChannelSelector="G" result="d"/><feGaussianBlur in="d" stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/></feMerge></filter>
+<filter id="fireS" x="-60%" y="-40%" width="220%" height="180%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency=".02 .05" numOctaves="2" seed="3" result="t"><animate attributeName="baseFrequency" dur="3.5s" values=".02 .05;.03 .07;.02 .05" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" in2="t" scale="22" xChannelSelector="G" yChannelSelector="R" result="d"/><feGaussianBlur in="d" stdDeviation="1"/></filter>
+<linearGradient id="ff1" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff9a2a" stop-opacity=".95"/><stop offset=".35" stop-color="#ff5a10" stop-opacity=".85"/><stop offset=".75" stop-color="#c8200a" stop-opacity=".5"/><stop offset="1" stop-color="#6a0e06" stop-opacity="0"/></linearGradient>
+<linearGradient id="ff2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffd060"/><stop offset=".45" stop-color="#ff8a1c" stop-opacity=".9"/><stop offset="1" stop-color="#e03a0a" stop-opacity="0"/></linearGradient>
+<linearGradient id="ff3" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff0b0"/><stop offset=".5" stop-color="#ffc040" stop-opacity=".9"/><stop offset="1" stop-color="#ff8a1c" stop-opacity="0"/></linearGradient>
+<linearGradient id="ff4" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#fff4c4" stop-opacity=".9"/><stop offset="1" stop-color="#ffd870" stop-opacity="0"/></linearGradient>
+<radialGradient id="wm2"><stop offset="0" stop-color="#ffc477" stop-opacity=".62"/><stop offset=".4" stop-color="#e87535" stop-opacity=".24"/><stop offset="1" stop-color="#ff7a1c" stop-opacity="0"/></radialGradient>
+<radialGradient id="torchWallGlow"><stop offset="0" stop-color="#ffb16a" stop-opacity=".44"/><stop offset=".22" stop-color="#d65d35" stop-opacity=".29"/><stop offset=".52" stop-color="#8c3025" stop-opacity=".14"/><stop offset=".78" stop-color="#511b18" stop-opacity=".055"/><stop offset="1" stop-color="#260c0b" stop-opacity="0"/></radialGradient>
+<radialGradient id="windowWallGlow"><stop offset="0" stop-color="#c1d8e8" stop-opacity=".30"/><stop offset=".25" stop-color="#9bbbd0" stop-opacity=".18"/><stop offset=".58" stop-color="#607f94" stop-opacity=".07"/><stop offset="1" stop-color="#304452" stop-opacity="0"/></radialGradient>
+<linearGradient id="spk" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#0a0b0c"/><stop offset=".6" stop-color="#2a2d31"/><stop offset="1" stop-color="#8d9aa5"/></linearGradient>
+<linearGradient id="iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2a20"/><stop offset=".25" stop-color="#1a1613"/><stop offset="1" stop-color="#050505"/></linearGradient>
+<radialGradient id="coal"><stop offset="0" stop-color="#ffd890"/><stop offset=".35" stop-color="#ff7a20"/><stop offset=".8" stop-color="#6a1a08"/><stop offset="1" stop-color="#1a0805"/></radialGradient>
+<linearGradient id="beamCore" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f9fd" stop-opacity=".5"/><stop offset=".3" stop-color="#d3e3ee" stop-opacity=".26"/><stop offset=".75" stop-color="#a9c0d0" stop-opacity=".09"/><stop offset="1" stop-color="#a9c0d0" stop-opacity="0"/></linearGradient>
+<filter id="bl3" x="-40%" y="-10%" width="180%" height="120%"><feGaussianBlur stdDeviation="22"/></filter>
+<radialGradient id="flare"><stop offset="0" stop-color="#ffffff" stop-opacity=".75"/><stop offset=".25" stop-color="#dcebf6" stop-opacity=".35"/><stop offset="1" stop-color="#9fb8ca" stop-opacity="0"/></radialGradient>
+<radialGradient id="hit"><stop offset="0" stop-color="#e6f0f7" stop-opacity=".32"/><stop offset=".5" stop-color="#b9cddb" stop-opacity=".12"/><stop offset="1" stop-color="#b9cddb" stop-opacity="0"/></radialGradient>
+<radialGradient id="corner"><stop offset="0" stop-color="#000" stop-opacity=".93"/><stop offset=".5" stop-color="#000" stop-opacity=".58"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="skyB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dfecf5"/><stop offset=".85" stop-color="#f7fbfe"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+<radialGradient id="dayGlow"><stop offset="0" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".3" stop-color="#e2eef7" stop-opacity=".45"/><stop offset="1" stop-color="#a9c2d4" stop-opacity="0"/></radialGradient>
+</defs>
+<g id="g"></g>
+</svg>
+<svg id="o" viewBox="0 -100 800 1100" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><g id="og"></g></svg>
+<script>
+let sd=11;const rnd=()=>(sd=sd*16807%2147483647)/2147483647,R=a=>(rnd()-.5)*a,f=n=>(+n).toFixed(1),D=Math.PI/180,pt=p=>f(p[0])+' '+f(p[1]);
+// Use the full laptop/desktop width instead of letterboxing the room into a narrow column.
+const HALL_H=1100,HALL_CX=400;let sceneW,sceneLeft,sceneRight,TF=[];
+// A sword blade pointing up from (0,0): bevelled facets, fuller, taper, bend and nicks
+function blade(o){
+ if(o.h==null){const k=rnd()<.2;o.h=k?26:212;o.s=k?16:9}
+ const N=16,Lf=[],Rt=[],C=[];
+ for(let i=0;i<=N;i++){const t=i/N,y=-o.L*t,c=o.b*t*t;
+  let hw=o.w/2*(t<.78?1-.1*t:.922*Math.pow((1-t)/.22,.85))*(1+R(.07));
+  if(t>.3&&t<.7&&rnd()<.07)hw*=.8;
+  Lf.push([c-hw,y]);Rt.push([c+hw,y]);C.push([c,y])}
+ const a=`hsl(${o.h},${o.s}%,${o.l}%)`,b=`hsl(${o.h},${o.s}%,${o.l*.5}%)`,k='stroke="#07080a" stroke-width=".7" stroke-linejoin="round"',
+ le=Lf.map(pt).join('L'),ce=C.map(pt).join('L'),cr=C.slice().reverse().map(pt).join('L'),rr=Rt.slice().reverse().map(pt).join('L'),
+ fu=C.slice(1,12),hi=o.l>40;
+ return{cl:'M'+ce,g:`<path d="M${le}L${cr}Z" fill="${a}" ${k}/><path d="M${ce}L${rr}Z" fill="${b}" ${k}/><path d="M${fu.map(pt).join('L')}" fill="none" stroke="#0a0b0d" stroke-width="${f(o.w*.14)}" opacity=".55"/><path d="M${fu.map(p=>pt([p[0]-o.w*.1,p[1]])).join('L')}" fill="none" stroke="#c9d3db" stroke-width="1" opacity="${hi?.4:.18}"/><path d="M${le}" fill="none" stroke="hsla(205,30%,82%,${hi?.7:.35})" stroke-width=".9"/>`}}
+const P=(x,y,a,o)=>`<g transform="translate(${f(x)} ${f(y)}) rotate(${f(a)})">${blade(o).g}</g>`;
+const hilt=(x,y,r,s)=>`<g transform="translate(${f(x)} ${f(y)}) rotate(${f(r)}) scale(${f(s)})"><rect x="-3.5" y="2" width="7" height="34" fill="#2b2f34" stroke="#07080a" stroke-width=".8"/><path d="M-3 8H3M-3 14H3M-3 20H3M-3 26H3" stroke="#3b4046" stroke-width="1.4"/><path d="M-24 3Q-14-5 0-3Q14-5 24 3L21 7Q12 1 0 2Q-12 1-21 7Z" fill="#68707a" stroke="#07080a" stroke-width=".8"/><circle cy="42" r="6.5" fill="#59616a" stroke="#07080a" stroke-width=".8"/><circle cx="-2" cy="40" r="2" fill="#9aa3ab" opacity=".5"/></g>`;
+// One hero sword per house. The game page sends live names/mottos/colours and availability; these are the fallbacks.
+const H=[
+ {key:'greyjoy',name:'House Greyjoy',motto:'We Do Not Sow',color:'#c9a640'},
+ {key:'tyrell',name:'House Tyrell',motto:'Growing Strong',color:'#7fb04f'},
+ {key:'lannister',name:'House Lannister',motto:'Hear Me Roar',color:'#d02a42'},
+ {key:'stark',name:'House Stark',motto:'Winter Is Coming',color:'#b8c6d2'},
+ {key:'baratheon',name:'House Baratheon',motto:'Ours Is the Fury',color:'#f2d13a'},
+ {key:'targaryen',name:'House Targaryen',motto:'Fire and Blood',color:'#ff6a2b'},
+ {key:'martell',name:'House Martell',motto:'Unbowed, Unbent, Unbroken',color:'#f08a24'},
+ {key:'arryn',name:'House Arryn',motto:'As High as Honor',color:'#6aa3e0'}
+].map(h=>({...h,status:'open',note:''}));
+const normHouse=v=>String(v||'').toLowerCase().replace(/^house\s+/,'').trim();
+
+function build(){
+sd=11;
+// The scene is sized from the real window each time, so the pillars always sit at the screen edges.
+sceneW=Math.max(800,HALL_H*window.innerWidth/Math.max(1,window.innerHeight));sceneLeft=HALL_CX-sceneW/2;sceneRight=HALL_CX+sceneW/2;
+document.querySelectorAll('svg').forEach(el=>el.setAttribute('viewBox',`${f(sceneLeft)} -100 ${f(sceneW)} ${HALL_H}`));
+// ---- hall: dim back wall, wall torches, wide-set pillars with spiked fire pits, high window ----
+const MR=Math.random;
+let HB='<rect x="-3000" y="-2000" width="6600" height="4400" fill="#030406"/>',GG='',GF='',PILLARS='',TI=0;
+// layered flame tongues, base at (0,0). Outer layers are heavily displaced, inner core stays crisp.
+function flames(h){
+ const T=(o,hh,w)=>`M${f(-w+o)} 0C${f(-w*1.25+o)} ${f(-hh*.35)} ${f(-w*.45+o)} ${f(-hh*.6)} ${f(o-w*.12)} ${f(-hh)}C${f(o+w*.4)} ${f(-hh*.62)} ${f(o+w*1.2)} ${f(-hh*.36)} ${f(o+w)} 0Z`;
+ const O=[-.52,-.27,0,.27,.52],Hs=[.6,.85,1,.78,.55],Ws=[.17,.2,.24,.2,.16];
+ const layer=(k,fl)=>O.map((o,i)=>`<path class="tg" style="animation-duration:${f(.7+MR()*.9)}s;animation-delay:-${f(MR()*2)}s" d="${T(o*h*.5,Hs[i]*h*k*(.9+MR()*.2),Ws[i]*h*(.55+.45*k))}" fill="url(#${fl})"/>`).join('');
+ return `<g filter="url(#fire)">${layer(1,'ff1')}${layer(.8,'ff2')}</g><g filter="url(#fireS)">${layer(.55,'ff3')}${layer(.3,'ff4')}</g>`}
+function embers(x,y,n,spread,cls,dist){let e='';for(let k=0;k<n;k++)e+=`<circle class="${cls}" cx="${f(x+(MR()-.5)*spread)}" cy="${f(y)}" r="${f(.7+MR()*1.5)}" fill="${MR()<.5?'#ffb347':'#ff7a22'}" style="--dx:${f((MR()-.5)*dist)}px;animation-duration:${f(2.6+MR()*2.8)}s;animation-delay:-${f(MR()*6)}s"/>`;return e}
+// back wall: stone with mortar courses
+HB+='<g filter="url(#wt)"><rect x="-1800" y="-700" width="4400" height="1550" fill="url(#bw)"/></g>';
+for(let r=0,y=-440;y<850;r++,y+=64){HB+=`<path d="M-1800 ${y}H2600" stroke="#21130f" stroke-opacity=".62" stroke-width="2.5"/><path d="M-1800 ${y+2}H2600" stroke="#f0b69a" stroke-opacity=".075" stroke-width="1"/>`;
+ let jn='';for(let x=-1800+(r%2)*70;x<2600;x+=140)jn+=`M${x} ${y}v64`;HB+=`<path d="${jn}" stroke="#281914" stroke-opacity=".62" stroke-width="2.5"/>`}
+// A cool, diffuse bloom from the high window falls off quickly into the dark red masonry.
+HB+=`<ellipse class="windowWallBloom" cx="400" cy="-157" rx="286" ry="332" fill="url(#windowWallGlow)"/>`;
+// The warm masonry is framed by recessed stone arches, like the reference hall.
+HB+=`<g id="arches">
+ <g transform="translate(${f(sceneLeft+50)} 0)">
+  <path d="M-48 810V286A148 148 0 0 1 248 286V810Z" fill="#160b0b" stroke="#66442e" stroke-width="12"/>
+  <path d="M-19 810V302A119 119 0 0 1 219 302V810Z" fill="#080708" stroke="#2c1915" stroke-width="8"/>
+  <path d="M-7 810V310A107 107 0 0 1 207 310V810" fill="none" stroke="#895c3e" stroke-opacity=".38" stroke-width="3"/>
+ </g>
+ <g transform="translate(${f(sceneRight-850)} 0)">
+  <path d="M552 286A148 148 0 0 1 848 286V810H552Z" fill="#160b0b" stroke="#66442e" stroke-width="12"/>
+  <path d="M581 302A119 119 0 0 1 819 302V810H581Z" fill="#080708" stroke="#2c1915" stroke-width="8"/>
+  <path d="M593 310A107 107 0 0 1 807 310V810" fill="none" stroke="#895c3e" stroke-opacity=".38" stroke-width="3"/>
+ </g>
+</g>`;
+HB+='<ellipse cx="400" cy="-105" rx="700" ry="620" fill="url(#wl)" opacity=".9"/>';
+// Move the window 145 units upward so only its lower edge remains near the top of the screen.
+HB+='<g transform="translate(0 -145)">';
+const WIN='M290 70V-210Q290 -430 400 -540Q510 -430 510 -210V70Z';
+HB+=`<path d="${WIN}" fill="#b9d0e0" opacity=".55" filter="url(#bl2)"/><path d="${WIN}" fill="#0b0e11" stroke="#12171c" stroke-width="50" stroke-linejoin="round"/><path d="${WIN}" fill="url(#sky)"/>`+
+`<path d="M345 -540V70M400 -540V70M455 -540V70M290 -70H510M290 -230H510" stroke="#05070a" stroke-width="7"/><path d="${WIN}" fill="none" stroke="#05070a" stroke-width="12" stroke-linejoin="round"/><rect x="252" y="68" width="296" height="26" fill="#161b20" stroke="#000"/><rect x="252" y="68" width="296" height="3" fill="#8fa5b6" opacity=".35"/><ellipse cx="400" cy="74" rx="300" ry="46" fill="url(#pool)"/>`;
+HB+='</g>';
+// iron wall torches: smaller flames and contained amber light
+function wt(x,y,sc){const i=TI++;
+ // A broad, animated radial patch lights the nearby masonry while leaving the distant wall nearly black.
+ GG+=`<g data-g="${i}" style="mix-blend-mode:screen"><circle cx="${x}" cy="${f(y-4*sc)}" r="${f(95*sc)}" fill="url(#wm)" opacity=".32"/><circle cx="${x}" cy="${f(y-3*sc)}" r="${f(30*sc)}" fill="url(#wm2)" opacity=".5"/></g>`;
+ GF+=`<g style="mix-blend-mode:screen" transform="translate(${x} ${y}) scale(${sc})"><g class="fa" data-i="${i}"><ellipse cx="0" cy="-2" rx="14" ry="4.5" fill="url(#coal)"/><circle cx="-6" cy="-4" r="2.6" fill="#ffb060" opacity=".8"/><circle cx="4" cy="-4.5" r="2.2" fill="#ff8a30" opacity=".75"/><circle cx="9" cy="-3" r="1.6" fill="#ffc070" opacity=".6"/></g>${embers(0,-5,5,18,'em',24)}</g>`;
+ return `<g transform="translate(${x} ${y}) scale(${sc})"><ellipse class="wallTorchBloom" cx="0" cy="-2" rx="120" ry="130" fill="url(#torchWallGlow)" style="animation-delay:-${(i*.83).toFixed(2)}s"/><path d="M-4 10L-12 34L-25 42M4 10L12 34L25 42" fill="none" stroke="#171311" stroke-width="5" stroke-linecap="round"/><path d="M-5 13V56M5 13V56" stroke="#201813" stroke-width="4"/><path d="M-16 -2H16L11 11Q0 19-11 11Z" fill="#17120f" stroke="#050505" stroke-width="1.5"/><path d="M-16 -2H16" stroke="#b86e3d" stroke-opacity=".48" stroke-width="1.5"/><path d="M-7 25H7M-7 40H7" stroke="#34251a" stroke-width="2.5"/></g>`}
+for(const[x,y]of[[400-sceneW*.22,438],[400+sceneW*.22,438]])HB+=wt(x,y,1.0);
+// Floor begins close behind the dais; seams are short and low-contrast rather than long rays.
+HB+='<polygon points="-3000,810 3800,810 3800,1500 -3000,1500" fill="url(#fg)"/><rect x="-3000" y="804" width="6800" height="10" fill="#000" opacity=".72"/>';
+for(let x=-2600;x<=3400;x+=220)HB+=`<path d="M${f(400+(x-400)*.22)} 820L${x} 1040" stroke="#000" stroke-opacity=".12" stroke-width="1.4"/>`;
+for(const y of[832,856,887,924,968,1020])HB+=`<path d="M-3000 ${y}H3800" stroke="#000" stroke-opacity=".15" stroke-width="1.5"/>`;
+// Unlit spiked iron fire-bowls are mounted around the lower pillar shafts, not placed in front of them.
+// The rear half is drawn first, then the pillar, then a visible front rim to make the metal wrap around the stone.
+// A spiked iron ring around the pillar. brazierBack is painted before the shaft (rear rim, opening, rear spikes);
+// brazierFront is painted after it (front bowl wall, front rim, front spikes), so the ring passes behind the stone.
+function spikesOn(cx,y,rx,ry,side){
+ let a='';const n=22;
+ for(let i=1;i<n;i++){
+  const x=cx-rx+2*rx*i/n, dx=x-cx, base=y+side*ry*Math.sqrt(Math.max(0,1-(dx/rx)**2)), h=22+(i%4)*5;
+  a+=`<path d="M${f(x-7)} ${f(base+2)} Q${f(x-5)} ${f(base-h*.5)} ${f(x+((i%2)?2:-2))} ${f(base-h)} Q${f(x+6)} ${f(base-h*.45)} ${f(x+7)} ${f(base+2)} Z" fill="url(#spk)" stroke="#030405" stroke-width="1.5"/>`;
+ }
+ return a;
+}
+function brazierBack(cx,y,rx,ry){
+ return `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" fill="#050607"/>`+
+  `<path d="M${cx-rx} ${y}A${rx} ${ry} 0 0 1 ${cx+rx} ${y}" fill="none" stroke="#2c3238" stroke-width="7"/>`+
+  spikesOn(cx,y,rx,ry,-1);
+}
+function brazierFront(cx,y,rx,ry){
+ const r2=rx*.74,yb=y+44;
+ return `<path d="M${cx-rx} ${y}A${rx} ${ry} 0 0 0 ${cx+rx} ${y}L${f(cx+r2)} ${yb}A${f(r2)} ${f(ry*.8)} 0 0 1 ${f(cx-r2)} ${yb}Z" fill="#0d1013" stroke="#030405" stroke-width="4"/>`+
+  `<path d="M${f(cx-r2*.96)} ${yb-3}A${f(r2*.96)} ${f(ry*.8)} 0 0 0 ${f(cx+r2*.96)} ${yb-3}" fill="none" stroke="#5a636b" stroke-opacity=".3" stroke-width="2.5"/>`+
+  `<path d="M${cx-rx} ${y}A${rx} ${ry} 0 0 0 ${cx+rx} ${y}" fill="none" stroke="#424950" stroke-width="7"/>`+
+  `<path d="M${cx-rx+6} ${y+3}A${rx-6} ${ry-2} 0 0 0 ${cx+rx-6} ${y+3}" fill="none" stroke="#7a848c" stroke-opacity=".35" stroke-width="2"/>`+
+  spikesOn(cx,y,rx,ry,1);
+}
+// Massive foreground pillars: they widen toward the floor and are intentionally cropped by the laptop screen.
+for(const sg of[-1,1]){
+ const cx=sg<0?sceneLeft+52:sceneRight-52, hw=142, g=sg<0?'pilL':'pilR';
+ const by=754, rx=hw+128, ry=25;
+ // bowl behind the pillar so its side wings and spikes emerge from around the shaft
+ PILLARS+=brazierBack(cx,by,rx,ry);
+ // The shaft tapers inward at mid-height then flares toward the viewer at its base.
+ PILLARS+=`<path d="M${cx-hw} -650 L${cx-hw*.86} 690 L${cx-hw*1.42} 770 L${cx-hw*1.42} 838 L${cx+hw*1.42} 838 L${cx+hw*1.42} 770 L${cx+hw*.86} 690 L${cx+hw} -650 Z" fill="url(#${g})" stroke="#030405" stroke-width="4"/>`;
+ // Deep vertical bevels give the columns strong near-camera depth.
+ PILLARS+=`<path d="M${cx-hw*.62} -640 L${cx-hw*.54} 700 L${cx-hw*1.08} 788 M${cx+hw*.62} -640 L${cx+hw*.54} 700 L${cx+hw*1.08} 788" fill="none" stroke="#020304" stroke-opacity=".9" stroke-width="12"/>`;
+ PILLARS+=`<path d="M${cx-hw*.82} -640 L${cx-hw*.72} 682 L${cx-hw*1.24} 778" fill="none" stroke="#71808d" stroke-opacity=".18" stroke-width="7"/>`;
+ for(const yy of[-90,260,520]){
+  const width=hw*(yy>500?2.12:2.02), left=cx-width/2;
+  PILLARS+=`<path d="M${left} ${yy} H${cx+width/2} L${cx+width*.53} ${yy+23} H${cx-width*.53} Z" fill="#090c0f" stroke="#000" stroke-width="3"/><path d="M${left+8} ${yy+3} H${cx+width/2-8}" stroke="#7d8b96" stroke-opacity=".18" stroke-width="3"/>`;
+ }
+ PILLARS+=`<path d="M${cx-hw*1.48} 770 L${cx-hw*1.48} 838 H${cx+hw*1.48} V770 L${cx+hw*1.3} 758 H${cx-hw*1.3} Z" fill="#080a0c" stroke="#000" stroke-width="4"/><path d="M${cx-hw*1.42} 775 H${cx+hw*1.42}" stroke="#8b9aa5" stroke-opacity=".28" stroke-width="5"/>`;
+ // Complete the wrap with a front-facing iron lip after the stone shaft is painted.
+ PILLARS+=brazierFront(cx,by,rx,ry);
+}
+// window light: four panes of shafts leaning toward the throne, soft haze + crisp edges
+const PN=[[290,342],[348,397],[403,452],[458,510]],X2=(x,k)=>f(400+(x-400)*k+34);
+const BEAMS='<g class="br" style="mix-blend-mode:screen">'+
+ `<polygon points="276,-75 524,-75 ${X2(570,1.85)},890 ${X2(230,1.85)},890" fill="url(#beamCore)" filter="url(#bl3)"/>`+
+ `<polygon points="318,-75 482,-75 ${X2(500,1.6)},880 ${X2(300,1.6)},880" fill="url(#beamCore)" opacity=".7" filter="url(#bl)"/>`+
+ '<ellipse cx="400" cy="-70" rx="260" ry="60" fill="url(#flare)"/>'+
+ '<ellipse cx="420" cy="420" rx="230" ry="300" fill="url(#hit)"/><ellipse cx="430" cy="872" rx="330" ry="60" fill="url(#hit)"/>'+
+ `<polygon points="290,-75 510,-75 ${X2(510,2.7)},900 ${X2(290,2.7)},900" fill="url(#bm2)" opacity=".55" filter="url(#bl)"/>`+
+ PN.map(([a,b])=>`<polygon points="${a},-75 ${b},-75 ${X2(b,2.5)},900 ${X2(a,2.5)},900" fill="url(#bm2)" filter="url(#b3)"/><polygon points="${a+8},-75 ${b-8},-75 ${X2(b-8,2.1)},880 ${X2(a+8,2.1)},880" fill="url(#bm2)" opacity=".7"/>`).join('')+
+ '<ellipse cx="434" cy="872" rx="380" ry="46" fill="url(#pool)"/><ellipse cx="430" cy="560" rx="150" ry="230" fill="url(#pool)" opacity=".35"/></g>';
+let s=`${HB}\n`;
+
+// ---- generic three-step stone dais ----
+// Each step: a lit top plane in slight perspective plus a darker front riser. Drawn back to front.
+const step=(yTop,halfBack,yFront,halfFront,riser,top,face)=>
+ `<path d="M${400-halfBack} ${yTop}H${400+halfBack}L${400+halfFront} ${yFront}H${400-halfFront}Z" fill="${top}" stroke="#08090a" stroke-width="2.5" stroke-linejoin="round"/>`+
+ `<path d="M${400-halfFront} ${yFront}H${400+halfFront}V${yFront+riser}H${400-halfFront}Z" fill="${face}" stroke="#050607" stroke-width="2.5"/>`+
+ `<path d="M${400-halfFront+3} ${yFront+1}H${400+halfFront-3}" stroke="#9aa2a9" stroke-opacity=".35" stroke-width="2"/>`;
+s+=`<ellipse cx="400" cy="948" rx="860" ry="20" fill="#000" opacity=".7"/>
+<g id="throne-dais" filter="url(#st)">
+ ${step(900,680,918,800,28,'#33373b','#0f1012')}
+ ${step(880,480,894,560,24,'#3f4448','#16181b')}
+ ${step(860,300,872,350,22,'#4c5156','#1d2024')}
+</g>`;
+// ---- back fan: rear and mid layers ----
+let g1='';
+for(let a=-30;a<=30;a+=2.2)g1+=P(400+a*2.8,672+Math.abs(a)*.8,a+R(3),{L:430-Math.abs(a)*3.2+rnd()*60,w:20+rnd()*14,b:R(40),l:13+rnd()*9});
+for(let a=-28;a<=28;a+=3.4)g1+=P(400+a*2.8,668+Math.abs(a)*.9,a+R(4),{L:540-Math.abs(a)*4.5+rnd()*50,w:22+rnd()*14,b:R(30),l:23+rnd()*13});
+for(let i=0;i<12;i++){const q=i%2?1:-1;g1+=P(400+q*(30+rnd()*40),680,-q*(4+rnd()*14),{L:380+rnd()*130,w:20+rnd()*12,b:R(24),l:21+rnd()*13})}
+s+=`<g filter="url(#tx)">${g1}</g>`;
+// ---- the five hero swords (hover targets) ----
+const A=[-21,-15,-9,-3,3,9,15,21],LL=A.map(a=>632-Math.abs(a)*3.6),WW=A.map(a=>40-Math.abs(a)*.35),BB=[-9,7,-5,3,-3,5,-7,9];
+s+=H.map((h,i)=>{const a=A[i],o={L:LL[i],w:WW[i],b:BB[i],l:56+R(6),h:210,s:10},bl=blade(o);
+return`<g class="sw" tabindex="0" data-i="${i}" style="--c:${h.color}" transform="translate(${f(400+a*3.5)} ${f(655+Math.abs(a)*1.3)}) rotate(${a})" role="button" aria-label="${h.name}"><g class="in"><g filter="url(#tx)">${bl.g}</g></g><path d="${bl.cl}" stroke="transparent" stroke-width="${o.w+16}" stroke-linecap="round" fill="none"/></g>`}).join('');
+// ---- wings, arms, hilt mass, skirt, seat ----
+let g2='';
+for(const q of[-1,1]){
+ for(let i=0;i<7;i++)g2+=P(400+q*(40+rnd()*30),610+rnd()*100,q*(50+rnd()*40),{L:90+rnd()*110,w:20+rnd()*12,b:R(18)*q,l:23+rnd()*14});
+ for(let i=0;i<4;i++)P(400+q*30,704+i*14,q*(86+i*5+R(6)),{L:95+rnd()*35,w:17,b:0,l:27+rnd()*12})}
+g2+=`<path d="M298 650Q306 560 372 540H428Q494 560 502 650L508 745H292Z" fill="#1c1f23"/>`;
+// fan of 7 distinct swords: hilts up and out, blades converging down onto the seat
+
+const sw=[];for(let i=0;i<22;i++){const tx=312+i*(176/21)+R(18),a=(tx-400)*.18+R(14),ty=650+rnd()*100,hh=Math.min(430+rnd()*200,ty-110),S=(ty-hh)/Math.cos(a*D),hx=tx+Math.sin(a*D)*S,d=rnd();
+ sw.push([d,`<g transform="translate(${f(hx)} ${f(hh)}) rotate(${f(180+a)})">${blade({L:S,w:17+rnd()*7,b:R(6),l:20+d*30,h:212,s:8}).g}${hilt(0,0,0,.95+rnd()*.2)}</g>`])}
+g2+=sw.sort((p,r)=>p[0]-r[0]).map(p=>p[1]).join('');
+
+{const sv=sd;let s2=77;const r2=()=>(s2=s2*16807%2147483647)/2147483647;
+let m='<clipPath id="mc"><path d="M284 700Q288 575 360 535H440Q512 575 516 700V760H284Z"/></clipPath><g clip-path="url(#mc)">';const arr=[];
+for(let i=0;i<48;i++){const tx=290+r2()*220,an=(r2()-.5)*44,ty=690+r2()*70,S=170+r2()*130,hx=tx+Math.sin(an*D)*S,hh=ty-Math.cos(an*D)*S,d=r2();
+arr.push([d,`<g transform="translate(${f(hx)} ${f(hh)}) rotate(${f(180+an)})">${blade({L:S,w:15+r2()*8,b:(r2()-.5)*6,l:22+d*28,h:212,s:8}).g}${hilt(0,0,0,.9)}</g>`])}
+m+=arr.sort((p,q)=>p[0]-q[0]).map(p=>p[1]).join('')+'</g>';g2+=m;sd=sv}
+const arm=(x,w,t,b)=>{const r=w/2;return`<path d="M${x} ${b}V${t+r}Q${x} ${t} ${x+r} ${t}V${b}Z" fill="hsl(212,9%,50%)" stroke="#07080a" stroke-width=".8"/><path d="M${x+r} ${t}Q${x+w} ${t} ${x+w} ${t+r}V${b}H${x+r}Z" fill="hsl(212,9%,26%)" stroke="#07080a" stroke-width=".8"/><path d="M${x+w*.3} ${t+w*.8}V${b-6}" stroke="#0a0b0d" stroke-width="3" opacity=".5"/><path d="M${x+2} ${t+r}Q${x+2} ${t+2} ${x+r} ${t+2}" fill="none" stroke="#dfe7ee" stroke-width="1" opacity=".5"/>`};
+// outer sloped blade masses (straight, widening to the base)
+const Bq=t=>{const u=1-t;return[u*u*285+2*u*t*215+t*t*120,u*u*684+2*u*t*760+t*t*866]};
+for(const q of[-1,1]){const X=x=>400+q*(400-x),T=[285,684],B1=[285,866],B2=[120,866],pt2=()=>{let u=rnd(),v=rnd();if(u+v>1){u=1-u;v=1-v}return[T[0]+u*(B2[0]-T[0])+v*(B1[0]-T[0]),T[1]+u*(B2[1]-T[1])+v*(B1[1]-T[1])]},pl=[],id='pc'+(q+1),pp=[[285,684]];
+ for(let j=1;j<10;j++){const[x,y]=Bq(j/10),o=j%2?10+rnd()*10:-rnd()*5;pp.push([x-.74*o,y-.67*o])}
+ pp.push([112,868],[285,868]);
+ const dd='M'+pp.map(p=>f(X(p[0]))+' '+f(p[1])).join('L')+'Z';
+ for(const t of[.12,.3,.5]){const[bx,by]=Bq(t),a=q*(48+R(80)),e=8+rnd()*20,tx=X(bx)+Math.sin(a*D)*e,ty=by-Math.cos(a*D)*e,L=Math.min(115,(860-ty)/Math.max(.25,Math.cos(a*D)));g2+=P(tx-Math.sin(a*D)*L,ty+Math.cos(a*D)*L,a,{L,w:24+rnd()*6,b:R(8),l:24+rnd()*12})}
+ for(const t of[.2,.4,.62,.8]){const[bx,by]=Bq(t);g2+=hilt(X(bx)-q*5,by+4,q<0?150+R(30):210+R(30),.65)}
+ g2+=`<clipPath id="${id}"><path d="${dd}"/></clipPath><path d="${dd}" fill="#0b0c0e"/><g clip-path="url(#${id})">`;
+ for(let i=0;i<24;i++){const[cx,cy]=pt2(),a=rnd()<.5?180-q*(41+R(28))+(rnd()<.5?180:0):(rnd()<.5?90:270)+R(100),L=150+rnd()*100;pl.push([cy,P(X(cx)-Math.sin(a*D)*L/2,cy+Math.cos(a*D)*L/2,a,{L,w:22+rnd()*12,b:R(10),l:20+rnd()*16})])}
+ g2+=pl.sort((m,z)=>m[0]-z[0]).map(m=>m[1]).join('')+'</g>'}
+
+// seat: vertical slats, seat bar, crossing diagonals, tall armrest panels
+for(let i=0;i<10;i++)g2+=P(301+i*22,752,180,{L:104+R(8),w:23.5,b:0,l:(i%2?36:44)+rnd()*4,h:212,s:8});
+g2+=`<rect x="290" y="735" width="220" height="20" rx="2" fill="url(#ledge)" stroke="#07080a"/><path d="M292 736H508" stroke="#c4ced6" stroke-width="1.3" opacity=".5"/>`;
+g2+=P(286,856,68,{L:225,w:15,b:0,l:44,h:212,s:8})+P(514,856,-68,{L:225,w:15,b:0,l:40,h:212,s:8});
+g2+=arm(268,26,676,858)+arm(506,26,676,858)+hilt(244,706,172,.8)+hilt(556,706,188,.8);
+
+
+s+=`<g filter="url(#tx)">${g2}</g>`;
+// Foreground columns are lowered slightly and painted last so they overlap the platform edges.
+s+=`<g id="foreground-pillars" transform="translate(0 115)">${PILLARS}</g>`;
+// ---- light and vignette ----
+
+
+document.getElementById('g').innerHTML=s;
+// animated light layer (separate svg so the textured throne is never repainted)
+{let DS='';for(let i=0;i<40;i++)DS+=`<circle class="dm" cx="${f(250+MR()*330)}" cy="${f(-20+MR()*760)}" r="${f(.7+MR()*1.4)}" style="--dx:${f((MR()-.5)*70)}px;--dy:${f((MR()-.3)*60)}px;animation-duration:${f(16+MR()*18)}s;animation-delay:-${f(MR()*30)}s"/>`;
+document.getElementById('og').innerHTML=GG+`${BEAMS}<g class="hz"><ellipse cx="300" cy="700" rx="700" ry="70" fill="url(#hzg)"/><ellipse cx="560" cy="820" rx="800" ry="60" fill="url(#hzg)"/><ellipse cx="400" cy="600" rx="900" ry="90" fill="url(#hzg)"/></g>`+GF+DS+`<rect x="-1100" y="-400" width="3000" height="1500" filter="url(#grain)" opacity=".13" style="mix-blend-mode:overlay"/>`+[[sceneLeft,-100],[sceneRight,-100],[sceneLeft,1000],[sceneRight,1000]].map(([x,y])=>`<ellipse cx="${f(x)}" cy="${y}" rx="${f(sceneW*.36)}" ry="500" fill="url(#corner)"/>`).join('')+`<rect x="-3000" y="-2000" width="6600" height="4400" fill="url(#vg2)"/>`+
+ `<g transform="translate(0 -145)"><path d="${WIN}" fill="#ffffff" opacity=".7" filter="url(#bl2)" style="mix-blend-mode:screen"/><path d="${WIN}" fill="url(#skyB)"/><path d="M345 -540V70M400 -540V70M455 -540V70M290 -70H510M290 -230H510" stroke="#0a0d10" stroke-width="7"/><path d="${WIN}" fill="none" stroke="#0a0d10" stroke-width="12" stroke-linejoin="round"/><rect x="252" y="68" width="296" height="26" fill="#1b2127" stroke="#000"/><rect x="252" y="68" width="296" height="3" fill="#e8f2f9" opacity=".7"/></g>`+
+ `<ellipse cx="400" cy="-66" rx="340" ry="80" fill="url(#dayGlow)" style="mix-blend-mode:screen"/>`}
+TF=[...Array(TI)].map((_,i)=>({g:document.querySelector(`[data-g="${i}"]`),a:[...document.querySelectorAll(`.fa[data-i="${i}"]`)],p:MR()*50}));
+bindSwords();
+}
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches,nz=(t,p)=>.5+.28*Math.sin(t*3.1+p)+.18*Math.sin(t*7.7+p*2.3)+.12*Math.sin(t*13.1+p*.7);
+const frame=ms=>{const t=ms/1000;for(const o of TF){const v=nz(t,o.p),gust=Math.max(0,Math.sin(t*.43+o.p*3)-.82)*4,I=Math.min(1,Math.max(.35,.74+.42*(v-.5)-gust*.25));
+ o.g.style.opacity=(I*.85).toFixed(3);
+ const sk=(Math.sin(t*2.3+o.p)*6+Math.sin(t*5.1+o.p*3)*4+gust*8).toFixed(1),sy=(.82+.55*v-gust*.2).toFixed(3),sx=(1.06-.18*v).toFixed(3);
+ for(const e of o.a)e.style.opacity=(.45+.55*v).toFixed(3)}
+ if(!RM)requestAnimationFrame(frame)};
+requestAnimationFrame(frame);
+
+const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
+const inFrame=window.parent!==window;
+let picked=-1;
+const setHint=(t,warn)=>{hint.textContent=t;hint.classList.toggle('warn',!!warn)};
+const show=i=>{const h=H[i];n.textContent=h.name;w.textContent=h.motto;root.style.setProperty('--c',h.color);
+ if(h.status!=='open')setHint(h.note||'Not available',true);else setHint(h.note?`${h.note} · click to choose`:'Click to choose this house')};
+const reset=()=>{if(picked>=0)return show(picked);n.textContent='The Iron Throne';w.textContent='Choose your house';setHint('Click a sword to swear fealty');root.style.setProperty('--c','#aeb4b9')};
+function pick(i){
+ const h=H[i];
+ if(h.status!=='open'){show(i);setHint(h.note||'Not available',true);return}
+ picked=i;applyStatus();show(i);setHint('Sworn. Now give your name…');
+ // The game page (same site) listens for this and moves on to the name screen.
+ if(inFrame)window.parent.postMessage({type:'iron-throne:pick',house:h.key,name:h.name},location.origin==='null'?'*':location.origin);
+}
+function applyStatus(){document.querySelectorAll('.sw').forEach(e=>{const i=+e.dataset.i;e.classList.toggle('locked',H[i].status!=='open');e.classList.toggle('picked',i===picked);e.setAttribute('aria-disabled',H[i].status!=='open')})}
+function bindSwords(){document.querySelectorAll('.sw').forEach(e=>{const i=+e.dataset.i;
+ e.addEventListener('pointerenter',()=>show(i));e.addEventListener('pointerleave',reset);e.addEventListener('focus',()=>show(i));e.addEventListener('blur',reset);
+ e.addEventListener('click',()=>pick(i));e.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(i)}})});applyStatus()}
+// Live house data from the game page: [{name,motto,color,status:'open'|'locked'|'claimed',note}]
+addEventListener('message',ev=>{
+ if(ev.source!==window.parent||!ev.data)return;
+ if(ev.data.type==='iron-throne:houses'&&Array.isArray(ev.data.houses)){
+  for(const g of ev.data.houses){const h=H.find(x=>x.key===normHouse(g.name)||x.key===normHouse(g.id));if(!h)continue;
+   h.id=g.id;if(g.name)h.name='House '+String(g.name).replace(/^house\s+/i,'');if(g.motto)h.motto=String(g.motto);
+   if(/^#[0-9a-f]{3,8}$/i.test(g.color||''))h.color=g.color;h.status=['open','locked','claimed'].includes(g.status)?g.status:'open';h.note=String(g.note||'')}
+  document.querySelectorAll('.sw').forEach(e=>e.style.setProperty('--c',H[+e.dataset.i].color));applyStatus();
+ }
+ if(ev.data.type==='iron-throne:reset'){picked=-1;applyStatus();reset()}
+});
+build();
+if(inFrame)window.parent.postMessage({type:'iron-throne:ready'},location.origin==='null'?'*':location.origin);
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(build,120)});
+</script></body></html>

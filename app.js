@@ -4,6 +4,10 @@
   const SERVER_URL = window.GOT_CONFIG?.serverUrl || 'http://localhost:3000';
   const tokenKey = 'ironThroneClientToken';
   const usernameKey = 'ironThroneUsername';
+  // House chosen on the throne screen before logging in. Claimed automatically right after login.
+  const pickedHouseKey = 'ironThronePickedHouse';
+  let pickedHouse = null;
+  try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
   let clientToken = localStorage.getItem(tokenKey);
   if (!clientToken) {
     const makePart = () => (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
@@ -246,7 +250,66 @@
     $('resetGameButton').hidden = !state.isHost;
   }
 
+  const normHouse = value => String(value || '').toLowerCase().replace(/^house\s+/, '').trim();
+  function findPickedHouse() {
+    if (!pickedHouse || !state?.houses) return null;
+    return state.houses.find(h => h.id === pickedHouse.key || normHouse(h.id) === pickedHouse.key || normHouse(h.name) === pickedHouse.key) || null;
+  }
+  function setPickedHouse(value) {
+    pickedHouse = value;
+    if (value) localStorage.setItem(pickedHouseKey, JSON.stringify(value));
+    else localStorage.removeItem(pickedHouseKey);
+  }
+
+  // Which screen is showing: throne (no house yet) → name (house picked) → game (logged in).
+  function updateScreens() {
+    const loggedIn = Boolean(state?.me);
+    const showThrone = !loggedIn && !pickedHouse;
+    $('throneScreen').hidden = !showThrone;
+    $('loginScreen').hidden = loggedIn || showThrone;
+    $('gameScreen').hidden = !loggedIn;
+    document.body.classList.toggle('throne-open', showThrone);
+    const chosen = $('chosenHouse');
+    if (chosen) {
+      const house = findPickedHouse();
+      chosen.hidden = !pickedHouse || loggedIn;
+      if (pickedHouse) {
+        chosen.style.setProperty('--house-color', house?.color || '#c8a86c');
+        chosen.innerHTML = `<div><small>YOUR HOUSE</small><strong>${escapeHtml(house?.sigil ? house.sigil + ' ' : '')}House ${escapeHtml(house?.name || pickedHouse.name.replace(/^house\s+/i, ''))}</strong></div><button class="button button-quiet button-small" type="button" data-action="change-house">Change</button>`;
+      }
+    }
+  }
+
+  // Tell the throne which houses can be picked right now (same rules as the lobby house picker).
+  function sendHousesToThrone() {
+    const frame = $('throneFrame');
+    if (!frame?.contentWindow || !state?.houses) return;
+    const houses = state.houses.map(h => {
+      const locked = h.type === 'minor' && !state.minorHousesUnlocked;
+      const claimed = h.type === 'minor' && h.players.length > 0 && !h.players.some(p => p.id === state.me?.id);
+      return {
+        id: h.id, name: h.name, motto: h.motto, color: h.color,
+        status: locked ? 'locked' : claimed ? 'claimed' : 'open',
+        note: locked ? `Minor house · unlocks at 7 players (${state.players.length}/7)` : claimed ? 'Already claimed by another player' : h.type === 'major' ? `Major house · ${h.players.length} sworn` : 'Minor house · one player only'
+      };
+    });
+    frame.contentWindow.postMessage({ type: 'iron-throne:houses', houses }, location.origin === 'null' ? '*' : location.origin);
+  }
+
+  // Once logged in, claim the house picked on the throne (uses the existing select-house action).
+  function claimPickedHouse() {
+    if (!pickedHouse || !state?.me) return;
+    const house = findPickedHouse();
+    const label = pickedHouse.name;
+    setPickedHouse(null);
+    if (!house) { showToast(`Could not find ${label}. Choose a house in the lobby.`, 'error'); return; }
+    if (state.me.houseId === house.id) return;
+    if (state.phase !== 'LOBBY') { showToast('The game has already begun, so your house cannot change now.', 'error'); return; }
+    emitAction('select-house', { houseId: house.id });
+  }
+
   function render() {
+    updateScreens();
     if (!state) return;
     // Preserve all form selections and text while another player causes a shared-state update.
     const savedValues = {};
@@ -257,9 +320,8 @@
     const selectionStart = wasFocused && typeof document.activeElement.selectionStart === 'number' ? document.activeElement.selectionStart : null;
 
     const loggedIn = Boolean(state.me);
-    $('loginScreen').hidden = loggedIn;
-    $('gameScreen').hidden = !loggedIn;
     if (!loggedIn) return;
+    claimPickedHouse();
 
     renderPhase();
     renderHouseRoster();
@@ -290,6 +352,8 @@
     }
   }
 
+  updateScreens();
+
   if (!socket) {
     setConnection(false, 'Socket.IO failed to load');
     $('loginError').textContent = 'The realtime client library did not load. Check your internet connection or CDN access.';
@@ -307,8 +371,22 @@
     socket.on('state', nextState => {
       state = nextState;
       render();
+      sendHousesToThrone();
     });
   }
+
+  // Messages from the throne screen (same site only).
+  window.addEventListener('message', event => {
+    const frame = $('throneFrame');
+    if (!frame || event.source !== frame.contentWindow || !event.data) return;
+    if (event.data.type === 'iron-throne:ready') sendHousesToThrone();
+    if (event.data.type === 'iron-throne:pick' && typeof event.data.house === 'string') {
+      setPickedHouse({ key: normHouse(event.data.house).slice(0, 40), name: String(event.data.name || event.data.house).slice(0, 60) });
+      render();
+      setTimeout(() => $('usernameInput')?.focus(), 50);
+    }
+  });
+  $('throneFrame')?.addEventListener('load', sendHousesToThrone);
 
   $('loginForm').addEventListener('submit', event => {
     event.preventDefault();
@@ -339,6 +417,13 @@
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action;
+    if (action === 'change-house') {
+      setPickedHouse(null);
+      $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
+      sendHousesToThrone();
+      render();
+      return;
+    }
     if (action === 'select-house') emitAction('select-house', { houseId: button.dataset.houseId });
     else if (action === 'start-election') emitAction('start-election');
     else if (action === 'close-voting') emitAction('close-voting');
@@ -405,6 +490,8 @@
     localStorage.removeItem(usernameKey);
     localStorage.removeItem(tokenKey);
     state = state ? { ...state, me: null, myHouse: null } : null;
+    setPickedHouse(null);
+    $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
     render();
     $('usernameInput').value = '';
     // Prepare a fresh guest identity on this browser; the server keeps the old player slot disconnected.
