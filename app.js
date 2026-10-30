@@ -9,6 +9,7 @@
   const pickedHouseKey = 'ironThronePickedHouse';
   let pickedHouse = null;
   let preparingHost = false;
+  let showHostSetup = false;
   let rulesAccepted = false;
   let gameCode = localStorage.getItem(roomCodeKey)?.toUpperCase() || '';
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
@@ -306,15 +307,14 @@
   // Flow: throne → name → waiting room → empty game canvas.
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
-    const hostSetup = preparingHost || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
-    const showRules = hostSetup || (!loggedIn && Boolean(gameCode && !rulesAccepted));
-    const showThrone = !loggedIn && (!gameCode || !pickedHouse) && !showRules;
+    const hostSetup = showHostSetup || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
+    const showRules = !loggedIn && Boolean(gameCode && !rulesAccepted);
+    const showThrone = !loggedIn && (!gameCode || !pickedHouse) && !showRules && !hostSetup;
     const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
     $('throneScreen').hidden = !showThrone;
     $('gameRulesScreen').hidden = !showRules;
     $('loginScreen').hidden = loggedIn || !gameCode || showThrone || showRules;
-    $('hostSetupSection').hidden = !hostSetup;
-    $('rulesContinueButton').hidden = hostSetup;
+    $('hostSetupScreen').hidden = !hostSetup;
     $('lobbyScreen').hidden = !waiting;
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
     $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY' || state?.phase === 'HAND_SELECTION';
@@ -482,7 +482,9 @@
         localStorage.removeItem(usernameKey);
         setPickedHouse(null);
         $('usernameInput').value = '';
+        rulesAccepted = false;
         preparingHost = true;
+        showHostSetup = false;
         render();
       });
     }
@@ -497,6 +499,8 @@
         localStorage.removeItem(usernameKey);
         setPickedHouse(null);
         $('usernameInput').value = '';
+        rulesAccepted = false;
+        showHostSetup = false;
         transitionThrone('house');
         render();
         sendHousesToThrone();
@@ -529,8 +533,9 @@
   });
   $('rulesContinueButton').addEventListener('click', () => {
     rulesAccepted = true;
+    if (preparingHost) showHostSetup = true;
     render();
-    $('usernameInput')?.focus();
+    if (!preparingHost) $('throneFrame')?.focus();
   });
   $('hostSetupForm').addEventListener('submit', event => {
     event.preventDefault();
@@ -542,6 +547,7 @@
         showToast(result.message || 'Game setup saved.', 'success');
         if (preparingHost) {
           preparingHost = false;
+          showHostSetup = false;
           rulesAccepted = true;
           transitionThrone('house');
           render();
