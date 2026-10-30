@@ -7,10 +7,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/svg+xml" href="./assets/iron-throne-icon.svg?v=3">
-  <link rel="stylesheet" href="./style.css?v=16">
+  <link rel="stylesheet" href="./style.css?v=17">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
-  <script src="./config.js?v=16" defer></script>
-  <script src="./app.js?v=16" defer></script>
+  <script src="./config.js?v=17" defer></script>
+  <script src="./app.js?v=17" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -29,23 +29,8 @@
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
-    <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=12" title="War of Westeros throne selection"></iframe>
+    <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=13" title="War of Westeros throne selection"></iframe>
   </section>
-
-  <main id="gameRulesScreen" class="realm-screen rules-screen" hidden>
-    <section class="realm-card panel game-rules-card">
-      <p class="eyebrow">BEFORE YOU ENTER THE REALM</p>
-      <h1>How to play</h1>
-      <p class="muted rules-intro">A quick guide to the current Classic game.</p>
-      <div class="rules-grid">
-        <article><span>01</span><h2>Build your strength</h2><p>Each round, recruit forces, gather intelligence, and plan your next move. Income grows with the capitals your house controls.</p></article>
-        <article><span>02</span><h2>Keep your plans secret</h2><p>Your army size and attack orders stay hidden from rival houses. A successful spy can reveal an enemy’s strength.</p></article>
-        <article><span>03</span><h2>Win the court</h2><p>Negotiate and offer alliances during court. The king can issue a royal command, and the host resolves the round.</p></article>
-        <article><span>04</span><h2>Take the capitals</h2><p>Attacks target capitals and resolve in a later round. Capturing them increases your house’s future income.</p></article>
-      </div>
-      <button id="rulesContinueButton" class="button button-primary button-full" type="button">Continue to choose your house <span>→</span></button>
-    </section>
-  </main>
 
   <main id="hostSetupScreen" class="realm-screen" hidden>
     <section class="realm-card panel host-setup-card">

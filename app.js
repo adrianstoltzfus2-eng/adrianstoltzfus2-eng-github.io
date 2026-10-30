@@ -10,7 +10,6 @@
   let pickedHouse = null;
   let preparingHost = false;
   let showHostSetup = false;
-  let rulesAccepted = false;
   let gameCode = localStorage.getItem(roomCodeKey)?.toUpperCase() || '';
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
   const hashHouse = /^#house=([a-z\-]{2,40})$/i.exec(location.hash);
@@ -30,7 +29,7 @@
   const $ = id => document.getElementById(id);
   function setThronePage(mode) {
     const frame = $('throneFrame');
-    if (frame) frame.src = mode === 'entry' ? './throne-photo.html?mode=entry&v=12' : './throne-photo.html?v=12';
+    if (frame) frame.src = mode === 'entry' ? './throne-photo.html?mode=entry&v=13' : './throne-photo.html?v=13';
   }
   function transitionThrone(mode) {
     const frame = $('throneFrame');
@@ -304,16 +303,14 @@
     else localStorage.removeItem(pickedHouseKey);
   }
 
-  // Flow: throne → name → waiting room → empty game canvas.
+  // Flow: host setup or throne selection → name → waiting room → game.
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
     const hostSetup = showHostSetup || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
-    const showRules = !loggedIn && Boolean(gameCode && !rulesAccepted);
-    const showThrone = !loggedIn && (!gameCode || !pickedHouse) && !showRules && !hostSetup;
+    const showThrone = !loggedIn && (!gameCode || !pickedHouse) && !hostSetup;
     const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
     $('throneScreen').hidden = !showThrone;
-    $('gameRulesScreen').hidden = !showRules;
-    $('loginScreen').hidden = loggedIn || !gameCode || showThrone || showRules;
+    $('loginScreen').hidden = loggedIn || !gameCode || showThrone;
     $('hostSetupScreen').hidden = !hostSetup;
     $('lobbyScreen').hidden = !waiting;
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
@@ -324,8 +321,8 @@
       $('hostRoomPin').textContent = gameCode || '——';
       const maxSelect = $('maxPlayersInput');
       if (!maxSelect.options.length) maxSelect.innerHTML = Array.from({ length: 15 }, (_, i) => i + 2).map(n => `<option value="${n}">${n} players</option>`).join('');
-      maxSelect.value = String(state.settings?.maxPlayers || 4);
-      $('gameTypeInput').value = state.settings?.gameType || 'CLASSIC';
+      maxSelect.value = String(state?.settings?.maxPlayers || 4);
+      $('gameTypeInput').value = state?.settings?.gameType || 'CLASSIC';
     }
     const chosen = $('chosenHouse');
     if (chosen) {
@@ -482,9 +479,8 @@
         localStorage.removeItem(usernameKey);
         setPickedHouse(null);
         $('usernameInput').value = '';
-        rulesAccepted = false;
         preparingHost = true;
-        showHostSetup = false;
+        showHostSetup = true;
         render();
       });
     }
@@ -499,7 +495,6 @@
         localStorage.removeItem(usernameKey);
         setPickedHouse(null);
         $('usernameInput').value = '';
-        rulesAccepted = false;
         showHostSetup = false;
         transitionThrone('house');
         render();
@@ -531,12 +526,6 @@
       socket.emit('request-state');
     });
   });
-  $('rulesContinueButton').addEventListener('click', () => {
-    rulesAccepted = true;
-    if (preparingHost) showHostSetup = true;
-    render();
-    if (!preparingHost) $('throneFrame')?.focus();
-  });
   $('hostSetupForm').addEventListener('submit', event => {
     event.preventDefault();
     $('hostSetupError').textContent = '';
@@ -548,7 +537,6 @@
         if (preparingHost) {
           preparingHost = false;
           showHostSetup = false;
-          rulesAccepted = true;
           transitionThrone('house');
           render();
           sendHousesToThrone();

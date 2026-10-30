@@ -107,15 +107,6 @@ body.throne-open { overflow: hidden; }
 .realm-card > h1 { margin: 4px 0 10px; font: 600 clamp(28px, 4vw, 44px)/1.15 Cinzel, Georgia, serif; color: #e3d2ad; }
 .realm-card > .muted { line-height: 1.7; }
 .realm-card .house-picker { margin-top: 24px; }
-.rules-screen { align-items: center; }
-.game-rules-card { max-width: 820px; }
-.rules-intro { margin-bottom: 24px; }
-.rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 22px 0 26px; }
-.rules-grid article { min-height: 132px; padding: 15px; border: 1px solid rgba(217,190,135,.16); border-radius: 8px; background: rgba(255,255,255,.025); }
-.rules-grid article > span { color: var(--gold); font: 600 12px Cinzel, Georgia, serif; }
-.rules-grid h2 { margin: 7px 0; color: #e3d2ad; font: 600 16px Cinzel, Georgia, serif; }
-.rules-grid p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
-.game-rules-card > .button { max-width: 420px; margin: 0 auto; }
 .realm-screen:has(.host-setup-card) { position: relative; isolation: isolate; min-height: 100vh; align-items: center; background: linear-gradient(90deg, rgba(6,7,9,.78), rgba(8,9,11,.48)), url('./assets/throne-photo-background.png') center / cover fixed; }
 .realm-screen:has(.host-setup-card)::before { content: ''; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(5,6,8,.2), rgba(5,6,8,.68)); pointer-events: none; }
 .host-setup-card { background: rgba(15, 16, 18, .88); backdrop-filter: blur(5px); max-width: 620px; }
@@ -354,8 +345,6 @@ body.throne-open { overflow: hidden; }
   .hero-rules { grid-template-columns: 1fr; gap: 12px; }
   .hero-rules div { display: grid; grid-template-columns: 23px 1fr; column-gap: 8px; }
   .hero-rules small { grid-column: 2; }
-  .rules-grid { grid-template-columns: 1fr; }
-  .rules-grid article { min-height: 0; }
   .login-card { padding: 23px; }
   .game-screen { padding: 12px 10px 50px; }
   .welcome-strip, .sidebar-panel, .section-panel { padding: 15px; }
