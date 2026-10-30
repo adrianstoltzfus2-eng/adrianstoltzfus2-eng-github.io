@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101318">
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
-  <link rel="icon" type="image/svg+xml" href="./assets/iron-throne-icon.svg?v=1">
+  <link rel="icon" type="image/svg+xml" href="./assets/iron-throne-icon.svg?v=2">
   <link rel="stylesheet" href="./style.css?v=16">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=16" defer></script>
@@ -18,7 +18,7 @@
   <div class="ambient ambient-two"></div>
   <header class="topbar">
     <a id="homeLink" class="brand" href="./" aria-label="War of Westeros start page">
-      <span class="brand-mark" aria-hidden="true"><img src="./assets/iron-throne-icon.svg?v=1" alt=""></span>
+      <span class="brand-mark" aria-hidden="true"><img src="./assets/iron-throne-icon.svg?v=2" alt=""></span>
       <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small></span>
     </a>
     <div class="topbar-right">
@@ -32,16 +32,41 @@
     <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=12" title="War of Westeros throne selection"></iframe>
   </section>
 
+  <main id="gameRulesScreen" class="realm-screen rules-screen" hidden>
+    <section class="realm-card panel game-rules-card">
+      <p class="eyebrow">BEFORE YOU ENTER THE REALM</p>
+      <h1>How to play</h1>
+      <p class="muted rules-intro">A quick guide to the current Classic game.</p>
+      <div class="rules-grid">
+        <article><span>01</span><h2>Build your strength</h2><p>Each round, recruit forces, gather intelligence, and plan your next move. Income grows with the capitals your house controls.</p></article>
+        <article><span>02</span><h2>Keep your plans secret</h2><p>Your army size and attack orders stay hidden from rival houses. A successful spy can reveal an enemy’s strength.</p></article>
+        <article><span>03</span><h2>Win the court</h2><p>Negotiate and offer alliances during court. The king can issue a royal command, and the host resolves the round.</p></article>
+        <article><span>04</span><h2>Take the capitals</h2><p>Attacks target capitals and resolve in a later round. Capturing them increases your house’s future income.</p></article>
+      </div>
+      <section id="hostSetupSection" class="host-setup-section" hidden>
+        <p class="room-pin-line">Room PIN <strong id="hostRoomPin">——</strong><span>Share this with your players.</span></p>
+        <form id="hostSetupForm" class="host-setup-form">
+          <label for="maxPlayersInput">Player limit</label>
+          <select id="maxPlayersInput" name="maxPlayers" required></select>
+          <label for="gameTypeInput">Game type</label>
+          <select id="gameTypeInput" name="gameType" required>
+            <option value="CLASSIC">Classic</option>
+            <option value="LAST_DRAGON">Last Dragon · rules coming later</option>
+          </select>
+          <p class="muted small-text setup-note">Last Dragon is a placeholder for now; selecting it won’t change the current game rules.</p>
+          <button class="button button-primary button-full" type="submit">Save setup and continue to house selection <span>→</span></button>
+          <div id="hostSetupError" class="form-error" aria-live="polite"></div>
+        </form>
+      </section>
+      <button id="rulesContinueButton" class="button button-primary button-full" type="button">Continue to choose your house <span>→</span></button>
+    </section>
+  </main>
+
   <main id="loginScreen" class="login-wrap" hidden>
     <section class="login-hero">
       <p class="eyebrow">A REALM DIVIDED</p>
       <h1>Power is taken.<br><em>Never simply given.</em></h1>
       <p class="hero-copy">Choose your house. Build your strength. Win the court—or take the capital by force.</p>
-      <div class="hero-rules">
-        <div><span>01</span><strong>Claim a house</strong><small>Major houses can have multiple players.</small></div>
-        <div><span>02</span><strong>Keep your plans secret</strong><small>Enemy army sizes are hidden unless a spy succeeds.</small></div>
-        <div><span>03</span><strong>Take the capitals</strong><small>Every capital you control increases your income.</small></div>
-      </div>
     </section>
     <section class="login-card panel">
       <div class="panel-kicker">ENTER THE REALM</div>
@@ -55,27 +80,6 @@
       </form>
       <p class="tiny-note"><strong>Prototype note:</strong> guest names are not password-protected. Do not use private or sensitive information.</p>
       <div id="loginError" class="form-error" aria-live="polite"></div>
-    </section>
-  </main>
-
-  <main id="hostSetupScreen" class="realm-screen" hidden>
-    <section class="realm-card panel host-setup-card">
-      <p class="eyebrow">HOST ONLY · MATCH SETUP</p>
-      <h1>Prepare the game</h1>
-      <p class="muted">Choose how many players may join and which game type to use before opening the hall.</p>
-      <p class="room-pin-line">Room PIN <strong id="hostRoomPin">——</strong><span>Share this with your players.</span></p>
-      <form id="hostSetupForm" class="host-setup-form">
-        <label for="maxPlayersInput">Player limit</label>
-        <select id="maxPlayersInput" name="maxPlayers" required></select>
-        <label for="gameTypeInput">Game type</label>
-        <select id="gameTypeInput" name="gameType" required>
-          <option value="CLASSIC">Classic</option>
-          <option value="LAST_DRAGON">Last Dragon · rules coming later</option>
-        </select>
-        <p class="muted small-text setup-note">Last Dragon is a placeholder for now; selecting it won’t change the current game rules.</p>
-        <button class="button button-primary button-full" type="submit">Save setup and open the hall <span>→</span></button>
-        <div id="hostSetupError" class="form-error" aria-live="polite"></div>
-      </form>
     </section>
   </main>
 

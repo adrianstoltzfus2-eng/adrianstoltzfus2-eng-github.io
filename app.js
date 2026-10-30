@@ -9,6 +9,7 @@
   const pickedHouseKey = 'ironThronePickedHouse';
   let pickedHouse = null;
   let preparingHost = false;
+  let rulesAccepted = false;
   let gameCode = localStorage.getItem(roomCodeKey)?.toUpperCase() || '';
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
   const hashHouse = /^#house=([a-z\-]{2,40})$/i.exec(location.hash);
@@ -78,6 +79,8 @@
     const pill = $('connectionPill');
     if (!pill) return;
     pill.className = `status-pill ${connected ? 'status-online' : 'status-offline'}`;
+    pill.setAttribute('aria-label', `Server ${label.toLowerCase()}`);
+    pill.title = `Server ${label.toLowerCase()}`;
     pill.innerHTML = `<i></i><span>${escapeHtml(label)}</span>`;
   }
 
@@ -151,12 +154,12 @@
     $('handSelectionForm').hidden = !state.isKing;
     $('kingWaitingMessage').hidden = state.isKing;
     $('kingWaitingMessage').textContent = `${king?.username || 'The king'} is choosing the Hand of the King. The game will begin when the appointment is made.`;
-    $('handPlayerSelect').innerHTML = state.players.map(player => {
+    $('handPlayerSelect').innerHTML = '<option value="" disabled selected>Choose a player</option>' + state.players.map(player => {
       const playerHouse = state.houses.find(item => item.id === player.houseId);
       return `<option value="${escapeHtml(player.id)}">${escapeHtml(player.username)}${playerHouse ? ` · House ${escapeHtml(playerHouse.name)}` : ''}${player.connected ? '' : ' · reconnecting'}</option>`;
     }).join('');
     $('handPlayerSelect').disabled = !state.players.length;
-    $('handSelectionForm').querySelector('button').disabled = !state.players.length;
+    $('handSelectionForm').querySelector('button').disabled = true;
   }
 
   function renderVotePanel() {
@@ -303,12 +306,15 @@
   // Flow: throne → name → waiting room → empty game canvas.
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
-    const showThrone = !preparingHost && !loggedIn && (!gameCode || !pickedHouse);
     const hostSetup = preparingHost || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
+    const showRules = hostSetup || (!loggedIn && Boolean(gameCode && !rulesAccepted));
+    const showThrone = !loggedIn && (!gameCode || !pickedHouse) && !showRules;
     const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
     $('throneScreen').hidden = !showThrone;
-    $('loginScreen').hidden = loggedIn || !gameCode || showThrone;
-    $('hostSetupScreen').hidden = !hostSetup;
+    $('gameRulesScreen').hidden = !showRules;
+    $('loginScreen').hidden = loggedIn || !gameCode || showThrone || showRules;
+    $('hostSetupSection').hidden = !hostSetup;
+    $('rulesContinueButton').hidden = hostSetup;
     $('lobbyScreen').hidden = !waiting;
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
     $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY' || state?.phase === 'HAND_SELECTION';
@@ -499,7 +505,6 @@
     if (event.data.type === 'iron-throne:pick' && typeof event.data.house === 'string') {
       setPickedHouse({ key: normHouse(event.data.house).slice(0, 40), name: String(event.data.name || event.data.house).slice(0, 60) });
       render();
-      setTimeout(() => $('usernameInput')?.focus(), 50);
     }
   });
   $('throneFrame')?.addEventListener('load', sendHousesToThrone);
@@ -522,6 +527,11 @@
       socket.emit('request-state');
     });
   });
+  $('rulesContinueButton').addEventListener('click', () => {
+    rulesAccepted = true;
+    render();
+    $('usernameInput')?.focus();
+  });
   $('hostSetupForm').addEventListener('submit', event => {
     event.preventDefault();
     $('hostSetupError').textContent = '';
@@ -532,6 +542,7 @@
         showToast(result.message || 'Game setup saved.', 'success');
         if (preparingHost) {
           preparingHost = false;
+          rulesAccepted = true;
           transitionThrone('house');
           render();
           sendHousesToThrone();
@@ -543,6 +554,9 @@
   $('handSelectionForm').addEventListener('submit', event => {
     event.preventDefault();
     emitAction('appoint-hand', { playerId: $('handPlayerSelect').value });
+  });
+  $('handPlayerSelect').addEventListener('change', event => {
+    $('handSelectionForm').querySelector('button').disabled = !event.target.value;
   });
 
   document.addEventListener('click', event => {
