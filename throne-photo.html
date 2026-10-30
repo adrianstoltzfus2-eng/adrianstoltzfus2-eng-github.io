@@ -12,11 +12,10 @@
     *{box-sizing:border-box}
     html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#08090b;color:#eee7d7}
     body{font-family:Georgia,serif;user-select:none;-webkit-tap-highlight-color:transparent}
-    #sceneImage,#swords{position:absolute;inset:0;width:100%;height:100%}
-    #sceneImage{object-fit:cover;object-position:center center;animation:sceneFade .65s ease-out both}
-    #swords{overflow:visible;pointer-events:none}
+    button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+    #sceneImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;animation:sceneFade .65s ease-out both}
     @keyframes sceneFade{from{opacity:0}to{opacity:1}}
-    header{position:absolute;z-index:2;top:max(env(safe-area-inset-top),12px);left:0;right:0;padding:12px 16px 20px;text-align:center;pointer-events:none;background:linear-gradient(180deg,rgba(5,7,9,.76),rgba(5,7,9,.28) 68%,transparent)}
+    header{position:absolute;z-index:2;top:max(env(safe-area-inset-top),12px);left:0;right:0;padding:12px 16px 20px;text-align:center;pointer-events:none;background:linear-gradient(180deg,rgba(5,7,9,.76),rgba(5,7,9,.28) 68%,transparent);transition:opacity .3s ease,filter .35s ease,transform .35s ease}
     h1{margin:0;font:700 clamp(1.45rem,4.6vw,2.8rem)/1.08 Cinzel,Georgia,serif;letter-spacing:.08em;color:#e7dfce;text-shadow:0 2px 14px #000,0 0 25px #000}
     .rule{width:min(250px,54vw);height:1px;margin:9px auto 7px;background:linear-gradient(90deg,transparent,#c8a86c,transparent);opacity:.8}
     #w{margin:0;font:italic 1.14rem/1.2 "IM Fell English",Georgia,serif;color:#d2c8b6;text-shadow:0 2px 9px #000}
@@ -24,48 +23,66 @@
     #hint.warn{color:#df8c83}
     #confirmHouse{pointer-events:auto;margin:9px auto 0;padding:8px 17px;border:1px solid #c8a86caa;border-radius:999px;background:#0b0d10e8;color:#ebd8ad;font:700 .68rem Cinzel,Georgia,serif;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 4px 18px #0009}
     #confirmHouse[hidden]{display:none}
-    .sword-select{cursor:pointer;outline:none;--c:#c8a86c;pointer-events:auto}
-    .sword-select.locked{cursor:not-allowed;opacity:.35}
-    .sword-select.mode-inactive{opacity:.24;pointer-events:none}
-    .blade-lift{transform-box:fill-box;transform-origin:50% 100%;transition:translate .3s cubic-bezier(.2,.8,.2,1),filter .25s ease;}
-    .blade-rise{opacity:0;transform-box:fill-box;transform-origin:50% 100%;animation:bladeRise .72s cubic-bezier(.2,.84,.22,1) var(--delay,0s) both}
-    @keyframes bladeRise{0%{opacity:0;transform:translateY(70px) scaleY(.72)}100%{opacity:1;transform:translateY(0) scaleY(1)}}
-    .sword-select:hover .blade-lift,.sword-select:focus-visible .blade-lift,.sword-select.preview .blade-lift{translate:0 -15px;filter:brightness(1.17) drop-shadow(0 0 7px color-mix(in srgb,var(--c) 70%,#c9d1d3))}
-    .sword-select.picked .blade-lift{translate:0 -25px;filter:brightness(1.25) drop-shadow(0 0 12px color-mix(in srgb,var(--c) 75%,#d0d9dc))}
-    .blade-hit{fill:none;stroke:transparent;stroke-width:26;stroke-linecap:round;pointer-events:stroke}
-    .lingering-blade{opacity:0;pointer-events:none;animation:lingerIn .45s ease var(--delay,1.45s) both}
-    @keyframes lingerIn{to{opacity:.56}}
+    .choice-panel{position:absolute;z-index:3;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);transition:opacity .28s ease,translate .28s ease}
+    .choice-panel[hidden]{display:none}
+    body.mode-switching header{opacity:.35;filter:blur(1px);transform:translateY(5px)}
+    body.mode-switching .choice-panel{opacity:0;translate:0 8px}
+    .entry-actions{width:min(520px,calc(100vw - 32px));display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .entry-button{min-height:82px;padding:13px 16px;border:1px solid #d6b66d99;border-top:2px solid #e7c77c;border-radius:7px;background:linear-gradient(145deg,rgba(17,19,22,.94),rgba(8,9,11,.94));box-shadow:0 8px 28px #000b,inset 0 0 20px #c8a86c0b;text-align:left;cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+    .entry-button:hover,.entry-button:focus-visible{transform:translateY(-3px);border-color:#f1d99f;background:linear-gradient(145deg,rgba(39,34,25,.97),rgba(10,11,13,.97));outline:none}
+    .entry-button strong{display:block;color:#f1dfb5;font:700 .86rem Cinzel,Georgia,serif;letter-spacing:.11em}
+    .entry-button small{display:block;margin-top:6px;color:#b9b1a2;font-size:.72rem;line-height:1.35}
+    .house-panel{width:min(980px,calc(100vw - 36px));padding:10px;border:1px solid #d9be874d;border-radius:9px;background:rgba(8,10,12,.86);box-shadow:0 10px 36px #000b;backdrop-filter:blur(5px)}
+    .house-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}
+    .house-option{min-width:0;min-height:119px;padding:7px 4px 8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;border:1px solid #d9be8730;border-radius:6px;background:rgba(255,255,255,.025);cursor:pointer;transition:transform .16s ease,background .16s ease,border-color .16s ease,opacity .16s ease}
+    .house-option:hover,.house-option:focus-visible,.house-option.preview{transform:translateY(-3px);background:rgba(200,168,108,.12);border-color:#e3c786;outline:none}
+    .house-option.picked{border-color:#f0d597;background:rgba(200,168,108,.17);box-shadow:0 0 15px #c8a86c30}
+    .house-option:disabled{cursor:not-allowed;opacity:.46;filter:grayscale(.48)}
+    .house-option .banner-art{display:block;width:58px;height:76px;flex:0 0 auto;background-image:url('./assets/house-banners.png?v=1');background-repeat:no-repeat;background-size:400% 200%;background-position:var(--sprite-x,0%) var(--sprite-y,0%);filter:drop-shadow(0 3px 4px #0008)}
+    .house-option strong{max-width:100%;overflow:hidden;color:#eee4cf;font:700 .57rem/1.2 Cinzel,Georgia,serif;letter-spacing:.035em;text-overflow:ellipsis;white-space:nowrap}
+    .house-option small{display:none;color:#c0b6a2;font-size:.57rem;line-height:1.25;text-align:center}
     .mode-pin-panel{position:absolute;z-index:5;top:50%;left:50%;width:min(340px,calc(100vw - 36px));transform:translate(-50%,-50%);padding:24px 22px 20px;border:1px solid #d9be8770;border-top:2px solid #c8a86c;border-radius:10px;background:rgba(13,15,18,.96);box-shadow:0 16px 50px #000c;text-align:center;color:#eee7d7;font-family:Cinzel,Georgia,serif}
     .mode-pin-panel[hidden]{display:none}
     .mode-pin-panel label{display:block;margin-bottom:10px;color:#c8a86c;font-size:11px;letter-spacing:.19em}
     .mode-pin-panel input{width:100%;padding:10px;background:#101318;border:1px solid #d9be8752;border-radius:5px;color:#f3e3bf;text-align:center;font:700 24px Cinzel,Georgia,serif;letter-spacing:.3em;text-transform:uppercase;outline:none}
-    .mode-pin-panel button{margin:12px 4px 0;padding:9px 14px;border:1px solid #d9be8759;border-radius:5px;background:#26241f;color:#ead6a8;font:700 10px Cinzel,Georgia,serif;letter-spacing:.1em;text-transform:uppercase}
+    .mode-pin-panel button{margin:12px 4px 0;padding:9px 14px;border:1px solid #d9be8759;border-radius:5px;background:#26241f;color:#ead6a8;font:700 10px Cinzel,Georgia,serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
     #pinError{display:block;min-height:14px;margin-top:9px;color:#df8c83;font:11px/1.4 Georgia,serif}
-    body.mode-switching header{opacity:.35;filter:blur(1px);transform:translateY(5px)}
-    header{transition:opacity .3s ease,filter .35s ease,transform .35s ease}
     body.mobile-device h1{font-size:clamp(1.25rem,6vw,1.8rem)}
     body.mobile-device #w{font-size:1rem}
     body.mobile-device #hint{font-size:.6rem;letter-spacing:.11em}
-    @media(prefers-reduced-motion:reduce){#sceneImage{animation:none}.blade-rise{animation:none;opacity:1;transform:none}.lingering-blade{animation:none;opacity:.56}.blade-lift,header{transition:none}}
+    @media(max-width:720px){
+      .house-panel{width:min(410px,calc(100vw - 22px));max-height:min(58vh,520px);overflow-y:auto;padding:8px}
+      .house-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+      .house-option{min-height:78px;padding:5px 8px;display:grid;grid-template-columns:46px minmax(0,1fr);grid-template-rows:1fr 1fr;column-gap:9px;align-items:center;text-align:left}
+      .house-option .banner-art{width:43px;height:58px;grid-row:1/3}
+      .house-option strong{align-self:end;font-size:.63rem}
+      .house-option small{display:block;align-self:start;text-align:left}
+      .entry-actions{width:min(430px,calc(100vw - 24px));gap:8px}
+      .entry-button{min-height:74px;padding:11px 12px}
+      .entry-button strong{font-size:.72rem}
+      .entry-button small{font-size:.66rem}
+    }
+    @media(max-height:600px) and (min-width:721px){
+      .house-panel{width:min(760px,calc(100vw - 36px));max-height:49vh;overflow-y:auto}
+      .house-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    }
+    @media(prefers-reduced-motion:reduce){#sceneImage{animation:none}header,.choice-panel,.entry-button,.house-option{transition:none}}
   </style>
 </head>
 <body>
-  <img id="sceneImage" src="./assets/throne-photo-scene.png?v=3" alt="The Iron Throne in a shadowed stone hall">
+  <img id="sceneImage" src="./assets/throne-photo-background.png?v=1" alt="The Iron Throne in a shadowed stone hall">
   <header>
     <h1 id="n">War of Westeros</h1><div class="rule"></div><p id="w">Choose your path</p>
-    <small id="hint">Choose a sword to host or join</small>
-    <button id="confirmHouse" type="button" hidden>Confirm choice</button>
+    <small id="hint">Host a game or join with a PIN</small>
+    <button id="confirmHouse" type="button" hidden>Confirm house</button>
   </header>
-  <svg id="swords" viewBox="0 0 1264 845" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Iron Throne sword choices">
-    <defs>
-      <linearGradient id="forgedSteel" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#293139"/><stop offset=".18" stop-color="#50616a"/><stop offset=".38" stop-color="#839097"/><stop offset=".51" stop-color="#596a72"/><stop offset=".68" stop-color="#39474f"/><stop offset=".86" stop-color="#738188"/><stop offset="1" stop-color="#2b343a"/></linearGradient>
-      <linearGradient id="bladeRidge" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a5afb2" stop-opacity=".52"/><stop offset=".48" stop-color="#7a898e" stop-opacity=".24"/><stop offset="1" stop-color="#313b41" stop-opacity=".05"/></linearGradient>
-      <filter id="bladePatina" x="-35%" y="-8%" width="170%" height="116%"><feTurbulence type="fractalNoise" baseFrequency=".38 .11" numOctaves="2" seed="17" result="grain"/><feColorMatrix in="grain" type="saturate" values="0" result="gray"/><feComponentTransfer in="gray" result="patina"><feFuncA type="table" tableValues="0 .16 .28"/></feComponentTransfer><feComposite in="patina" in2="SourceAlpha" operator="in"/></filter>
-      <clipPath id="throneFront" clipPathUnits="userSpaceOnUse"><path d="M430 845V370Q465 352 487 335Q507 320 521 308Q540 302 555 293Q574 287 590 294L618 285 635 281 654 289Q672 286 688 299Q707 304 722 318Q744 331 760 351L800 386V845Z"/></clipPath>
-    </defs>
-    <g id="choiceSwords"></g>
-    <image href="./assets/throne-photo-scene.png?v=3" x="0" y="0" width="1264" height="845" preserveAspectRatio="none" clip-path="url(#throneFront)" pointer-events="none" aria-hidden="true"/>
-  </svg>
+  <section id="entryActions" class="choice-panel entry-actions" aria-label="Start or join a game">
+    <button id="hostButton" class="entry-button" type="button"><strong>HOST GAME</strong><small>Create a new game and invite players.</small></button>
+    <button id="joinButton" class="entry-button" type="button"><strong>JOIN GAME</strong><small>Enter a four-character game PIN.</small></button>
+  </section>
+  <section id="housePanel" class="choice-panel house-panel" aria-label="Choose your house" hidden>
+    <div id="houseGrid" class="house-grid" role="group" aria-label="Available houses"></div>
+  </section>
   <form id="modePinPanel" class="mode-pin-panel" hidden>
     <label for="modePinInput">ENTER GAME PIN</label>
     <input id="modePinInput" maxlength="4" minlength="4" inputmode="text" autocomplete="one-time-code" placeholder="A4F9" required>
@@ -85,70 +102,49 @@
       {key:'martell',name:'House Martell',motto:'Unbowed, Unbent, Unbroken',color:'#f08a24'},
       {key:'arryn',name:'House Arryn',motto:'As High as Honor',color:'#6aa3e0'}
     ].map(h=>({...h,status:'open',note:''}));
-    const ENTRY_CHOICES={3:{mode:'host',name:'Host a game',motto:'Create a new game'},4:{mode:'join',name:'Join a game',motto:'Enter a four-character PIN'}};
-    const BLADE_SPECS=[
-      {tip:[566,224],root:[576,321],width:8.2},
-      {tip:[582,212],root:[597,321],width:8.4},
-      {tip:[605,207],root:[615,321],width:8.1},
-      {tip:[628,205],root:[629,321],width:8.3},
-      {tip:[653,206],root:[653,321],width:8.3},
-      {tip:[676,211],root:[668,321],width:8.1},
-      {tip:[694,224],root:[684,321],width:8.4},
-      {tip:[720,238],root:[700,321],width:8.2}
-    ];
-    const LINGERING_BLADES=[
-      {tip:[550,236],root:[574,321],width:7.1},
-      {tip:[536,258],root:[557,321],width:6.8},
-      {tip:[733,258],root:[715,321],width:7.0}
-    ];
+    const HOUSE_SPRITES={
+      stark:['0%','0%'],lannister:['33.333%','0%'],baratheon:['66.667%','0%'],targaryen:['100%','0%'],
+      tyrell:['0%','100%'],greyjoy:['33.333%','100%'],martell:['66.667%','100%'],arryn:['100%','100%']
+    };
     const n=document.getElementById('n'),w=document.getElementById('w'),hint=document.getElementById('hint'),root=document.documentElement;
+    const entryActions=document.getElementById('entryActions'),housePanel=document.getElementById('housePanel'),houseGrid=document.getElementById('houseGrid');
     const confirmHouse=document.getElementById('confirmHouse'),modePinPanel=document.getElementById('modePinPanel');
     const modePinInput=document.getElementById('modePinInput'),pinError=document.getElementById('pinError');
-    const choiceSwords=document.getElementById('choiceSwords');
     const inFrame=window.parent!==window,normHouse=v=>String(v||'').toLowerCase().replace(/^house\s+/,'').trim();
     let entryMode=new URLSearchParams(location.search).get('mode')==='entry',picked=-1,previewed=-1;
     const setHint=(text,warn=false)=>{hint.textContent=text;hint.classList.toggle('warn',warn)};
     const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     function houseAt(i){return H[i]}
-    function bladeArtwork(spec,index){
-      const dx=spec.tip[0]-spec.root[0],dy=spec.tip[1]-spec.root[1],length=Math.hypot(dx,dy),angle=Math.atan2(dx,-dy)*180/Math.PI;
-      const half=spec.width/2,L=length.toFixed(1),a=(-length*.76).toFixed(1),b=(-length*.51).toFixed(1),c=(-length*.28).toFixed(1);
-      const right=[[0,-length],[.65,-length+5],[1.45,-length+12],[1.05,-length+17],[2.2,-length+26],[1.8,-length+31],[half*.74,-length*.62],[half*.92,-length*.34],[half,-10],[half*.78,-3],[half*.45,1],[.7,-2],[0,1.6],[-.7,-2],[-half*.45,1],[-half*.78,-3],[-half,-10],[-half*.92,-length*.34],[-half*.74,-length*.62],[-1.8,-length+31],[-2.2,-length+26],[-1.05,-length+17],[-1.45,-length+12],[-.65,-length+5]];
-      const path='M'+right.map(([x,y])=>`${x.toFixed(1)} ${y.toFixed(1)}`).join('L')+'Z';
-      const scars=`M-2.7 ${a}l1.5 2.1 1.7-2.8M2.4 ${b}l-1.1 2 2.2 1.2M-2.1 ${c}l1.1 1.5 1.5-1.8`;
-      const details=`<path d="${path}" fill="url(#forgedSteel)" stroke="#252b2e" stroke-width=".9" stroke-linejoin="round"/><path d="M0 ${(-length+5).toFixed(1)}L1.3 ${(-length+21).toFixed(1)}Q1.8 ${(-length*.55).toFixed(1)} 1.2 -13L0 -5Z" fill="url(#bladeRidge)" opacity=".77"/><path d="M0 ${(-length+18).toFixed(1)}Q-.5 ${(-length*.56).toFixed(1)} 0 -17" fill="none" stroke="#343b3e" stroke-width="1.1" opacity=".84"/><path d="M-1.7 ${(-length+22).toFixed(1)}Q-1 ${(-length*.57).toFixed(1)} -.8 -20" fill="none" stroke="#c1c6c5" stroke-width=".55" opacity=".58"/><path d="${path}" fill="#b9c0c0" opacity=".24" filter="url(#bladePatina)"/><path d="${scars}" fill="none" stroke="#252c2f" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="M-1.8 ${(-length*.39).toFixed(1)}l1.2 1.4M1.5 ${(-length*.65).toFixed(1)}l-1.1 1.1" stroke="#d3d7d5" stroke-width=".65" opacity=".62"/>`;
-      return `<g transform="translate(${spec.root[0]} ${spec.root[1]}) rotate(${angle.toFixed(2)})"><g class="blade-lift"><g class="blade-rise" style="--delay:${(index*.095).toFixed(2)}s">${details}</g></g>${spec.selectable?`<path class="blade-hit" d="M0 ${(-length).toFixed(1)}V4"/>`:''}</g>`;
+    function renderHouseButtons(){
+      houseGrid.innerHTML=H.map((house,i)=>{const pos=HOUSE_SPRITES[house.key]||['0%','0%'];return `<button class="house-option" type="button" data-i="${i}" aria-label="${escapeHtml(house.name)} · ${escapeHtml(house.motto)}"><span class="banner-art" aria-hidden="true" style="--sprite-x:${pos[0]};--sprite-y:${pos[1]}"></span><strong>${escapeHtml(house.name)}</strong><small>${escapeHtml(house.motto)}</small></button>`}).join('');
+      bindHouseButtons();
     }
-    function drawSwords(){
-      const decorations=LINGERING_BLADES.map((spec,i)=>`<g class="lingering-blade" style="--delay:${(1.45+i*.18).toFixed(2)}s">${bladeArtwork({...spec,selectable:false},i+16)}</g>`).join('');
-      choiceSwords.innerHTML=decorations+H.map((house,i)=>`<g class="sword-select" tabindex="0" data-i="${i}" style="--c:${house.color}" role="button" aria-label="${escapeHtml(house.name)}">${bladeArtwork({...BLADE_SPECS[i],selectable:true},i)}</g>`).join('');
-      bindSwords();
+    function show(i){const house=houseAt(i);n.textContent=house.name;w.textContent=house.motto;root.style.setProperty('--c',house.color);if(house.status!=='open')setHint(house.note||'Not available',true);else setHint(house.note||'Choose this house')}
+    function reset(){
+      if(picked>=0){show(picked);setHint('Sworn. Now give your name…');return}
+      if(previewed>=0){show(previewed);setHint('Tap again or confirm your house');confirmHouse.hidden=false;return}
+      n.textContent='War of Westeros';w.textContent=entryMode?'Choose your path':'Choose your house';
+      setHint(entryMode?'Host a game or join with a PIN':(isPhone()?'Tap a banner to preview':'Choose a banner to swear fealty'));
+      root.style.setProperty('--c','#c8a86c');confirmHouse.hidden=true;
     }
-    function show(i){const house=houseAt(i),choice=entryMode?ENTRY_CHOICES[i]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);
-      if(entryMode&&choice)setHint(choice.mode==='host'?'Click to host a game':'Click to join a game');
-      else if(house.status!=='open')setHint(house.note||'Not available',true);
-      else setHint(house.note?`${house.note} · click to choose`:'Click to choose this house');
-    }
-    function reset(){if(picked>=0)return show(picked);if(previewed>=0){const house=houseAt(previewed),choice=entryMode?ENTRY_CHOICES[previewed]:null;n.textContent=choice?.name||house.name;w.textContent=choice?.motto||house.motto;root.style.setProperty('--c',house.color);setHint(entryMode?'Tap again or confirm your choice':'Tap again or confirm your house');return}
-      n.textContent='War of Westeros';w.textContent=entryMode?'Choose your path':'Choose your house';setHint(entryMode?(isPhone()?'Tap a sword to preview':'Choose a sword to host or join'):(isPhone()?'Tap a sword to preview':'Click a sword to swear fealty'));root.style.setProperty('--c','#c8a86c');confirmHouse.hidden=true;
-    }
-    function applyStatus(){document.querySelectorAll('.sword-select').forEach(el=>{const i=+el.dataset.i,disabled=entryMode?!ENTRY_CHOICES[i]:H[i].status!=='open';el.classList.toggle('locked',!entryMode&&disabled);el.classList.toggle('mode-inactive',entryMode&&!ENTRY_CHOICES[i]);el.classList.toggle('picked',i===picked);el.classList.toggle('preview',i===previewed);el.setAttribute('aria-disabled',disabled?'true':'false');el.setAttribute('aria-label',entryMode?(ENTRY_CHOICES[i]?.name||`${H[i].name} unavailable`):H[i].name);el.setAttribute('tabindex',disabled?'-1':'0')})}
-    function transitionMode(mode){const nextEntry=mode==='entry';if(entryMode===nextEntry)return;document.body.classList.add('mode-switching');setTimeout(()=>{entryMode=nextEntry;picked=-1;previewed=-1;confirmHouse.hidden=true;modePinPanel.hidden=true;pinError.textContent='';confirmHouse.textContent=entryMode?'Confirm choice':'Confirm house';applyStatus();reset();requestAnimationFrame(()=>document.body.classList.remove('mode-switching'))},160)}
-    function pick(i){const house=H[i];if(entryMode){const choice=ENTRY_CHOICES[i];if(!choice)return;picked=i;previewed=-1;applyStatus();show(i);if(choice.mode==='host'){confirmHouse.hidden=true;setHint('Opening a new game…');if(inFrame)window.parent.postMessage({type:'iron-throne:host'},location.origin==='null'?'*':location.origin)}else{confirmHouse.hidden=true;setHint('Enter the PIN shared by the host');modePinPanel.hidden=false;pinError.textContent='';modePinInput.value='';setTimeout(()=>modePinInput.focus(),30)}return}
-      if(house.status!=='open'){show(i);setHint(house.note||'Not available',true);return}picked=i;previewed=-1;confirmHouse.hidden=true;applyStatus();show(i);setHint('Sworn. Now give your name…');if(inFrame)window.parent.postMessage({type:'iron-throne:pick',house:house.key,name:house.name},location.origin==='null'?'*':location.origin);else setTimeout(()=>{location.href='./index.html#house='+encodeURIComponent(house.key)},700)
-    }
-    function bindSwords(){document.querySelectorAll('.sword-select').forEach(el=>{const i=+el.dataset.i,preview=()=>{if(entryMode&&!ENTRY_CHOICES[i])return;show(i)};el.addEventListener('pointerenter',preview);el.addEventListener('pointerleave',reset);el.addEventListener('focus',preview);el.addEventListener('blur',reset);el.addEventListener('click',()=>{if(entryMode&&!ENTRY_CHOICES[i])return;if(!isPhone()){pick(i);return}if(entryMode){if(previewed===i){pick(i);return}previewed=i;applyStatus();show(i);setHint('Tap again or confirm your choice');confirmHouse.hidden=false;return}if(H[i].status!=='open'){previewed=-1;confirmHouse.hidden=true;applyStatus();show(i);setHint(H[i].note||'Not available',true);return}if(previewed===i){pick(i);return}previewed=i;applyStatus();show(i);setHint('Tap again or confirm your house');confirmHouse.hidden=false});el.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(i)}})});applyStatus()}
-    confirmHouse.textContent=entryMode?'Confirm choice':'Confirm house';confirmHouse.addEventListener('click',()=>{if(previewed>=0)pick(previewed)});
+    function applyStatus(){document.querySelectorAll('.house-option').forEach(el=>{const i=+el.dataset.i,disabled=entryMode||H[i].status!=='open';el.disabled=disabled;el.classList.toggle('unavailable',disabled);el.classList.toggle('picked',i===picked);el.classList.toggle('preview',i===previewed);el.setAttribute('aria-label',`${H[i].name}${H[i].status!=='open'?` · ${H[i].note||'Not available'}`:''}`)})}
+    function syncPanels(){entryActions.hidden=!entryMode;housePanel.hidden=entryMode;confirmHouse.hidden=entryMode||previewed<0;confirmHouse.textContent='Confirm house'}
+    function transitionMode(mode){const nextEntry=mode==='entry';if(entryMode===nextEntry)return;document.body.classList.add('mode-switching');setTimeout(()=>{entryMode=nextEntry;picked=-1;previewed=-1;modePinPanel.hidden=true;pinError.textContent='';syncPanels();applyStatus();reset();requestAnimationFrame(()=>document.body.classList.remove('mode-switching'))},160)}
+    function pickHouse(i){const house=houseAt(i);if(house.status!=='open'){show(i);setHint(house.note||'Not available',true);return}picked=i;previewed=-1;confirmHouse.hidden=true;applyStatus();show(i);setHint('Sworn. Now give your name…');if(inFrame)window.parent.postMessage({type:'iron-throne:pick',house:house.key,name:house.name},location.origin==='null'?'*':location.origin);else setTimeout(()=>{location.href='./index.html#house='+encodeURIComponent(house.key)},700)}
+    function bindHouseButtons(){document.querySelectorAll('.house-option').forEach(el=>{const i=+el.dataset.i;el.addEventListener('pointerenter',()=>show(i));el.addEventListener('pointerleave',reset);el.addEventListener('focus',()=>show(i));el.addEventListener('blur',reset);el.addEventListener('click',()=>{if(H[i].status!=='open'){show(i);return}if(!isPhone()){pickHouse(i);return}if(previewed===i){pickHouse(i);return}previewed=i;applyStatus();show(i);setHint('Tap again or confirm your house');confirmHouse.hidden=false})});applyStatus()}
+    document.getElementById('hostButton').addEventListener('click',()=>{setHint('Opening a new game…');if(inFrame)window.parent.postMessage({type:'iron-throne:host'},location.origin==='null'?'*':location.origin)});
+    document.getElementById('joinButton').addEventListener('click',()=>{n.textContent='Join a game';w.textContent='Enter the four-character PIN';setHint('Enter the PIN shared by the host');modePinPanel.hidden=false;pinError.textContent='';modePinInput.value='';setTimeout(()=>modePinInput.focus(),30)});
+    confirmHouse.addEventListener('click',()=>{if(previewed>=0)pickHouse(previewed)});
     modePinInput.addEventListener('input',()=>{modePinInput.value=modePinInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);pinError.textContent=''});
     modePinPanel.addEventListener('submit',event=>{event.preventDefault();const pin=modePinInput.value.trim().toUpperCase();if(pin.length!==4){pinError.textContent='Enter all four characters.';return}if(inFrame)window.parent.postMessage({type:'iron-throne:join-pin',pin},location.origin==='null'?'*':location.origin)});
-    document.getElementById('cancelPin').addEventListener('click',()=>{modePinPanel.hidden=true;picked=-1;applyStatus();reset()});
+    document.getElementById('cancelPin').addEventListener('click',()=>{modePinPanel.hidden=true;reset()});
     addEventListener('message',ev=>{if(ev.source!==window.parent||!ev.data)return;
       if(ev.data.type==='iron-throne:set-mode'&&['entry','house'].includes(ev.data.mode))transitionMode(ev.data.mode);
-      if(ev.data.type==='iron-throne:mode-error'){const message=String(ev.data.message||'Could not continue.');pinError.textContent=message;setHint(modePinPanel.hidden?message:'Choose a sword to try again',true)}
-      if(ev.data.type==='iron-throne:houses'&&Array.isArray(ev.data.houses)){for(const item of ev.data.houses){const house=H.find(x=>x.key===normHouse(item.name)||x.key===normHouse(item.id));if(!house)continue;house.id=item.id;if(item.name){const nm=String(item.name).replace(/^house\s+/i,'');house.name='House '+nm.charAt(0).toUpperCase()+nm.slice(1)}if(item.motto)house.motto=String(item.motto);if(/^#[0-9a-f]{3,8}$/i.test(item.color||''))house.color=item.color;house.status=['open','locked','claimed'].includes(item.status)?item.status:'open';house.note=String(item.note||'')}if(previewed>=0&&H[previewed].status!=='open'){previewed=-1;confirmHouse.hidden=true}document.querySelectorAll('.sword-select').forEach(el=>el.style.setProperty('--c',H[+el.dataset.i].color));applyStatus()}
-      if(ev.data.type==='iron-throne:reset'){picked=-1;previewed=-1;confirmHouse.hidden=true;modePinPanel.hidden=true;applyStatus();reset()}
+      if(ev.data.type==='iron-throne:mode-error'){const message=String(ev.data.message||'Could not continue.');pinError.textContent=message;setHint(modePinPanel.hidden?message:'Choose an option to try again',true)}
+      if(ev.data.type==='iron-throne:houses'&&Array.isArray(ev.data.houses)){for(const item of ev.data.houses){const house=H.find(x=>x.key===normHouse(item.name)||x.key===normHouse(item.id));if(!house)continue;house.id=item.id;if(item.name){const nm=String(item.name).replace(/^house\s+/i,'');house.name='House '+nm.charAt(0).toUpperCase()+nm.slice(1)}if(item.motto)house.motto=String(item.motto);if(/^#[0-9a-f]{3,8}$/i.test(item.color||''))house.color=item.color;house.status=['open','locked','claimed'].includes(item.status)?item.status:'open';house.note=String(item.note||'')}if(previewed>=0&&H[previewed].status!=='open'){previewed=-1;confirmHouse.hidden=true}renderHouseButtons()}
+      if(ev.data.type==='iron-throne:reset'){picked=-1;previewed=-1;modePinPanel.hidden=true;syncPanels();applyStatus();reset()}
     });
-    drawSwords();if(entryMode){n.textContent='War of Westeros';w.textContent='Choose your path';setHint(isPhone()?'Tap a sword to preview':'Choose a sword to host or join')}
+    renderHouseButtons();syncPanels();reset();
     if(inFrame)window.parent.postMessage({type:'iron-throne:ready'},location.origin==='null'?'*':location.origin);
   </script>
 </body>

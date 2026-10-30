@@ -27,7 +27,7 @@
   const $ = id => document.getElementById(id);
   function setThronePage(mode) {
     const frame = $('throneFrame');
-    if (frame) frame.src = mode === 'entry' ? './throne-photo.html?mode=entry&v=4' : './throne-photo.html?v=4';
+    if (frame) frame.src = mode === 'entry' ? './throne-photo.html?mode=entry&v=12' : './throne-photo.html?v=12';
   }
   function transitionThrone(mode) {
     const frame = $('throneFrame');
