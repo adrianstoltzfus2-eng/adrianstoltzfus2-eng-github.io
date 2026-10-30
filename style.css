@@ -43,7 +43,7 @@ a { color: inherit; text-decoration: none; }
 .brand-mark img { width: 100%; height: 100%; object-fit: contain; }
 .brand strong { display: block; font: 700 15px Cinzel, Georgia, serif; letter-spacing: .14em; }
 .brand small { color: var(--muted); display: block; margin-top: 4px; font-size: 9px; letter-spacing: .18em; }
-.brand .version-tag { margin-top: 2px; color: rgba(220,225,231,.42); font-size: 7px; letter-spacing: .12em; }
+.version-tag { position: fixed; z-index: 32; top: max(env(safe-area-inset-top), 8px); left: 12px; color: rgba(225,228,232,.5); font-size: 8px; line-height: 1; letter-spacing: .12em; text-shadow: 0 1px 4px #000; pointer-events: none; }
 .topbar-right { display: flex; align-items: center; gap: 14px; padding-right: 34px; }
 .status-pill, .round-pill { border: 1px solid var(--line); border-radius: 99px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
 .status-pill i { display: block; width: 6px; height: 6px; border-radius: 50%; background: #9a6660; }
