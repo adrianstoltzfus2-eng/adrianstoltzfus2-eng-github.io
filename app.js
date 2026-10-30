@@ -306,7 +306,6 @@
       const message = state.phase === 'LOBBY' ? 'The host will begin when everyone is ready.' : 'Waiting for the host to advance the phase.';
       controls.innerHTML = `<span class="waiting-label">${escapeHtml(message)}</span>`;
     }
-    $('resetGameButton').hidden = !state.isHost;
   }
 
   const normHouse = value => String(value || '').toLowerCase().replace(/^house\s+/, '').trim();
@@ -333,6 +332,7 @@
     $('lobbyScreen').hidden = !waiting;
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
     $('gameScreen').hidden = !inGame;
+    $('buildLabel').hidden = inGame;
     document.body.classList.toggle('throne-open', showThrone);
     if (hostSetup) {
       $('hostRoomPin').textContent = gameCode || '——';
@@ -639,10 +639,6 @@
     event.preventDefault();
     emitAction('send-chat', { scope: $('chatScope').value, targetHouseId: $('chatTarget').value, message: $('chatMessage').value });
     $('chatMessage').value = '';
-  });
-
-  $('resetGameButton').addEventListener('click', () => {
-    if (window.confirm('Reset the entire temporary game? All houses, votes, alliances, and armies will reset.')) emitAction('reset-game');
   });
 
   $('homeLink').addEventListener('click', event => {
