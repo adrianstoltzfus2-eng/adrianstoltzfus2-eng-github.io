@@ -128,6 +128,17 @@ body.throne-open { overflow: hidden; }
 .chosen-house-heraldry { width: 32px; height: 44px; border-radius: 2px; }
 
 .game-screen { max-width: 1800px; margin: 0 auto; padding: 22px clamp(12px, 2vw, 30px) 70px; }
+.round-overview { margin-bottom: 14px; padding: 14px; border-color: rgba(200,168,108,.26); background: linear-gradient(110deg, rgba(50,40,27,.92), rgba(20,22,27,.96)); }
+.round-overview-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; }
+.round-stat { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 11px; border: 1px solid rgba(217,190,135,.12); border-radius: 8px; background: rgba(7,9,12,.35); }
+.round-stat > img { width: 42px; height: 42px; flex: 0 0 42px; object-fit: contain; }
+.round-stat > div { min-width: 0; }
+.round-stat span { display: block; color: var(--gold); font-size: 8px; font-weight: 700; letter-spacing: .13em; }
+.round-stat strong { display: block; overflow-wrap: anywhere; margin-top: 4px; color: #f0e5cc; font: 600 16px Cinzel, Georgia, serif; }
+.round-stat strong b { font: inherit; }
+.round-stat small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+.round-stat .round-role-badge { color: #9fd0a8; font-weight: 700; letter-spacing: .08em; }
+.round-role-message { margin: 11px 2px 0; padding-top: 9px; border-top: 1px solid rgba(217,190,135,.12); color: #cfc4aa; font-size: 10px; }
 .welcome-strip { display: flex; gap: 18px; justify-content: space-between; align-items: center; padding: 24px 26px; margin-bottom: 17px; border-left: 3px solid var(--gold); }
 .welcome-strip h1 { font-size: clamp(22px, 2vw, 30px); margin: 0 0 7px; }
 .welcome-strip .muted { font-size: 12px; margin: 0; max-width: 760px; line-height: 1.6; }
@@ -219,6 +230,7 @@ body.throne-open { overflow: hidden; }
 .action-grid, .diplomacy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .action-card { background: rgba(12, 15, 20, .38); border: 1px solid var(--line); border-radius: 9px; padding: 15px; min-width: 0; }
 .action-icon { font-size: 20px; color: var(--gold); margin-bottom: 7px; }
+.action-icon-image { display: block; width: 34px; height: 34px; object-fit: contain; margin: -3px 0 7px; }
 .action-card h3 { font: 600 13px Cinzel, Georgia, serif; margin: 0 0 7px; }
 .action-card p { font-size: 10px; line-height: 1.6; margin: 0 0 10px; }
 .action-card label { margin-top: 10px; }
@@ -323,7 +335,10 @@ body.throne-open { overflow: hidden; }
 @media (max-width: 850px) {
   .login-wrap { grid-template-columns: 1fr; padding-top: 45px; gap: 32px; }
   .login-card { justify-self: start; max-width: none; }
-  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-grid { display: flex; flex-direction: column; }
+  .dashboard-grid > .center-column { order: 0; width: 100%; }
+  .dashboard-grid > .left-column { order: 1; width: 100%; }
+  .dashboard-grid > .right-column { order: 2; width: 100%; }
   .left-column { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
   .right-column { grid-column: auto; grid-template-columns: repeat(2, minmax(0,1fr)); }
   .utility-panel { grid-column: 1 / -1; }
@@ -346,6 +361,12 @@ body.throne-open { overflow: hidden; }
   .hero-rules small { grid-column: 2; }
   .login-card { padding: 23px; }
   .game-screen { padding: 12px 10px 50px; }
+  .round-overview { padding: 9px; }
+  .round-overview-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; }
+  .round-stat { gap: 8px; padding: 9px 7px; }
+  .round-stat > img { width: 31px; height: 31px; flex-basis: 31px; }
+  .round-stat strong { font-size: 13px; }
+  .round-stat small { font-size: 8px; }
   .welcome-strip, .sidebar-panel, .section-panel { padding: 15px; }
   .left-column, .right-column { display: flex; }
   .house-picker { grid-template-columns: 1fr; }

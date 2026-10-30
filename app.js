@@ -191,7 +191,6 @@
     if (!house) {
       $('myHouseTitle').textContent = 'Unclaimed';
       $('myHouseCard').innerHTML = '<p class="muted">Choose a house in the lobby to see your resources.</p>';
-      $('myHouseSummary').innerHTML = '';
       return;
     }
     const def = state.houses.find(h => h.id === house.id);
@@ -202,12 +201,6 @@
       ${def?.nerf ? `<div class="house-trait trait-nerf"><small>HOUSE NERF</small><p>${escapeHtml(def.nerf)}</p></div>` : ''}
       ${house.pendingAttack ? `<div class="pending-attack"><small>SECRET ATTACK ORDER</small><strong>${escapeHtml(house.pendingAttack.targetName)}</strong><p>Ordered Round ${house.pendingAttack.orderedRound}; resolves after Round ${house.pendingAttack.resolveRound} court.</p><span>${house.pendingAttack.units.infantry} infantry · ${house.pendingAttack.units.navy} ships · ${house.pendingAttack.units.dragons} dragons committed</span></div>` : ''}
       ${house.lockedByEmbargo ? '<p class="warning-note">Royal embargo: recruitment is blocked this round.</p>' : ''}`;
-    $('myHouseSummary').innerHTML = [
-      ['GOLD', `◆ ${house.money}`, 'Your treasury'],
-      ['INFANTRY', house.infantry, 'Available forces'],
-      ['NAVY', house.navy, 'Available fleet'],
-      ['DRAGONS', house.dragons, '5 strength each']
-    ].map(([label, value, sub]) => `<div class="resource-tile"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(sub)}</small></div>`).join('');
     $('infantryCostLabel').textContent = house.infantryCost;
     $('navyCostLabel').textContent = house.navyCost;
     $('spyTarget').innerHTML = state.houses.filter(h => h.id !== house.id).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
@@ -217,12 +210,36 @@
     $('attackDragons').max = house.dragons;
     $('attackDragons').disabled = house.dragons === 0;
     const attackLocked = state.phase !== 'ACTION' || state.round < 2 || Boolean(house.pendingAttack) || house.hasAttackedThisRound;
+    $('attackForm').hidden = state.round === 1;
     $('attackForm').querySelector('button').disabled = attackLocked || !state.capitals.some(c => c.ownerHouseId !== house.id);
     $('attackOrderStatus').textContent = state.round < 2 ? 'Attacks unlock after Round 1.' : house.pendingAttack ? `Committed for resolution after Round ${house.pendingAttack.resolveRound}.` : house.hasAttackedThisRound ? 'Your house has already planned an attack this round.' : 'The target and committed forces remain secret until the attack resolves.';
-    const recruitBlocked = state.phase !== 'ACTION' || house.lockedByEmbargo;
-    $('recruitForm').querySelector('button').disabled = recruitBlocked;
+    updateRecruitButton();
     $('spyForm').querySelector('button').disabled = state.phase !== 'ACTION' || house.money < 8 || state.me.lastSpyRound === state.round;
     $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(r => r.success ? `<article class="spy-report"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · successful</span></div><p>${r.infantry} infantry · ${r.navy} ships · ${r.dragons} dragons</p>${r.pendingTarget ? `<small>Possible planned attack: ${escapeHtml(r.pendingTarget)}</small>` : '<small>No pending attack seen.</small>'}</article>` : `<article class="spy-report spy-failed"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · failed</span></div><p>Your agents returned without reliable force estimates.</p></article>`).join('')}` : '';
+  }
+
+  function updateRecruitButton() {
+    const button = $('recruitForm')?.querySelector('button');
+    if (!button) return;
+    const house = state?.myHouse;
+    if (!house) { button.disabled = true; return; }
+    const unit = $('unitSelect').value;
+    const amount = Number($('unitAmount').value);
+    const cost = unit === 'navy' ? house.navyCost : house.infantryCost;
+    button.disabled = state.phase !== 'ACTION' || house.lockedByEmbargo || !Number.isInteger(amount) || amount < 1 || amount > 10 || cost * amount > house.money;
+  }
+
+  function renderRoundOverview() {
+    const house = state.myHouse;
+    $('roundGold').textContent = house ? house.money : '—';
+    const total = house ? house.infantry + house.navy + house.dragons : null;
+    $('roundMilitaryTotal').textContent = total === null ? '—' : `${total} units`;
+    $('roundMilitaryDetail').textContent = house ? `${house.infantry} infantry · ${house.navy} navy · ${house.dragons} dragons` : 'Forces unavailable';
+    $('roundKingName').textContent = state.king?.username || 'Awaiting appointment';
+    $('roundHandName').textContent = state.hand?.username || 'Awaiting appointment';
+    $('roundKingBadge').hidden = !state.isKing;
+    $('roundHandBadge').hidden = !state.isHand;
+    $('roundRoleMessage').textContent = state.isKing && state.isHand ? 'You are both King and Hand of the King.' : state.isKing ? 'You are the King. Your decisions shape the court.' : state.isHand ? 'You are the Hand of the King.' : 'You serve on the royal council.';
   }
 
   function renderAlliances() {
@@ -309,13 +326,13 @@
     const hostSetup = showHostSetup || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
     const showThrone = !loggedIn && (!gameCode || !pickedHouse);
     const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
+    const inGame = loggedIn && state?.phase !== 'LOBBY' && state?.phase !== 'HAND_SELECTION';
     $('throneScreen').hidden = !showThrone;
     $('loginScreen').hidden = loggedIn || !gameCode || showThrone;
     $('hostSetupScreen').hidden = !hostSetup;
     $('lobbyScreen').hidden = !waiting;
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
-    $('startedScreen').hidden = !loggedIn || state?.phase === 'LOBBY' || state?.phase === 'HAND_SELECTION';
-    $('gameScreen').hidden = true;
+    $('gameScreen').hidden = !inGame;
     document.body.classList.toggle('throne-open', showThrone);
     if (hostSetup) {
       $('hostRoomPin').textContent = gameCode || '——';
@@ -384,14 +401,9 @@
       $('roundPill').textContent = 'FIRST KING';
       return;
     }
-    if (state.phase !== 'LOBBY') {
-      $('roundPill').textContent = 'THE GAME';
-      $('gameLeadership').textContent = `King: ${state.king?.username || '—'} · Hand of the King: ${state.hand?.username || '—'}`;
-      return;
-    }
-
     renderPhase();
     renderPlayers();
+    renderRoundOverview();
     renderMyHouse();
     renderCapitalBoard();
     renderAlliances();
@@ -407,6 +419,7 @@
         element.value = value;
       }
     }
+    updateRecruitButton();
     if (wasFocused) {
       const element = $(wasFocused);
       if (element && !element.disabled) {
@@ -586,6 +599,8 @@
     event.preventDefault();
     emitAction('purchase', { unit: $('unitSelect').value, amount: Number($('unitAmount').value) });
   });
+  $('unitSelect').addEventListener('change', updateRecruitButton);
+  $('unitAmount').addEventListener('input', updateRecruitButton);
 
   $('spyForm').addEventListener('submit', event => {
     event.preventDefault();

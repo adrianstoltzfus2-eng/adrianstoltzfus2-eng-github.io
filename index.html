@@ -7,10 +7,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon.png?v=2">
-  <link rel="stylesheet" href="./style.css?v=17">
+  <link rel="stylesheet" href="./style.css?v=18">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=17" defer></script>
+  <script src="./app.js?v=18" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -103,11 +103,16 @@
     </section>
   </main>
 
-  <main id="startedScreen" class="realm-screen" hidden>
-    <section class="realm-card panel started-card"><p class="eyebrow">THE REALM AWAITS</p><h1>The game has begun</h1><p id="gameLeadership" class="muted game-leadership"></p><div class="empty-game-space" aria-label="Game area ready for future content"></div></section>
-  </main>
-
   <main id="gameScreen" class="game-screen" hidden>
+    <section class="round-overview panel" aria-label="Your Round 1 status">
+      <div class="round-overview-grid">
+        <article class="round-stat"><img src="./assets/game-coins.png" alt=""><div><span>YOUR GOLD</span><strong><b id="roundGold">—</b> gold</strong><small>Available to spend</small></div></article>
+        <article class="round-stat"><img src="./assets/game-swords.png" alt=""><div><span>TOTAL MILITARY</span><strong id="roundMilitaryTotal">—</strong><small id="roundMilitaryDetail">Infantry · Navy · Dragons</small></div></article>
+        <article class="round-stat"><img src="./assets/game-crown.png" alt=""><div><span>THE KING</span><strong id="roundKingName">—</strong><small id="roundKingBadge" class="round-role-badge" hidden>YOU ARE KING</small></div></article>
+        <article class="round-stat"><img src="./assets/game-hand.png" alt=""><div><span>HAND OF THE KING</span><strong id="roundHandName">—</strong><small id="roundHandBadge" class="round-role-badge" hidden>YOU ARE THE HAND</small></div></article>
+      </div>
+      <p id="roundRoleMessage" class="round-role-message"></p>
+    </section>
     <section class="welcome-strip panel">
       <div><p class="eyebrow" id="phaseEyebrow">THE COUNCIL</p><h1 id="phaseTitle">The Great Houses</h1><p id="phaseDescription" class="muted">Choose your house to begin.</p></div>
       <div id="hostControls" class="host-controls"></div>
@@ -141,16 +146,15 @@
 
         <section id="actionPanel" class="panel section-panel" hidden>
           <div class="section-head"><div><p class="panel-kicker">ROUND ACTIONS</p><h2>Prepare your moves</h2></div><span class="subtle-label">Orders are server-checked</span></div>
-          <div id="myHouseSummary" class="resource-grid"></div>
           <div class="action-grid">
             <form id="recruitForm" class="action-card">
-              <div class="action-icon">⚔</div><h3>Raise forces</h3><p class="muted small-text">Infantry costs <b id="infantryCostLabel">4</b> gold each. Navy costs <b id="navyCostLabel">5</b>.</p>
+              <img class="action-icon-image" src="./assets/game-swords.png" alt=""><h3>Build your army</h3><p class="muted small-text">Infantry costs <b id="infantryCostLabel">4</b> gold each. Navy costs <b id="navyCostLabel">5</b>.</p>
               <label for="unitSelect">Unit type</label><select id="unitSelect"><option value="infantry">Infantry</option><option value="navy">Navy</option></select>
               <label for="unitAmount">Quantity (1–10)</label><input id="unitAmount" type="number" min="1" max="10" value="2" required>
               <button class="button button-primary button-full" type="submit">Recruit units</button>
             </form>
             <form id="spyForm" class="action-card">
-              <div class="action-icon">◉</div><h3>Send spies</h3><p class="muted small-text">Costs 8 gold. A successful mission reveals available forces and any pending attack.</p>
+              <img class="action-icon-image" src="./assets/game-eye.png" alt=""><h3>Send spies</h3><p class="muted small-text">Costs 8 gold. A successful mission reveals available forces and any pending attack.</p>
               <label for="spyTarget">Target house</label><select id="spyTarget" required></select>
               <button class="button button-secondary button-full" type="submit">Attempt spy mission</button>
             </form>
