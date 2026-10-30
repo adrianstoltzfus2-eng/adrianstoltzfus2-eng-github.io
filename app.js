@@ -307,7 +307,7 @@
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
     const hostSetup = showHostSetup || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
-    const showThrone = !loggedIn && (!gameCode || !pickedHouse) && !hostSetup;
+    const showThrone = !loggedIn && (!gameCode || !pickedHouse);
     const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
     $('throneScreen').hidden = !showThrone;
     $('loginScreen').hidden = loggedIn || !gameCode || showThrone;

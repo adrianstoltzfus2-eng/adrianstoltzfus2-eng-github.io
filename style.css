@@ -107,9 +107,8 @@ body.throne-open { overflow: hidden; }
 .realm-card > h1 { margin: 4px 0 10px; font: 600 clamp(28px, 4vw, 44px)/1.15 Cinzel, Georgia, serif; color: #e3d2ad; }
 .realm-card > .muted { line-height: 1.7; }
 .realm-card .house-picker { margin-top: 24px; }
-.realm-screen:has(.host-setup-card) { position: relative; isolation: isolate; min-height: 100vh; align-items: center; background: linear-gradient(90deg, rgba(6,7,9,.78), rgba(8,9,11,.48)), url('./assets/throne-photo-background.png') center / cover fixed; }
-.realm-screen:has(.host-setup-card)::before { content: ''; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(5,6,8,.2), rgba(5,6,8,.68)); pointer-events: none; }
-.host-setup-card { background: rgba(15, 16, 18, .88); backdrop-filter: blur(5px); max-width: 620px; }
+.realm-screen:has(.host-setup-card) { position: fixed; inset: 0; z-index: 25; min-height: 0; height: 100vh; height: 100dvh; padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom)); align-items: center; overflow-y: auto; background: rgba(4, 5, 7, .42); backdrop-filter: blur(2px); }
+.host-setup-card { background: rgba(15, 16, 18, .94); backdrop-filter: blur(8px); max-width: 620px; }
 .host-setup-form { display: grid; gap: 9px; margin-top: 24px; }
 .host-setup-form label { margin-top: 8px; }
 .host-setup-form .button-full { margin-top: 14px; }
