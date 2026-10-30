@@ -336,6 +336,23 @@ io.on('connection', socket => {
     withWorld(roomCode, () => socket.emit('state', viewFor(socket.data.playerId || null)));
   });
 
+  socket.on('set-room-settings', (payload = {}, callback) => {
+    const roomCode = socket.data.gameCode;
+    if (!roomCode || roomOwners.get(roomCode) !== String(payload.clientToken || '') || socket.data.roomOwnerToken !== String(payload.clientToken || '')) return ack(callback, fail('Only the game host can prepare this room.'));
+    withWorld(roomCode, () => {
+      if (phase !== 'LOBBY') return ack(callback, fail('Game setup is closed after the game begins.'));
+      if (gameSettings.configured) return ack(callback, fail('This game has already been prepared.'));
+      const maxPlayers = Number(payload.maxPlayers);
+      const gameType = String(payload.gameType || '');
+      if (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 16) return ack(callback, fail('Choose a player limit from 2 to 16.'));
+      if (!['CLASSIC', 'LAST_DRAGON'].includes(gameType)) return ack(callback, fail('Choose Classic or Last Dragon.'));
+      gameSettings = { configured: true, maxPlayers, gameType };
+      addEvent('important', `The host set up a ${gameType === 'LAST_DRAGON' ? 'Last Dragon' : 'Classic'} game for ${maxPlayers} players.`);
+      broadcastState(roomCode);
+      ack(callback, ok('Game prepared. Choose your house to continue.'));
+    });
+  });
+
   socket.on('login', (payload = {}, callback) => {
     const roomCode = socket.data.gameCode;
     if (!roomCode) return ack(callback, fail('Create or join a game before entering the realm.'));
