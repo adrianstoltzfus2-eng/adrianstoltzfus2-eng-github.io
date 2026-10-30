@@ -307,7 +307,7 @@
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
     $('gameScreen').hidden = !inGame;
     $('buildLabel').hidden = inGame;
-    $('gameVersion').hidden = !inGame;
+    $('gameVersion').hidden = inGame;
     document.body.classList.toggle('throne-open', showThrone);
     if (hostSetup) {
       $('hostRoomPin').textContent = gameCode || '——';
