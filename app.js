@@ -174,33 +174,8 @@
     $('voteForm').querySelector('button').disabled = candidateSelect.disabled;
   }
 
-  function renderCapitalBoard() {
-    $('capitalBoard').innerHTML = state.capitals.map(c => {
-      const owner = state.houses.find(h => h.id === c.ownerHouseId);
-      const original = state.houses.find(h => h.id === c.originalHouseId);
-      return `<article class="capital-card" style="--house-color:${escapeHtml(owner?.color || '#888')}" data-capital="${escapeHtml(c.id)}">
-        <div class="capital-art"><span>${escapeHtml(c.icon)}</span><b>DEF ${escapeHtml(c.defense)}</b></div>
-        <div class="capital-info"><h3>${escapeHtml(c.name)}</h3><small>${escapeHtml(c.region)}</small><div class="capital-owner"><span class="owner-swatch"></span><strong>House ${escapeHtml(owner?.name || 'Unknown')}</strong></div>
-        ${owner?.id !== original?.id ? `<small class="occupied-note">Originally ${escapeHtml(original?.name || 'unknown')}</small>` : ''}</div>
-      </article>`;
-    }).join('');
-  }
-
-  function renderMyHouse() {
+  function renderRoundActions() {
     const house = state.myHouse;
-    if (!house) {
-      $('myHouseTitle').textContent = 'Unclaimed';
-      $('myHouseCard').innerHTML = '<p class="muted">Choose a house in the lobby to see your resources.</p>';
-      return;
-    }
-    const def = state.houses.find(h => h.id === house.id);
-    $('myHouseTitle').textContent = `House ${house.name}`;
-    $('myHouseCard').innerHTML = `<div class="my-house-banner" style="--house-color:${escapeHtml(def?.color || '#888')}">${houseBanner(def, 'my-house-heraldry')}<div><strong>${escapeHtml(house.name)}</strong><small>${escapeHtml(def?.capital || '')}</small></div></div>
-      <div class="my-house-stats"><div><span>GOLD</span><strong>◆ ${house.money}</strong></div><div><span>INFANTRY</span><strong>${house.infantry}</strong></div><div><span>NAVY</span><strong>${house.navy}</strong></div><div><span>DRAGONS</span><strong>${house.dragons}</strong></div></div>
-      <div class="house-trait"><small>HOUSE BUFF</small><p>${escapeHtml(def?.buff || '')}</p></div>
-      ${def?.nerf ? `<div class="house-trait trait-nerf"><small>HOUSE NERF</small><p>${escapeHtml(def.nerf)}</p></div>` : ''}
-      ${house.pendingAttack ? `<div class="pending-attack"><small>SECRET ATTACK ORDER</small><strong>${escapeHtml(house.pendingAttack.targetName)}</strong><p>Ordered Round ${house.pendingAttack.orderedRound}; resolves after Round ${house.pendingAttack.resolveRound} court.</p><span>${house.pendingAttack.units.infantry} infantry · ${house.pendingAttack.units.navy} ships · ${house.pendingAttack.units.dragons} dragons committed</span></div>` : ''}
-      ${house.lockedByEmbargo ? '<p class="warning-note">Royal embargo: recruitment is blocked this round.</p>' : ''}`;
     $('infantryCostLabel').textContent = house.infantryCost;
     $('navyCostLabel').textContent = house.navyCost;
     $('spyTarget').innerHTML = state.houses.filter(h => h.id !== house.id).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
@@ -258,7 +233,7 @@
       markup += offers.map(o => `<div class="alliance-row offer-row"><div><strong>${o.isOutgoing ? `Offer to House ${escapeHtml(prettyHouse(o.toHouseId))}` : `Offer from House ${escapeHtml(prettyHouse(o.fromHouseId))}`}</strong><small>${o.scope === 'secret' ? 'Secret offer' : 'Public offer'} · Round ${o.round}</small></div><div class="alliance-row-actions">${o.canRespond ? `<button class="button button-primary button-small" data-action="respond-alliance" data-offer-id="${escapeHtml(o.id)}" data-accept="true" ${state.phase !== 'COURT' ? 'disabled' : ''}>Accept</button><button class="button button-quiet button-small" data-action="respond-alliance" data-offer-id="${escapeHtml(o.id)}" data-accept="false" ${state.phase !== 'COURT' ? 'disabled' : ''}>Decline</button>` : '<span class="subtle-label">Awaiting reply</span>'}</div></div>`).join('');
     }
     if (alliances.length) {
-      markup += alliances.map(a => `<div class="alliance-row"><div><strong>${escapeHtml(prettyHouse(a.houseA))} <span class="alliance-link">↔</span> ${escapeHtml(prettyHouse(a.houseB))}</strong><small>${a.scope === 'secret' ? 'Secret alliance' : 'Public alliance'} · since Round ${a.createdRound}</small></div>${state.myHouse && (a.houseA === state.myHouse.id || a.houseB === state.myHouse.id) ? `<button class="button button-quiet button-small" data-action="break-alliance" data-alliance-id="${escapeHtml(a.id)}" ${state.phase !== 'COURT' ? 'disabled' : ''}>Break</button>` : ''}</div>`).join('');
+      markup += alliances.map(a => `<div class="alliance-row"><div><strong>${escapeHtml(prettyHouse(a.houseA))} <span class="alliance-link">↔</span> ${escapeHtml(prettyHouse(a.houseB))}</strong><small>${a.scope === 'secret' ? 'Secret alliance' : 'Public alliance'} · since Round ${a.createdRound}</small></div>${state.myHouse && (a.houseA === state.myHouse.id || a.houseB === state.myHouse.id) ? `<button class="button button-quiet button-small" data-action="break-alliance" data-alliance-id="${escapeHtml(a.id)}" ${state.phase !== 'COURT' ? 'disabled' : ''}><img class="button-icon" src="./assets/game-chain.png?v=2" alt="">Break</button>` : ''}</div>`).join('');
     }
     $('allianceList').innerHTML = markup || '<p class="muted small-text">No active alliance offers or treaties.</p>';
   }
@@ -281,7 +256,6 @@
   }
 
   function renderEvents() {
-    $('eventFeed').innerHTML = state.events.map(e => `<div class="event-item ${escapeHtml(e.kind)}"><span class="event-marker"></span><div><small>ROUND ${e.round}</small><p>${escapeHtml(e.text)}</p></div></div>`).join('') || '<p class="muted small-text">The chronicle is empty.</p>';
     $('resolutionEvents').innerHTML = state.events.filter(e => e.kind === 'battle' || e.kind === 'important').map(e => `<div class="resolution-item"><span>R${e.round}</span><p>${escapeHtml(e.text)}</p></div>`).join('') || '<p class="muted small-text">No major events have been recorded yet.</p>';
   }
 
@@ -333,6 +307,7 @@
     $('kingSelectionScreen').hidden = !loggedIn || state?.phase !== 'HAND_SELECTION';
     $('gameScreen').hidden = !inGame;
     $('buildLabel').hidden = inGame;
+    $('gameVersion').hidden = !inGame;
     document.body.classList.toggle('throne-open', showThrone);
     if (hostSetup) {
       $('hostRoomPin').textContent = gameCode || '——';
@@ -404,8 +379,7 @@
     renderPhase();
     renderPlayers();
     renderRoundOverview();
-    renderMyHouse();
-    renderCapitalBoard();
+    renderRoundActions();
     renderAlliances();
     renderChat();
     renderEvents();

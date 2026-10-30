@@ -7,10 +7,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon.png?v=2">
-  <link rel="stylesheet" href="./style.css?v=18">
+  <link rel="stylesheet" href="./style.css?v=20">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=18" defer></script>
+  <script src="./app.js?v=20" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -19,7 +19,7 @@
   <header class="topbar">
     <a id="homeLink" class="brand" href="./" aria-label="War of Westeros start page">
       <span class="brand-mark" aria-hidden="true"><img src="./assets/iron-throne-icon.png?v=2" alt=""></span>
-      <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small></span>
+      <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small><small id="gameVersion" class="version-tag" hidden>v1.1</small></span>
     </a>
     <div class="topbar-right">
       <span id="connectionPill" class="status-pill status-offline"><i></i><span>Connecting</span></span>
@@ -106,10 +106,10 @@
   <main id="gameScreen" class="game-screen" hidden>
     <section class="round-overview panel" aria-label="Your Round 1 status">
       <div class="round-overview-grid">
-        <article class="round-stat"><img src="./assets/game-coins.png" alt=""><div><span>YOUR GOLD</span><strong><b id="roundGold">—</b> gold</strong><small>Available to spend</small></div></article>
-        <article class="round-stat"><img src="./assets/game-swords.png" alt=""><div><span>TOTAL MILITARY</span><strong id="roundMilitaryTotal">—</strong><small id="roundMilitaryDetail">Infantry · Navy · Dragons</small></div></article>
-        <article class="round-stat"><img src="./assets/game-crown.png" alt=""><div><span>THE KING</span><strong id="roundKingName">—</strong><small id="roundKingBadge" class="round-role-badge" hidden>YOU ARE KING</small></div></article>
-        <article class="round-stat"><img src="./assets/game-hand.png" alt=""><div><span>HAND OF THE KING</span><strong id="roundHandName">—</strong><small id="roundHandBadge" class="round-role-badge" hidden>YOU ARE THE HAND</small></div></article>
+        <article class="round-stat"><img src="./assets/game-coins.png?v=2" alt=""><div><span>YOUR GOLD</span><strong><b id="roundGold">—</b> gold</strong><small>Available to spend</small></div></article>
+        <article class="round-stat"><img src="./assets/game-swords.png?v=2" alt=""><div><span>TOTAL MILITARY</span><strong id="roundMilitaryTotal">—</strong><small id="roundMilitaryDetail">Infantry · Navy · Dragons</small></div></article>
+        <article class="round-stat"><img src="./assets/game-throne.png?v=2" alt=""><div><span>THE KING</span><strong id="roundKingName">—</strong><small id="roundKingBadge" class="round-role-badge" hidden>YOU ARE KING</small></div></article>
+        <article class="round-stat"><img src="./assets/game-hand.png?v=2" alt=""><div><span>HAND OF THE KING</span><strong id="roundHandName">—</strong><small id="roundHandBadge" class="round-role-badge" hidden>YOU ARE THE HAND</small></div></article>
       </div>
       <p id="roundRoleMessage" class="round-role-message"></p>
     </section>
@@ -148,18 +148,18 @@
           <div class="section-head"><div><p class="panel-kicker">ROUND ACTIONS</p><h2>Prepare your moves</h2></div><span class="subtle-label">Orders are server-checked</span></div>
           <div class="action-grid">
             <form id="recruitForm" class="action-card">
-              <img class="action-icon-image" src="./assets/game-swords.png" alt=""><h3>Build your army</h3><p class="muted small-text">Infantry costs <b id="infantryCostLabel">4</b> gold each. Navy costs <b id="navyCostLabel">5</b>.</p>
+              <img class="action-icon-image" src="./assets/game-swords.png?v=2" alt=""><h3>Build your army</h3><p class="muted small-text">Infantry costs <b id="infantryCostLabel">4</b> gold each. Navy costs <b id="navyCostLabel">5</b>.</p>
               <label for="unitSelect">Unit type</label><select id="unitSelect"><option value="infantry">Infantry</option><option value="navy">Navy</option></select>
               <label for="unitAmount">Quantity (1–10)</label><input id="unitAmount" type="number" min="1" max="10" value="2" required>
               <button class="button button-primary button-full" type="submit">Recruit units</button>
             </form>
             <form id="spyForm" class="action-card">
-              <img class="action-icon-image" src="./assets/game-eye.png" alt=""><h3>Send spies</h3><p class="muted small-text">Costs 8 gold. A successful mission reveals available forces and any pending attack.</p>
+              <img class="action-icon-image" src="./assets/game-eye.png?v=2" alt=""><h3>Send spies</h3><p class="muted small-text">Costs 8 gold. A successful mission reveals available forces and any pending attack.</p>
               <label for="spyTarget">Target house</label><select id="spyTarget" required></select>
               <button class="button button-secondary button-full" type="submit">Attempt spy mission</button>
             </form>
             <form id="attackForm" class="action-card action-card-wide">
-              <div class="action-icon">⚔ ⚔</div><h3>Plan an attack</h3><p class="muted small-text">Choose a capital and commit existing units. Orders are hidden from other houses and resolve after the following round. Attacks unlock after Round 1.</p>
+              <img class="action-icon-image" src="./assets/game-swords.png?v=2" alt=""><h3>Plan an attack</h3><p class="muted small-text">Choose a capital and commit existing units. Orders are hidden from other houses and resolve after the following round. Attacks unlock after Round 1.</p>
               <div class="form-columns">
                 <div><label for="attackTarget">Target capital</label><select id="attackTarget" required></select></div>
                 <div><label for="attackInfantry">Infantry to send</label><input id="attackInfantry" type="number" min="0" value="3" required></div>
@@ -177,13 +177,13 @@
           <div class="section-head"><div><p class="panel-kicker">THE RED KEEP</p><h2>Court & diplomacy</h2></div><span id="kingBadge" class="subtle-label">No king</span></div>
           <div class="diplomacy-grid">
             <form id="allianceForm" class="action-card">
-              <div class="action-icon">🤝</div><h3>Propose an alliance</h3><p class="muted small-text">Send a public or secret alliance offer to another house. The other house must accept.</p>
+              <img class="action-icon-image" src="./assets/game-handshake.png?v=2" alt=""><h3>Propose an alliance</h3><p class="muted small-text">Send a public or secret alliance offer to another house. The other house must accept.</p>
               <label for="allianceTarget">House</label><select id="allianceTarget" required></select>
               <label for="allianceScope">Visibility</label><select id="allianceScope"><option value="public">Public alliance</option><option value="secret">Secret alliance</option></select>
               <button class="button button-secondary button-full" type="submit">Send offer</button>
             </form>
             <form id="commandForm" class="action-card">
-              <div class="action-icon">♛</div><h3>Royal command</h3><p class="muted small-text">The king may issue one command per round during court.</p>
+              <img class="action-icon-image" src="./assets/game-throne.png?v=2" alt=""><h3>Royal command</h3><p class="muted small-text">The king may issue one command per round during court.</p>
               <label for="commandSelect">Command</label><select id="commandSelect"><option value="levy">Royal levy — collect up to 3 gold from each other house</option><option value="embargo">Royal embargo — block a house's recruitment through next round</option></select>
               <label for="commandTarget">Embargo target (if applicable)</label><select id="commandTarget"></select>
               <button class="button button-primary button-full" type="submit">Issue decree</button>
@@ -191,7 +191,7 @@
           </div>
           <div class="alliance-area"><div class="section-head"><h3>Alliance offers & treaties</h3></div><div id="allianceList" class="alliance-list"></div></div>
           <div class="chat-area">
-            <div class="section-head"><div><p class="panel-kicker">WORDS CAN WIN WARS</p><h3>Court messages</h3></div></div>
+            <div class="section-head"><div><p class="panel-kicker">WORDS CAN WIN WARS</p><h3><img class="section-heading-icon" src="./assets/game-raven.png?v=2" alt="">Court messages</h3></div></div>
             <div class="chat-tabs"><button class="chat-tab active" data-chat-tab="public" type="button">Public court</button><button class="chat-tab" data-chat-tab="secret" type="button">Secret messages</button></div>
             <div id="publicChat" class="chat-log"></div>
             <div id="secretChat" class="chat-log" hidden></div>
@@ -210,22 +210,9 @@
           <div id="resolutionEvents" class="event-list"></div>
         </section>
 
-        <section class="panel section-panel map-panel">
-          <div class="section-head"><div><p class="panel-kicker">CONTROL THE REALM</p><h2>The capital cities</h2></div><span class="subtle-label">Territory overview</span></div>
-          <p class="muted section-intro">Capital control is public. Army sizes are hidden from enemy houses unless a spy succeeds.</p>
-          <div id="capitalBoard" class="capital-board"></div>
-        </section>
       </section>
 
       <aside class="right-column">
-        <section class="panel sidebar-panel">
-          <div class="section-head"><div><p class="panel-kicker">YOUR HOUSE</p><h2 id="myHouseTitle">Unclaimed</h2></div></div>
-          <div id="myHouseCard" class="my-house-card"><p class="muted">Choose a house in the lobby to see your resources.</p></div>
-        </section>
-        <section class="panel sidebar-panel">
-          <div class="section-head"><div><p class="panel-kicker">RECENT HISTORY</p><h2>Realm chronicle</h2></div></div>
-          <div id="eventFeed" class="event-feed"></div>
-        </section>
         <section class="panel sidebar-panel utility-panel">
           <p class="panel-kicker">SESSION</p>
           <button id="logoutButton" class="button button-quiet button-full" type="button">Leave the game</button>
