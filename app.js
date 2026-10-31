@@ -43,6 +43,41 @@
   syncMobileLayout();
   window.addEventListener('resize', syncMobileLayout, { passive: true });
   window.addEventListener('orientationchange', syncMobileLayout, { passive: true });
+
+  // Mobile: block pinch zoom, and keep the browser's own bars hidden (full screen).
+  // Tapping empty space brings the bars back; they hide again a few seconds later.
+  // (Not available on iPhone Safari; installing to the Home Screen gives the same bar-free view there.)
+  document.addEventListener('gesturestart', event => event.preventDefault());
+  const fsRoot = document.documentElement;
+  const fsRequest = fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen;
+  const fsExit = document.exitFullscreen || document.webkitExitFullscreen;
+  const fsActive = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+  const isInstalledApp = window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const FS_CONTROLS = 'button, a, input, select, textarea, label, summary, [data-action], [role="button"], .map-cap';
+  const FS_IDLE_MS = 4000;
+  let fsWanted = false;
+  let fsTimer = null;
+  function enterFullscreen() {
+    clearTimeout(fsTimer);
+    try { Promise.resolve(fsRequest.call(fsRoot, { navigationUI: 'hide' })).catch(() => {}); } catch { /* not allowed right now */ }
+  }
+  function hideBarsSoon() {
+    clearTimeout(fsTimer);
+    fsTimer = setTimeout(() => { if (fsWanted && !fsActive()) enterFullscreen(); }, FS_IDLE_MS);
+  }
+  if (fsRequest && fsExit && !isInstalledApp) {
+    document.addEventListener('click', event => {
+      if (!isMobileDevice()) return;
+      if (!fsWanted) { fsWanted = true; enterFullscreen(); return; }       // first tap: go full screen
+      if (!fsActive()) { enterFullscreen(); return; }                      // bars showing: hide them again
+      if (!event.target.closest(FS_CONTROLS)) {                            // tap on empty space: show bars briefly
+        try { Promise.resolve(fsExit.call(document)).catch(() => {}); } catch { /* ignore */ }
+        hideBarsSoon();
+      }
+    });
+    // Any touch while the bars are showing keeps them up a little longer.
+    ['pointerdown', 'keydown'].forEach(name => document.addEventListener(name, () => { if (fsWanted && !fsActive()) hideBarsSoon(); }, { passive: true }));
+  }
   const socket = window.io ? window.io(SERVER_URL, { autoConnect: true, reconnection: true, reconnectionAttempts: Infinity }) : null;
   let state = null;
   let activeChatTab = 'public';

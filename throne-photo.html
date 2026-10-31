@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon.png?v=2">
   <title>War of Westeros — Choose your house</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -67,6 +67,8 @@
       .house-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
     }
     @media(prefers-reduced-motion:reduce){#sceneImage{animation:none}header,.choice-panel,.entry-button,.house-option{transition:none}}
+      html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}
+    @media (pointer:coarse){input,select,textarea{font-size:16px!important}}
   </style>
 </head>
 <body>

@@ -551,3 +551,7 @@ body.mobile-device .hs-item img, body.mobile-device .hs-role img { width: 20px; 
 body.mobile-device .hs-item b { font-size: 12px; }
 @media (max-width: 700px) { .game-screen.hub-mode #phaseDescription { display: none; } }
 body.mobile-device .game-screen.hub-mode #phaseDescription { display: none; }
+
+/* Mobile: no double-tap / focus zoom */
+html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body.mobile-device input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), body.mobile-device select, body.mobile-device textarea { font-size: 16px; }
