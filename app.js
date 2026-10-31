@@ -391,12 +391,30 @@
     updateRecruitButton();
     updateDisbandButton();
     updateSpyForm();
-    $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(r => r.success ? `<article class="spy-report"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · successful${r.spent ? ` · ${r.spent} gold` : ''}</span></div><p>${r.infantry} infantry · ${r.navy} ships · ${r.dragons} dragons</p>${r.pendingTarget ? `<small>Possible planned attack: ${escapeHtml(r.pendingTarget)}</small>` : '<small>No pending attack seen.</small>'}</article>` : `<article class="spy-report spy-failed"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · ${r.caught ? 'caught' : 'failed'}${r.spent ? ` · ${r.spent} gold` : ''}</span></div><p>${r.caught ? 'Your agents were captured. The enemy knows who sent them.' : 'Your agents returned without reliable force estimates.'}</p></article>`).join('')}` : '';
+    $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(spyReportMarkup).join('')}` : '';
   }
 
-  function spyOddsFor(spend, targetId) {
+  const SPY_PARAMS = { troops: [0.35, 0.045, 0.75, 0.03], movement: [0.35, 0.045, 0.75, 0.03], ravens: [0.15, 0.04, 0.25, 0.015], mole: [0.15, 0.04, 0.80, 0.03] };
+  const SPY_LABEL = { troops: 'Count troops', movement: 'Watch movements', ravens: 'Shoot ravens', mole: 'Place a mole' };
+  function spyOddsFor(spend, targetId, mission) {
+    const [sb, sp, db, dp] = SPY_PARAMS[mission] || SPY_PARAMS.troops;
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-    return { success: clamp(0.30 + 0.045 * (spend - 2) - (targetId === 'targaryen' ? 0.15 : 0), 0.05, 0.95), caught: clamp(0.60 - 0.035 * (spend - 2), 0.05, 0.60) };
+    return { success: clamp(sb + sp * (spend - 2) - (targetId === 'targaryen' ? 0.15 : 0), 0.05, 0.95), caught: clamp(db - dp * (spend - 2), 0.05, 0.9) };
+  }
+  function spyReportMarkup(r) {
+    const mission = r.mission || 'troops';
+    const status = r.success ? 'successful' : r.caught ? 'caught' : 'failed';
+    const head = `<div><b>${escapeHtml(capName(r.targetName))}</b><span>Round ${r.round} · ${escapeHtml(SPY_LABEL[mission])} · ${status}${r.spent ? ` · ${r.spent} gold` : ''}</span></div>`;
+    if (!r.success) return `<article class="spy-report spy-failed">${head}<p>${r.caught ? 'Your agents were captured. The enemy knows who sent them.' : 'Your agents returned with nothing.'}</p></article>`;
+    const f = r.findings || {};
+    let body = '';
+    if (mission === 'troops') body = `<p>${f.infantry} infantry · ${f.navy} ships · ${f.dragons} dragons</p>`;
+    else if (mission === 'movement') body = `<p>${f.movingOn ? `Their army is marching on ${escapeHtml(f.movingOn)}.` : 'No army movement seen.'}</p>`;
+    else if (mission === 'ravens') body = (f.letters || []).length ? f.letters.map(l => `<p><b>${escapeHtml(l.from)}</b> to ${escapeHtml(l.to)}: “${escapeHtml(l.text)}”</p>`).join('') : '<p>No ravens were flying.</p>';
+    else if (f.mole?.kind === 'wealth') body = `<p>Their treasury holds ${f.mole.gold} gold.</p>`;
+    else if (f.mole?.kind === 'alliance') body = `<p>Secret alliance with ${f.mole.houses.map(id => `House ${escapeHtml(capName(prettyHouse(id)))}`).join(', ')}.</p>`;
+    else if (f.mole?.kind === 'dragons') body = `<p>${f.mole.dragons ? `They hold ${f.mole.dragons} dragon${f.mole.dragons === 1 ? '' : 's'}: one of the last.` : 'They hold no dragons.'}</p>`;
+    return `<article class="spy-report">${head}${body}</article>`;
   }
   function updateSpyForm() {
     const house = state?.myHouse;
@@ -404,12 +422,13 @@
     const spend = Number($('spyGold').value);
     const valid = Number.isInteger(spend) && spend >= 2 && spend <= 20;
     if (valid) {
-      const o = spyOddsFor(spend, $('spyTarget').value);
+      const o = spyOddsFor(spend, $('spyTarget').value, $('spyMission').value);
       $('spyOdds').textContent = `Success ${Math.round(o.success * 100)}% · caught if failed ${Math.round(o.caught * 100)}%`;
     } else $('spyOdds').textContent = 'Spend between 2 and 20 gold.';
     lock($('spyForm').querySelector('button'), state.phase !== 'ACTION' ? 'Spies can only be sent during the action phase.' : state.me.lastSpyRound === state.round ? 'You have already sent spies this round.' : !valid ? 'Spend a whole number of gold between 2 and 20.' : state.round > 1 && house.money < spend ? `You chose to spend ${spend} gold, but your house only has ${house.money}.` : '');
   }
   $('spyGold').addEventListener('input', updateSpyForm);
+  $('spyMission').addEventListener('change', updateSpyForm);
   $('spyTarget').addEventListener('change', updateSpyForm);
 
   function updateDisbandButton() {
@@ -1332,7 +1351,7 @@
 
   $('spyForm').addEventListener('submit', event => {
     event.preventDefault();
-    emitAction('spy', { targetHouseId: $('spyTarget').value, spend: Number($('spyGold').value) });
+    emitAction('spy', { targetHouseId: $('spyTarget').value, mission: $('spyMission').value, spend: Number($('spyGold').value) });
   });
 
   $('attackForm').addEventListener('submit', event => {

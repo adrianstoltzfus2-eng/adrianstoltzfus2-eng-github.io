@@ -710,3 +710,5 @@ body.house-themed .footer { border-color: var(--line); }
 .announce-card[data-tone="bad"] { border-color: rgba(210,100,85,.55); border-top-color: #c0584a; }
 .announce-card[data-tone="bad"] h2 { color: #e8a79c; }
 .announce-card[data-tone="good"] h2 { color: var(--gold-bright); }
+
+.hs-banner-art { border: 0; background-color: transparent; box-shadow: none; filter: drop-shadow(0 1px 4px rgba(0,0,0,.6)); border-radius: 0; }

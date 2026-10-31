@@ -224,9 +224,40 @@ function playerPublic(p) {
 }
 function incomePerCapital(h) { return 15 + (h.id === 'tyrell' ? 3 : 0); }
 function armySize(h) { return h.infantry + h.navy + h.dragons; }
-function spyOdds(spend, targetId) {
+const SPY_MISSIONS = {
+  troops: { label: 'Count troops', successBase: 0.35, successPer: 0.045, dangerBase: 0.75, dangerPer: 0.03 },
+  movement: { label: 'Watch movements', successBase: 0.35, successPer: 0.045, dangerBase: 0.75, dangerPer: 0.03 },
+  ravens: { label: 'Shoot ravens', successBase: 0.15, successPer: 0.04, dangerBase: 0.25, dangerPer: 0.015 },
+  mole: { label: 'Place a mole', successBase: 0.15, successPer: 0.04, dangerBase: 0.80, dangerPer: 0.03 }
+};
+function spyOdds(spend, targetId, mission) {
+  const m = SPY_MISSIONS[mission] || SPY_MISSIONS.troops;
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-  return { success: clamp(0.30 + 0.045 * (spend - 2) - (targetId === 'targaryen' ? 0.15 : 0), 0.05, 0.95), caught: clamp(0.60 - 0.035 * (spend - 2), 0.05, 0.60) };
+  return { success: clamp(m.successBase + m.successPer * (spend - 2) - (targetId === 'targaryen' ? 0.15 : 0), 0.05, 0.95), caught: clamp(m.dangerBase - m.dangerPer * (spend - 2), 0.05, 0.9) };
+}
+function spyFindings(mission, target) {
+  if (mission === 'troops') return { infantry: target.infantry, navy: target.navy, dragons: target.dragons };
+  if (mission === 'movement') {
+    const cap = target.pendingAttack ? findCapital(target.pendingAttack.targetCapitalId) : null;
+    return { movingOn: cap?.name || null };
+  }
+  if (mission === 'ravens') {
+    const memberIds = new Set(houseMembers(target.id).map(p => p.id));
+    const letters = [];
+    for (const m of privateMessages) {
+      if (memberIds.has(m.senderId) || (m.targets || []).some(t => memberIds.has(t.id))) letters.push({ from: m.senderName, fromHouseId: m.senderHouseId, to: (m.targets || []).map(t => t.name).join(', '), text: m.message });
+    }
+    for (const t of treaties) {
+      if (t.fromHouseId === target.id || t.toHouseId === target.id) letters.push({ from: `House ${capWord(houseName(t.fromHouseId))}`, fromHouseId: t.fromHouseId, to: `House ${capWord(houseName(t.toHouseId))}`, text: [t.gold && `${t.gold} gold`, t.infantry && `${t.infantry} infantry`, t.navy && `${t.navy} ships`].filter(Boolean).join(', ') + (t.message ? `: ${t.message}` : '') });
+    }
+    return { letters: letters.slice(-3).reverse() };
+  }
+  // mole
+  const options = [{ kind: 'wealth', gold: target.money }];
+  const secret = alliances.filter(a => a.scope === 'secret' && [a.houseA, a.houseB].includes(target.id)).map(a => (a.houseA === target.id ? a.houseB : a.houseA));
+  if (secret.length) options.push({ kind: 'alliance', houses: secret });
+  if (gameSettings.gameType === 'LAST_DRAGON') options.push({ kind: 'dragons', dragons: target.dragons });
+  return { mole: options[randomInt(0, options.length - 1)] };
 }
 function houseIncome(h) { return capitals.filter(c => c.ownerHouseId === h.id).length * incomePerCapital(h); }
 function currentHouseView(h) {
@@ -729,14 +760,11 @@ io.on('connection', socket => {
     h.money -= spendCost;
     note(h, 'gold', -spendCost, `Spy mission against House ${target.name}`);
     player.lastSpyRound = round;
-    const odds = spyOdds(spend, target.id);
+    const mission = SPY_MISSIONS[payload.mission] ? payload.mission : 'troops';
+    const odds = spyOdds(spend, target.id, mission);
     const success = Math.random() < odds.success;
     const caught = !success && Math.random() < odds.caught;
-    const pendingCapital = target.pendingAttack ? findCapital(target.pendingAttack.targetCapitalId) : null;
-    const report = {
-      id: randomUUID(), targetHouseId: target.id, targetName: target.name, round, success, caught, spent: spend,
-      ...(success ? { infantry: target.infantry, navy: target.navy, dragons: target.dragons, pendingTarget: pendingCapital?.name || null } : {})
-    };
+    const report = { id: randomUUID(), targetHouseId: target.id, targetName: target.name, round, mission, success, caught, spent: spend, ...(success ? { findings: spyFindings(mission, target) } : {}) };
     h.spyReports.unshift(report);
     if (h.spyReports.length > 15) h.spyReports.length = 15;
     addEvent('normal', caught ? `Spies were caught in House ${target.name}'s halls.` : `House ${h.name} sent spies toward House ${target.name}.`);
