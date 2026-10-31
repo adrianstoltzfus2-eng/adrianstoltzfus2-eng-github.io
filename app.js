@@ -31,7 +31,7 @@
   const $ = id => document.getElementById(id);
   function setThronePage(mode) {
     const frame = $('throneFrame');
-    if (frame) frame.src = mode === 'entry' ? './throne-photo.html?mode=entry&v=13' : './throne-photo.html?v=13';
+    if (frame) frame.src = mode === 'entry' ? './throne-photo.html?mode=entry&v=14' : './throne-photo.html?v=14';
   }
   function transitionThrone(mode) {
     const frame = $('throneFrame');
@@ -43,6 +43,19 @@
   syncMobileLayout();
   window.addEventListener('resize', syncMobileLayout, { passive: true });
   window.addEventListener('orientationchange', syncMobileLayout, { passive: true });
+
+  // iPhone: if the page ever ends up zoomed (e.g. after the keyboard closes), snap it back to fit the screen.
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  function resetMobileZoom() {
+    if (!viewportMeta || !isMobileDevice()) return;
+    const original = viewportMeta.content;
+    viewportMeta.content = 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no';
+    setTimeout(() => { viewportMeta.content = original; }, 80);
+  }
+  window.resetMobileZoom = resetMobileZoom;
+  document.addEventListener('focusout', () => setTimeout(resetMobileZoom, 60));
+  window.addEventListener('pageshow', resetMobileZoom);
+  window.addEventListener('load', () => setTimeout(resetMobileZoom, 100));
 
   // Mobile: block pinch zoom, and keep the browser's own bars hidden (full screen).
   // Tapping empty space brings the bars back; they hide again a few seconds later.
@@ -345,13 +358,16 @@
     $('hubEyebrow').textContent = cfg[0];
     $('hubTitle').textContent = cfg[1];
     for (const [key, value] of Object.entries(HUBS)) $(value[2]).hidden = key !== kind;
+    currentHub = kind;
     $('hubOverlay').hidden = false;
     $('hubOverlay').querySelector('.hub-sheet-body').scrollTop = 0;
+    updateBadges();
     document.body.classList.add('hub-open');
   }
   function closeHub() {
     if ($('hubOverlay').hidden) return;
     $('hubOverlay').hidden = true;
+    currentHub = null;
     document.body.classList.remove('hub-open');
   }
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -362,8 +378,10 @@
     $('gameScreen').classList.toggle('hub-mode', visible);
     $('mapToggleButton').hidden = visible;
     if (!visible) closeHub();
+    if (state.phase === 'LOBBY') seenNotes.ready = false;
     const h = state.myHouse;
     if (!h) return;
+    updateBadges();
     const myAlliances = (state.alliances || []).filter(a => a.houseA === h.id || a.houseB === h.id).length;
     const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length;
     const total = h.infantry + h.navy + h.dragons;
@@ -540,6 +558,102 @@
     sendHousesToThrone();
   }
 
+  // ---- Hub notification badges (unread messages / offers, gold received, new battle reports) ----
+  const seenNotes = { ready: false, chat: new Set(), offers: new Set(), battles: new Set(), gold: 0 };
+  let currentHub = null;
+  function setBadge(id, text) {
+    const el = $(id);
+    if (!el) return;
+    const previous = el.hidden ? '' : el.textContent;
+    el.hidden = !text;
+    el.textContent = text || '';
+    if (text && text !== previous) { el.classList.remove('badge-pop'); void el.offsetWidth; el.classList.add('badge-pop'); }
+  }
+  function updateBadges() {
+    const h = state?.myHouse;
+    if (!h || !state.me) return;
+    const chat = [...(state.publicMessages || []).filter(m => m.senderName !== state.me.username), ...(state.privateMessages || []).filter(m => m.senderHouseId !== h.id)];
+    const offers = (state.allianceOffers || []).filter(o => o.canRespond);
+    const battles = (state.events || []).filter(e => e.kind === 'battle');
+    const markAll = () => {
+      if (currentHub === 'relations') { chat.forEach(m => seenNotes.chat.add(m.id)); offers.forEach(o => seenNotes.offers.add(o.id)); }
+      if (currentHub === 'army') battles.forEach(e => seenNotes.battles.add(e.id));
+      if (currentHub === 'money') seenNotes.gold = h.money;
+    };
+    if (!seenNotes.ready) {
+      const open = currentHub; currentHub = 'relations'; markAll(); currentHub = 'army'; markAll(); currentHub = 'money'; markAll(); currentHub = open;
+      seenNotes.ready = true;
+    }
+    markAll();
+    if (h.money < seenNotes.gold) seenNotes.gold = h.money;
+    const unread = chat.filter(m => !seenNotes.chat.has(m.id)).length + offers.filter(o => !seenNotes.offers.has(o.id)).length;
+    const newBattles = battles.filter(e => !seenNotes.battles.has(e.id)).length;
+    setBadge('badgeRelations', unread ? String(Math.min(unread, 99)) : '');
+    setBadge('badgeArmy', newBattles ? String(Math.min(newBattles, 99)) : '');
+    setBadge('badgeMoney', h.money > seenNotes.gold ? `+${h.money - seenNotes.gold}` : '');
+  }
+
+  // ---- King / Hand announcements: the new player's banner replaces the old one ----
+  const announceKey = () => `warOfWesterosAnnounced:${gameCode}`;
+  let announced = { king: null, hand: null };
+  let announcedFor = '';
+  const announceQueue = [];
+  let announceShowing = false;
+  let announceTimer = null;
+  function loadAnnounced() {
+    if (announcedFor === gameCode) return;
+    announcedFor = gameCode;
+    try { announced = { king: null, hand: null, ...JSON.parse(localStorage.getItem(announceKey()) || '{}') }; } catch { announced = { king: null, hand: null }; }
+  }
+  function saveAnnounced() { try { localStorage.setItem(announceKey(), JSON.stringify(announced)); } catch { /* storage unavailable */ } }
+  function roleSnapshot(person) {
+    if (!person) return null;
+    const player = state.players.find(p => p.id === person.id);
+    return { id: person.id, name: person.username, houseId: player?.houseId || null };
+  }
+  function checkRoleChanges() {
+    if (!state?.me || !gameCode) return;
+    loadAnnounced();
+    if (state.phase === 'LOBBY') {
+      if (announced.king || announced.hand) { announced = { king: null, hand: null }; saveAnnounced(); }
+      return;
+    }
+    if (!['ACTION', 'COURT', 'RESOLUTION'].includes(state.phase)) return;
+    for (const role of ['king', 'hand']) {
+      const next = roleSnapshot(state[role]);
+      const prev = announced[role];
+      if (!next || (prev && prev.id === next.id)) continue;
+      announceQueue.push({ role, prev, next });
+      announced[role] = next;
+    }
+    saveAnnounced();
+    if (!announceShowing) showNextAnnouncement();
+  }
+  function announceBanner(snap, className) {
+    const house = snap && state.houses.find(h => h.id === snap.houseId);
+    return (house && houseBanner(house, `announce-banner ${className}`)) || `<span class="announce-banner announce-banner-empty ${className}" aria-hidden="true">?</span>`;
+  }
+  function showNextAnnouncement() {
+    const item = announceQueue.shift();
+    if (!item) { announceShowing = false; $('announceOverlay').hidden = true; return; }
+    announceShowing = true;
+    const isKing = item.role === 'king';
+    const house = state.houses.find(h => h.id === item.next.houseId);
+    $('announceEyebrow').textContent = item.prev ? (isKing ? 'A NEW KING' : 'A NEW HAND') : (isKing ? 'THE FIRST KING' : 'THE HAND OF THE KING');
+    $('announceTitle').textContent = isKing ? 'The crown has a new bearer' : 'The King has a new Hand';
+    $('announceStage').innerHTML = `${item.prev ? announceBanner(item.prev, 'ann-old') : ''}${announceBanner(item.next, item.prev ? 'ann-new' : 'ann-new ann-first')}`;
+    $('announceStage').classList.toggle('has-old', Boolean(item.prev));
+    $('announceName').innerHTML = `<strong>${escapeHtml(item.next.name)}</strong>${house ? `<span>House ${escapeHtml(house.name)}</span>` : ''}`;
+    $('announceOverlay').hidden = false;
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(closeAnnouncement, item.prev ? 7000 : 5500);
+  }
+  function closeAnnouncement() {
+    clearTimeout(announceTimer);
+    $('announceOverlay').hidden = true;
+    setTimeout(showNextAnnouncement, 350);
+  }
+
   function render() {
     updateScreens();
     if (!state) return;
@@ -556,6 +670,7 @@
     claimPickedHouse();
 
     renderWaitingRoom();
+    checkRoleChanges();
     if (state.phase === 'HAND_SELECTION') {
       renderKingSelection();
       updateRoundPill();
@@ -791,6 +906,7 @@
     if (action === 'close-bot-dialog') { $('botEditDialog').close(); return; }
     if (action === 'open-hub') { openHub(button.dataset.hub); return; }
     if (action === 'close-hub') { closeHub(); return; }
+    if (action === 'close-announce') { closeAnnouncement(); return; }
     if (action === 'toggle-traitor') { emitAction('mark-traitor', { playerId: button.dataset.playerId, traitor: button.dataset.traitor === 'true' }); return; }
     if (action === 'open-map') { setMapOpen(true); return; }
     if (action === 'close-map') { setMapOpen(false); return; }

@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=27">
+  <link rel="stylesheet" href="./style.css?v=28">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=29" defer></script>
+  <script src="./app.js?v=30" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -38,11 +38,11 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.2.2</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.2.3</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
-    <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=13" title="War of Westeros throne selection"></iframe>
+    <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=14" title="War of Westeros throne selection"></iframe>
   </section>
 
   <main id="hostSetupScreen" class="realm-screen" hidden>
@@ -149,9 +149,9 @@
     </section>
 
     <section id="actionHub" class="action-hub" aria-label="Round menus" hidden>
-      <button class="hub-button" type="button" data-action="open-hub" data-hub="money"><img src="./assets/game-coins.png?v=2" alt=""><h3>Money</h3><div class="hub-detail"><strong id="hubMoneyGold">—</strong><span id="hubMoneyIncome"></span><span id="hubMoneyCapitals"></span></div></button>
-      <button class="hub-button" type="button" data-action="open-hub" data-hub="relations"><img src="./assets/game-handshake.png?v=2" alt=""><h3>Relations</h3><div class="hub-detail"><strong id="hubRelAlliances">—</strong><span id="hubRelOffers"></span><span id="hubRelRole"></span></div></button>
-      <button class="hub-button" type="button" data-action="open-hub" data-hub="army"><img src="./assets/game-swords.png?v=2" alt=""><h3>Army</h3><div class="hub-detail"><strong id="hubArmyTotal">—</strong><span id="hubArmyDetail"></span><span id="hubArmyCosts"></span></div></button>
+      <button class="hub-button" type="button" data-action="open-hub" data-hub="money"><span id="badgeMoney" class="hub-badge" aria-live="polite" hidden></span><img src="./assets/game-coins.png?v=2" alt=""><h3>Money</h3><div class="hub-detail"><strong id="hubMoneyGold">—</strong><span id="hubMoneyIncome"></span><span id="hubMoneyCapitals"></span></div></button>
+      <button class="hub-button" type="button" data-action="open-hub" data-hub="relations"><span id="badgeRelations" class="hub-badge" aria-live="polite" hidden></span><img src="./assets/game-handshake.png?v=2" alt=""><h3>Relations</h3><div class="hub-detail"><strong id="hubRelAlliances">—</strong><span id="hubRelOffers"></span><span id="hubRelRole"></span></div></button>
+      <button class="hub-button" type="button" data-action="open-hub" data-hub="army"><span id="badgeArmy" class="hub-badge" aria-live="polite" hidden></span><img src="./assets/game-swords.png?v=2" alt=""><h3>Army</h3><div class="hub-detail"><strong id="hubArmyTotal">—</strong><span id="hubArmyDetail"></span><span id="hubArmyCosts"></span></div></button>
     </section>
 
     <div id="hubOverlay" class="hub-overlay" hidden>
@@ -329,6 +329,15 @@
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
+  <div id="announceOverlay" class="announce-overlay" role="alertdialog" aria-live="assertive" aria-labelledby="announceTitle" hidden>
+    <div class="announce-card" data-action="close-announce">
+      <p class="eyebrow" id="announceEyebrow"></p>
+      <h2 id="announceTitle"></h2>
+      <div id="announceStage" class="announce-stage"></div>
+      <p id="announceName" class="announce-name"></p>
+      <small class="announce-hint">Tap to continue</small>
+    </div>
+  </div>
   <footer class="footer"><span id="buildLabel">WAR OF WESTEROS · PROTOTYPE BUILD 0.1</span><span>Power is a game of information, timing, and trust.</span></footer>
 </body>
 </html>

@@ -149,5 +149,9 @@
     renderHouseButtons();syncPanels();reset();
     if(inFrame)window.parent.postMessage({type:'iron-throne:ready'},location.origin==='null'?'*':location.origin);
   </script>
+<script>
+  // Keep the parent page from staying zoomed after the keyboard closes (iPhone).
+  document.addEventListener('focusout', function () { setTimeout(function () { try { parent.resetMobileZoom && parent.resetMobileZoom(); } catch (e) {} }, 60); });
+</script>
 </body>
 </html>

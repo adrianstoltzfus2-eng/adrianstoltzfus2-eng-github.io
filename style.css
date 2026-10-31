@@ -554,4 +554,32 @@ body.mobile-device .game-screen.hub-mode #phaseDescription { display: none; }
 
 /* Mobile: no double-tap / focus zoom */
 html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-body.mobile-device input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), body.mobile-device select, body.mobile-device textarea { font-size: 16px; }
+body.mobile-device input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), body.mobile-device select, body.mobile-device textarea { font-size: 16px !important; }
+@media (pointer: coarse) { input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; } }
+
+/* Hub notification badges */
+.hub-button { position: relative; }
+.hub-badge { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 99px; color: #fff; background: #c0392b; box-shadow: 0 0 0 3px rgba(20,23,29,.92), 0 0 14px rgba(192,57,43,.65); font: 700 12px Inter, system-ui, sans-serif; line-height: 1; }
+.hub-badge[hidden] { display: none; }
+.hub-badge.badge-pop { animation: badge-pop .4s cubic-bezier(.3,1.6,.5,1); }
+@keyframes badge-pop { 0% { transform: scale(.2); } 100% { transform: scale(1); } }
+
+/* King / Hand announcement */
+.announce-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(4,5,7,.82); backdrop-filter: blur(5px); animation: ann-fade .3s ease-out; }
+.announce-overlay[hidden] { display: none; }
+.announce-card { width: min(440px, 100%); padding: 28px 22px 20px; border: 1px solid rgba(217,190,135,.4); border-top: 2px solid var(--gold); border-radius: 14px; text-align: center; cursor: pointer; background: linear-gradient(155deg, #26231f, #121519); box-shadow: 0 20px 80px #000; }
+.announce-card h2 { margin: 6px 0 4px; color: #e3d2ad; font: 600 22px Cinzel, Georgia, serif; }
+.announce-stage { position: relative; display: grid; place-items: center; height: 190px; margin: 14px 0 6px; }
+.announce-stage > * { grid-area: 1 / 1; }
+.announce-banner { display: block; width: 132px; height: 161px; }
+.announce-banner-empty { display: grid; place-items: center; border: 1px dashed rgba(217,190,135,.4); border-radius: 8px; color: var(--muted); font: 600 40px Cinzel, Georgia, serif; }
+.announce-banner.ann-old { animation: ann-out .8s ease-in .9s forwards; }
+.announce-banner.ann-new { animation: ann-in .9s cubic-bezier(.2,1.2,.4,1) 1.5s both; filter: drop-shadow(0 0 18px rgba(217,190,135,.45)); }
+.announce-banner.ann-new.ann-first { animation-delay: .25s; }
+.announce-name { display: grid; gap: 3px; margin: 8px 0 14px; }
+.announce-name strong { color: var(--gold-bright, #f0dca8); font: 600 22px Cinzel, Georgia, serif; }
+.announce-name span { color: var(--muted); font-size: 12px; letter-spacing: .08em; }
+.announce-hint { color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+@keyframes ann-out { to { opacity: 0; transform: translateY(26px) scale(.7) rotate(-6deg); } }
+@keyframes ann-in { from { opacity: 0; transform: translateY(-34px) scale(1.5); } to { opacity: 1; transform: none; } }
+@keyframes ann-fade { from { opacity: 0; } to { opacity: 1; } }
