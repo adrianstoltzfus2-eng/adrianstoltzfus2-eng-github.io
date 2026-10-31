@@ -268,7 +268,10 @@ function viewFor(playerId) {
     myHouse: makePrivateHouseView(myHouse),
     houses: houses.map(currentHouseView),
     players: [...players.values()].map(p => (me && me.id === kingPlayerId ? { ...playerPublic(p), traitor: Boolean(p.traitor) } : playerPublic(p))),
-    taxLedger: me && me.id === kingPlayerId ? taxLedger.map(t => ({ ...t, payments: t.payments.map(x => ({ ...x })) })) : [],
+    decrees: myHouse ? taxLedger.filter(d => d.kingPlayerId === me.id || d.recipients.some(r => r.houseId === myHouse.id)).slice(0, 20).map(d => {
+      const issuer = d.kingPlayerId === me.id;
+      return { id: d.id, round: d.round, kingName: d.kingName, kingHouseId: d.kingHouseId, message: d.message, gold: d.gold, infantry: d.infantry, navy: d.navy, isIssuer: issuer, myState: d.recipients.find(r => r.houseId === myHouse.id)?.state || null, recipients: issuer ? d.recipients.map(r => ({ ...r })) : undefined };
+    }) : [],
     capitals: capitals.map(c => ({ ...c })),
     minorHousesUnlocked: Number(gameSettings.maxPlayers) >= 7,
     voteCandidates,
@@ -879,41 +882,42 @@ io.on('connection', socket => {
     return ok(`Your choice is recorded. If you and House ${houseName(other)} still disagree when court ends in Round ${s.deadlineRound}, you will fight for it.`);
   });
 
-  action(socket, 'king-command', (player, payload) => {
-    const check = requireHouse(player); if (check.ok === false) return check;
-    const h = check;
-    if (!isCourt()) return fail('Royal commands can only be issued during court.');
-    if (player.id !== kingPlayerId) return fail('Only the king can issue a royal command.');
-    if (h.commandUsedRound === round) return fail('Your house has already used its royal command this round.');
-    if (payload.command === 'levy') {
-      let collected = 0;
-      const bonus = h.id === 'baratheon' ? 1 : 0;
-      const payments = [];
-      for (const other of houses) {
-        if (other.id === h.id) continue;
-        const amount = Math.min(3 + bonus, other.money);
-        other.money -= amount;
-        note(other, 'gold', -amount, `Royal levy paid to House ${h.name}`);
-        collected += amount;
-        payments.push({ houseId: other.id, amount });
-      }
-      taxLedger.unshift({ id: randomUUID(), round, kind: 'Royal levy', demanded: 3 + bonus, payments });
-      if (taxLedger.length > 20) taxLedger.length = 20;
-      h.money += collected;
-      note(h, 'gold', collected, 'Royal levy collected');
-      h.commandUsedRound = round;
-      addEvent('important', `The king issued a royal levy. House ${h.name} collected ${collected} gold from the realm.`);
-      return ok(`Royal levy collected ${collected} gold.`);
-    }
-    if (payload.command === 'embargo') {
-      const target = findHouse(String(payload.targetHouseId || ''));
-      if (!target || target.id === h.id) return fail('Choose another house for the embargo.');
-      target.lockedUntilRound = round + 1;
-      h.commandUsedRound = round;
-      addEvent('important', `The king placed a recruitment embargo on House ${target.name} through Round ${round + 1}.`);
-      return ok(`House ${target.name} cannot recruit through Round ${round + 1}.`);
-    }
-    return fail('Choose a valid royal command.');
+  // Royal decrees (stored in `taxLedger`): a sealed message, optionally demanding gold or troops. Nothing moves unless the house presses Send.
+  action(socket, 'issue-decree', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    if (player.id !== kingPlayerId) return fail('Only the king can issue a royal decree.');
+    if (!canDiplomacy()) return fail('Decrees can be issued during the action and court phases.');
+    if (h.commandUsedRound === round) return fail('You have already issued a decree this round.');
+    const gold = wholeNumber(payload.gold), infantry = wholeNumber(payload.infantry), navy = wholeNumber(payload.navy);
+    if (gold === null || infantry === null || navy === null) return fail('Demands must be whole numbers of zero or more.');
+    const message = String(payload.message || '').trim().slice(0, 300);
+    if (!message && gold + infantry + navy === 0) return fail('Write a decree or name a demand.');
+    const wanted = Array.isArray(payload.targetHouseIds) ? payload.targetHouseIds.map(String) : [];
+    const targets = houses.filter(x => x.id !== h.id && houseMembers(x.id).length && (!wanted.length || wanted.includes(x.id)));
+    if (!targets.length) return fail('No other house has a player to receive the decree.');
+    taxLedger.unshift({ id: randomUUID(), round, kingPlayerId: player.id, kingName: player.username, kingHouseId: h.id, message, gold, infantry, navy, recipients: targets.map(x => ({ houseId: x.id, state: houseIsBotOnly(x.id) ? 'closed' : 'pending' })) });
+    if (taxLedger.length > 20) taxLedger.length = 20;
+    h.commandUsedRound = round;
+    addEvent('important', `King ${player.username} issued a royal decree${gold + infantry + navy ? ' with demands' : ''}.`);
+    return ok(`Your decree has been sealed and sent to ${targets.length} house${targets.length === 1 ? '' : 's'}.`);
+  });
+
+  action(socket, 'respond-decree', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    const d = taxLedger.find(x => x.id === String(payload.decreeId || ''));
+    const r = d?.recipients.find(x => x.houseId === h.id && x.state === 'pending');
+    if (!r) return fail('That decree is no longer waiting on your house.');
+    if (payload.comply !== true) { r.state = 'closed'; return ok('Decree closed. Nothing was sent.'); }
+    if (h.money < d.gold || h.infantry < d.infantry || h.navy < d.navy) return fail(`You cannot meet this demand: you have ${h.money} gold, ${h.infantry} infantry and ${h.navy} ships.`);
+    const king = findHouse(d.kingHouseId);
+    h.money -= d.gold; h.infantry -= d.infantry; h.navy -= d.navy;
+    if (king) { king.money += d.gold; king.infantry += d.infantry; king.navy += d.navy; }
+    const out = `Sent to King ${d.kingName} by decree`, inn = `Decree answered by House ${h.name}`;
+    note(h, 'gold', -d.gold, out); note(h, 'infantry', -d.infantry, out); note(h, 'navy', -d.navy, out);
+    note(king, 'gold', d.gold, inn); note(king, 'infantry', d.infantry, inn); note(king, 'navy', d.navy, inn);
+    r.state = 'sent';
+    addEvent('normal', `House ${h.name} answered the king's decree.`);
+    return ok('Sent. The king has received your answer.');
   });
 
   action(socket, 'mark-traitor', (player, payload) => {

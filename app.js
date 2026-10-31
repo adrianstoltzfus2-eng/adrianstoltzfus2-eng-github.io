@@ -460,6 +460,35 @@
   const houseColor = id => state.houses.find(h => h.id === id)?.color || '#c8a86c';
   const TREATY_STATUS = { accepted: 'Accepted', declined: 'Declined', cancelled: 'Withdrawn' };
 
+  const DECREE_STATE = { sent: 'Sent', closed: 'Closed', pending: 'Waiting' };
+  function decreeCard(d, popup = false) {
+    const h = state.myHouse;
+    const can = h && h.money >= d.gold && h.infantry >= d.infantry && h.navy >= d.navy;
+    const reason = can ? '' : `You cannot meet this demand: you have ${h?.money ?? 0} gold, ${h?.infantry ?? 0} infantry and ${h?.navy ?? 0} ships.`;
+    const demand = goodsMarkup(d);
+    const buttons = d.myState === 'pending' ? `<div class="treaty-actions"><button class="button button-primary button-small ${can ? '' : 'is-locked'}" data-action="respond-decree" data-decree-id="${escapeHtml(d.id)}" data-comply="true"${lockAttr(reason)}>${demand ? 'Send' : 'Acknowledge'}</button><button class="button button-quiet button-small" data-action="respond-decree" data-decree-id="${escapeHtml(d.id)}" data-comply="false">Close</button></div>` : '';
+    return `<article class="treaty-card decree-card" style="--house-color:${escapeHtml(houseColor(d.kingHouseId))}"><header><span class="royal-seal royal-seal-sm"><img src="./assets/game-throne.png?v=2" alt=""></span><strong>Decree of King ${escapeHtml(d.kingName)}<small> · House ${escapeHtml(capName(prettyHouse(d.kingHouseId)))}</small></strong><span class="treaty-status is-${escapeHtml(d.myState === 'sent' ? 'accepted' : d.myState === 'closed' ? 'declined' : 'pending')}">${escapeHtml(DECREE_STATE[d.myState] || '')}</span></header>${d.message ? `<p class="treaty-note">“${escapeHtml(d.message)}”</p>` : ''}${demand ? `<div><small>The crown demands:</small>${demand}</div>` : ''}<small>Round ${d.round}</small>${buttons}</article>`;
+  }
+  // A sealed decree pops up once when it arrives. Backdrop tap = ignore it for now; Send / Close answer it.
+  const shownDecrees = new Set();
+  let decreesPrimed = false;
+  function checkDecreePopup() {
+    if (!state?.myHouse) return;
+    const pending = (state.decrees || []).filter(d => !d.isIssuer && d.myState === 'pending');
+    if (!decreesPrimed) { pending.forEach(d => shownDecrees.add(d.id)); decreesPrimed = true; return; }
+    if (!$('decreeOverlay').hidden) {
+      const stillOpen = pending.find(d => d.id === $('decreePop').dataset.decree);
+      if (!stillOpen) $('decreeOverlay').hidden = true;
+      return;
+    }
+    const next = pending.find(d => !shownDecrees.has(d.id));
+    if (!next || !$('announceOverlay').hidden) return;
+    shownDecrees.add(next.id);
+    $('decreePop').dataset.decree = next.id;
+    $('decreePop').innerHTML = `<p class="eyebrow" id="decreePopTitle">A ROYAL DECREE</p>${decreeCard(next, true)}<small class="announce-hint">Tap outside to decide later</small>`;
+    $('decreeOverlay').hidden = false;
+  }
+
   function renderAlliances() {
     const mine = state.myHouse;
     const myId = mine?.id;
@@ -471,15 +500,15 @@
     const proposable = withPlayers.filter(h => !allied.has(h.id) && !offers.some(o => (o.fromHouseId === myId && o.toHouseId === h.id) || (o.fromHouseId === h.id && o.toHouseId === myId)));
     $('allianceTarget').innerHTML = proposable.map(h => `<option value="${escapeHtml(h.id)}">House ${escapeHtml(capName(h.name))}</option>`).join('');
     $('treatyTarget').innerHTML = withPlayers.map(h => `<option value="${escapeHtml(h.id)}">House ${escapeHtml(capName(h.name))}${allied.has(h.id) ? ' · ally' : ''}</option>`).join('');
-    $('commandTarget').innerHTML = state.houses.filter(h => h.id !== myId).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
+    $('decreeTarget').innerHTML = '<option value="">All houses</option>' + withPlayers.map(h => `<option value="${escapeHtml(h.id)}">House ${escapeHtml(capName(h.name))}</option>`).join('');
     const closedMsg = 'Diplomacy is open during the action and court phases.';
     lock($('allianceForm').querySelector('button'), !mine ? 'Choose a house first.' : !open ? closedMsg : !withPlayers.length ? 'No other house has a player yet.' : !proposable.length ? 'Every house with a player is already your ally or has a pending offer.' : '');
     lock($('treatyForm').querySelector('button'), !mine ? 'Choose a house first.' : !open ? closedMsg : !withPlayers.length ? 'No other house has a player yet.' : '');
-    // Royal commands exist only for the king.
-    $('commandForm').hidden = !state.isKing;
-    lock($('commandForm').querySelector('button'), !state.isKing ? '' : state.phase !== 'COURT' ? 'Royal commands can only be issued during court.' : mine?.commandUsedRound === state.round ? 'You have already used your royal command this round.' : '');
-    $('commandSelect').disabled = !state.isKing;
-    $('commandTarget').disabled = !state.isKing || $('commandSelect').value !== 'embargo';
+    // Decrees exist only for the king.
+    $('decreeForm').hidden = !state.isKing;
+    lock($('decreeForm').querySelector('button'), !state.isKing ? '' : !open ? closedMsg : mine?.commandUsedRound === state.round ? 'You have already issued a decree this round.' : '');
+    const incoming = (state.decrees || []).filter(d => !d.isIssuer && d.myState);
+    $('decreeList').innerHTML = incoming.map(d => decreeCard(d)).join('') || '<p class="muted small-text">No decrees have been sent to your house.</p>';
     $('kingBadge').textContent = state.king ? `King: ${state.king.username}` : 'No king';
 
     let markup = '';
@@ -596,7 +625,7 @@
     if (!h) return;
     updateBadges();
     const myAlliances = (state.alliances || []).filter(a => a.houseA === h.id || a.houseB === h.id).length;
-    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length + (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing).length + (state.warInvites || []).length;
+    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length + (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing).length + (state.warInvites || []).length + (state.decrees || []).filter(d => !d.isIssuer && d.myState === 'pending').length;
     const total = h.infantry + h.navy + h.dragons;
     // Hub buttons (details are hidden on phones)
     $('hubMoneyGold').textContent = `${h.money} gold`;
@@ -627,7 +656,7 @@
     $('armyNavyCost').textContent = `${h.navyCost} gold`;
     $('battleReports').innerHTML = (state.events || []).filter(e => e.kind === 'battle').map(e => `<div class="resolution-item"><span>R${e.round}</span><p>${escapeHtml(e.text)}</p></div>`).join('') || '<p class="muted small-text">No battles have been fought yet.</p>';
     $('armyPhaseNote').textContent = state.phase === 'ACTION' ? '' : 'Recruiting, spying and declaring war open during the action phase.';
-    $('relationsPhaseNote').textContent = diploOpen() ? (state.isKing && state.phase !== 'COURT' ? 'Royal decrees open during the court phase.' : '') : 'Alliances, treaties and war councils open during the action and court phases. Messages can be sent at any time.';
+    $('relationsPhaseNote').textContent = diploOpen() ? '' : 'Alliances, treaties, decrees and war councils open during the action and court phases. Messages can be sent at any time.';
     // King's ledger
     $('kingTools').hidden = !state.isKing;
     if (state.isKing) {
@@ -636,7 +665,8 @@
         const house = state.houses.find(item => item.id === p.houseId);
         return `<div class="alliance-row"><div><strong>${escapeHtml(p.username)}${p.traitor ? ' <em class="traitor-tag">TRAITOR</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house'}</small></div><button class="button ${p.traitor ? 'button-quiet' : 'button-danger'} button-small" type="button" data-action="toggle-traitor" data-player-id="${escapeHtml(p.id)}" data-traitor="${p.traitor ? 'false' : 'true'}">${p.traitor ? 'Pardon' : 'Label traitor'}</button></div>`;
       }).join('') : '<p class="muted small-text">There is no one else at court.</p>';
-      $('taxLedger').innerHTML = (state.taxLedger || []).length ? state.taxLedger.map(t => `<article class="tax-entry"><strong>Round ${t.round} · ${escapeHtml(t.kind)} · ${t.demanded} gold demanded from each house</strong>${t.payments.map(x => `<div class="tax-row"><span>House ${escapeHtml(prettyHouse(x.houseId))}</span><span class="${x.amount >= t.demanded ? 'tax-paid' : x.amount > 0 ? 'tax-short' : 'tax-none'}">${x.amount >= t.demanded ? `Paid ${x.amount}` : x.amount > 0 ? `Paid ${x.amount} (short)` : 'Could not pay'}</span></div>`).join('')}</article>`).join('') : '<p class="muted small-text">No taxes or demands have been made yet. Issue a royal levy to see who pays.</p>';
+      const issued = (state.decrees || []).filter(d => d.isIssuer);
+      $('taxLedger').innerHTML = issued.length ? issued.map(d => `<article class="tax-entry"><strong>Round ${d.round}${d.message ? ` · “${escapeHtml(d.message)}”` : ''}</strong>${(d.gold || d.infantry || d.navy) ? `<div class="tax-row"><span>Demanded</span><span>${[d.gold && `${d.gold} gold`, d.infantry && `${d.infantry} infantry`, d.navy && `${d.navy} ships`].filter(Boolean).join(' · ')}</span></div>` : ''}${d.recipients.map(x => `<div class="tax-row"><span>House ${escapeHtml(capName(prettyHouse(x.houseId)))}</span><span class="${x.state === 'sent' ? 'tax-paid' : x.state === 'closed' ? 'tax-none' : 'tax-short'}">${x.state === 'sent' ? 'Sent' : x.state === 'closed' ? 'Closed' : 'Waiting'}</span></div>`).join('')}</article>`).join('') : '<p class="muted small-text">You have issued no decrees yet. Open the Relations menu and seal one.</p>';
     }
   }
 
@@ -778,7 +808,7 @@
   }
 
   // ---- Notification badges: on the three hub buttons, and on the exact box inside each menu ----
-  const seenNotes = { ready: false, pub: new Set(), sec: new Set(), offers: new Set(), treaties: new Set(), war: new Set(), battles: new Set(), gold: 0 };
+  const seenNotes = { ready: false, pub: new Set(), sec: new Set(), offers: new Set(), treaties: new Set(), decrees: new Set(), war: new Set(), battles: new Set(), gold: 0 };
   let currentHub = null;
   const markSeen = (set, list) => list.forEach(item => set.add(item.id));
   function noteLists() {
@@ -788,6 +818,7 @@
       sec: (state.privateMessages || []).filter(m => m.senderId !== me),
       offers: (state.allianceOffers || []).filter(o => o.canRespond),
       treaties: (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing),
+      decrees: (state.decrees || []).filter(d => !d.isIssuer && d.myState === 'pending'),
       war: [...(state.warInvites || []).map(w => ({ id: `${w.leaderHouseId}:${w.resolveRound}` })), ...(state.spoils || []).filter(x => x.status === 'open').map(x => ({ id: x.id }))],
       battles: (state.events || []).filter(e => e.kind === 'battle')
     };
@@ -805,7 +836,7 @@
     const h = state?.myHouse;
     if (!h || !state.me || !kind) return;
     const n = noteLists();
-    if (kind === 'relations') { markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.treaties, n.treaties); markSeen(seenNotes.war, n.war); markSeen(seenNotes.pub, activeChatTab === 'public' ? n.pub : []); markSeen(seenNotes.sec, activeChatTab === 'secret' ? n.sec : []); }
+    if (kind === 'relations') { markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.treaties, n.treaties); markSeen(seenNotes.decrees, n.decrees); markSeen(seenNotes.war, n.war); markSeen(seenNotes.pub, activeChatTab === 'public' ? n.pub : []); markSeen(seenNotes.sec, activeChatTab === 'secret' ? n.sec : []); }
     if (kind === 'army') markSeen(seenNotes.battles, n.battles);
     if (kind === 'money') seenNotes.gold = h.money;
   }
@@ -814,7 +845,7 @@
     if (!h || !state.me) return;
     const n = noteLists();
     if (!seenNotes.ready) {
-      markSeen(seenNotes.pub, n.pub); markSeen(seenNotes.sec, n.sec); markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.treaties, n.treaties); markSeen(seenNotes.war, n.war); markSeen(seenNotes.battles, n.battles);
+      markSeen(seenNotes.pub, n.pub); markSeen(seenNotes.sec, n.sec); markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.treaties, n.treaties); markSeen(seenNotes.decrees, n.decrees); markSeen(seenNotes.war, n.war); markSeen(seenNotes.battles, n.battles);
       seenNotes.gold = h.money;
       seenNotes.ready = true;
     }
@@ -822,16 +853,17 @@
     if (currentHub === 'relations') markSeen(activeChatTab === 'public' ? seenNotes.pub : seenNotes.sec, activeChatTab === 'public' ? n.pub : n.sec);
     if (h.money < seenNotes.gold) seenNotes.gold = h.money;
     const count = (list, set) => list.filter(item => !set.has(item.id)).length;
-    const unPub = count(n.pub, seenNotes.pub), unSec = count(n.sec, seenNotes.sec), unOffers = count(n.offers, seenNotes.offers), unTreaties = count(n.treaties, seenNotes.treaties), unWar = count(n.war, seenNotes.war), unBattles = count(n.battles, seenNotes.battles);
+    const unPub = count(n.pub, seenNotes.pub), unSec = count(n.sec, seenNotes.sec), unOffers = count(n.offers, seenNotes.offers), unTreaties = count(n.treaties, seenNotes.treaties), unDecrees = count(n.decrees, seenNotes.decrees), unWar = count(n.war, seenNotes.war), unBattles = count(n.battles, seenNotes.battles);
     const gain = Math.max(0, h.money - seenNotes.gold);
     const text = value => (value ? String(Math.min(value, 99)) : '');
-    setBadge('badgeRelations', text(unPub + unSec + unOffers + unTreaties + unWar));
+    setBadge('badgeRelations', text(unPub + unSec + unOffers + unTreaties + unDecrees + unWar));
     setBadge('badgeArmy', text(unBattles));
     setBadge('badgeMoney', gain ? `+${gain}` : '');
     setBadge('badgeTabPublic', text(unPub));
     setBadge('badgeTabSecret', text(unSec));
     setBadge('badgeOffers', text(unOffers));
     setBadge('badgeTreaties', text(unTreaties));
+    setBadge('badgeDecrees', text(unDecrees));
     setBadge('badgeWar', text(unWar));
     setBadge('badgeBattles', text(unBattles));
     setBadge('badgeGold', gain ? `+${gain}` : '');
@@ -930,6 +962,7 @@
     renderEvents();
     renderHub();
     renderMap();
+    checkDecreePopup();
 
     for (const [id, value] of Object.entries(savedValues)) {
       const element = $(id);
@@ -1139,6 +1172,7 @@
   });
 
   $('mapDialog').addEventListener('close', endPick);
+  $('decreeOverlay').addEventListener('click', event => { if (event.target === event.currentTarget) $('decreeOverlay').hidden = true; });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !$('mapDialog').open) closeHub();
   });
@@ -1201,6 +1235,10 @@
     else if (action === 'advance-phase') emitAction('advance-phase');
     else if (action === 'respond-alliance') emitAction('respond-alliance', { offerId: button.dataset.offerId, accept: button.dataset.accept === 'true' });
     else if (action === 'break-alliance') emitAction('break-alliance', { allianceId: button.dataset.allianceId });
+    else if (action === 'respond-decree') {
+      $('decreeOverlay').hidden = true;
+      emitAction('respond-decree', { decreeId: button.dataset.decreeId, comply: button.dataset.comply === 'true' });
+    }
     else if (action === 'respond-treaty') emitAction('respond-treaty', { treatyId: button.dataset.treatyId, accept: button.dataset.accept === 'true' });
     else if (action === 'cancel-treaty') emitAction('cancel-treaty', { treatyId: button.dataset.treatyId });
     else if (action === 'decline-war') emitAction('respond-war', { leaderHouseId: button.dataset.leader, accept: false });
@@ -1256,13 +1294,14 @@
     emitAction('offer-alliance', { targetHouseId: $('allianceTarget').value, scope: $('allianceScope').value });
   });
 
-  $('commandSelect').addEventListener('change', () => {
-    $('commandTarget').disabled = !state?.isKing || $('commandSelect').value !== 'embargo';
-  });
-
-  $('commandForm').addEventListener('submit', event => {
+  $('decreeForm').addEventListener('submit', event => {
     event.preventDefault();
-    emitAction('king-command', { command: $('commandSelect').value, targetHouseId: $('commandTarget').value });
+    const target = $('decreeTarget').value;
+    emitAction('issue-decree', {
+      targetHouseIds: target ? [target] : [],
+      gold: Number($('decreeGold').value || 0), infantry: Number($('decreeInfantry').value || 0), navy: Number($('decreeNavy').value || 0),
+      message: $('decreeMessage').value
+    }, () => { $('decreeGold').value = 0; $('decreeInfantry').value = 0; $('decreeNavy').value = 0; $('decreeMessage').value = ''; });
   });
 
   $('chatForm').addEventListener('submit', event => {

@@ -688,3 +688,11 @@ body.house-themed .footer { border-color: var(--line); }
 .ledger-row p { margin: 0; font-size: 11px; }
 .ledger-round { font-size: 9px; letter-spacing: .08em; color: var(--muted); }
 .ledger-delta { font: 700 12px Cinzel, Georgia, serif; }
+
+.royal-seal { display: inline-grid; place-items: center; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #d24a38, #7d1d12 70%); box-shadow: inset 0 0 0 3px rgba(0,0,0,.22), inset 0 0 0 5px rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.55); }
+.royal-seal img { width: 26px; height: 26px; object-fit: contain; filter: brightness(.85) contrast(1.1); }
+.royal-seal-sm { width: 34px; height: 34px; } .royal-seal-sm img { width: 19px; height: 19px; }
+.decree-card header { justify-content: flex-start; gap: 10px; } .decree-card header .treaty-status { margin-left: auto; }
+.decree-card header small { color: var(--muted); font: 400 10px Inter, sans-serif; }
+.decree-pop { text-align: left; } .decree-pop .treaty-card { margin-top: 10px; }
+.decree-pop .announce-hint { display: block; margin-top: 12px; text-align: center; }

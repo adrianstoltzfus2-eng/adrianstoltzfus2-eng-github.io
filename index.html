@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=31">
+  <link rel="stylesheet" href="./style.css?v=32">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=33" defer></script>
+  <script src="./app.js?v=34" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -39,7 +39,7 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.3.1</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.4.0</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -191,15 +191,21 @@
               <label for="treatyMessage">Message</label><input id="treatyMessage" maxlength="300" placeholder="Your terms, or a few kind words…" autocomplete="off">
               <button class="button button-secondary button-full" type="submit">Send treaty</button>
             </form>
-            <form id="commandForm" class="action-card" hidden>
-              <img class="action-icon-image" src="./assets/game-throne.png?v=2" alt=""><h3>Royal command</h3><p class="muted small-text">The king may issue one command per round during court.</p>
-              <label for="commandSelect">Command</label><select id="commandSelect"><option value="levy">Royal levy — collect up to 3 gold from each other house</option><option value="embargo">Royal embargo — block a house's recruitment through next round</option></select>
-              <label for="commandTarget">Embargo target (if applicable)</label><select id="commandTarget"></select>
+            <form id="decreeForm" class="action-card" hidden>
+              <span class="royal-seal"><img src="./assets/game-throne.png?v=2" alt=""></span><h3>Royal decree</h3><p class="muted small-text">Send a decree under your seal. You may demand gold or troops; each house chooses to send it, close it, or ignore it. One decree per round.</p>
+              <label for="decreeTarget">To</label><select id="decreeTarget"></select>
+              <div class="form-columns-3">
+                <div><label for="decreeGold">Gold</label><input id="decreeGold" type="number" min="0" value="0" inputmode="numeric"></div>
+                <div><label for="decreeInfantry">Infantry</label><input id="decreeInfantry" type="number" min="0" value="0" inputmode="numeric"></div>
+                <div><label for="decreeNavy">Ships</label><input id="decreeNavy" type="number" min="0" value="0" inputmode="numeric"></div>
+              </div>
+              <label for="decreeMessage">Decree</label><input id="decreeMessage" maxlength="300" placeholder="By order of the crown…" autocomplete="off">
               <button class="button button-primary button-full" type="submit">Issue decree</button>
             </form>
           </div>
           <div class="alliance-area"><div class="section-head"><h3>Alliances & offers</h3><span id="badgeOffers" class="note-badge" hidden></span></div><div id="allianceList" class="alliance-list"></div></div>
           <div class="alliance-area"><div class="section-head"><h3>Treaties</h3><span id="badgeTreaties" class="note-badge" hidden></span></div><div id="treatyList" class="alliance-list"></div></div>
+          <div class="alliance-area"><div class="section-head"><h3>Royal decrees</h3><span id="badgeDecrees" class="note-badge" hidden></span></div><div id="decreeList" class="alliance-list"></div></div>
           <div class="alliance-area"><div class="section-head"><h3>War councils & spoils</h3><span id="badgeWar" class="note-badge" hidden></span><button class="button button-danger button-small" type="button" data-action="go-to-war">⚔ Go to war</button></div><div id="warList" class="alliance-list"></div></div>
           <div class="chat-area">
             <div class="section-head"><div><p class="panel-kicker">WORDS CAN WIN WARS</p><h3><img class="section-heading-icon" src="./assets/game-raven.png?v=2" alt="">Court messages</h3></div></div>
@@ -218,7 +224,7 @@
               <div class="section-head"><div><p class="panel-kicker">THE CROWN’S EYES</p><h2>King’s ledger</h2></div><span class="subtle-label">Only you can see this</span></div>
               <div class="subsection-title">Traitors</div><p class="muted small-text">Label any player you no longer trust.</p>
               <div id="traitorList" class="alliance-list"></div>
-              <div class="subsection-title">Taxes &amp; demands</div>
+              <div class="subsection-title">Decrees you have issued</div>
               <div id="taxLedger" class="tax-ledger"></div>
             </section>
           </div>
@@ -349,6 +355,9 @@
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
+  <div id="decreeOverlay" class="announce-overlay" role="alertdialog" aria-labelledby="decreePopTitle" hidden>
+    <div id="decreePop" class="announce-card decree-pop"></div>
+  </div>
   <div id="announceOverlay" class="announce-overlay" role="alertdialog" aria-live="assertive" aria-labelledby="announceTitle" hidden>
     <div class="announce-card" data-action="close-announce">
       <p class="eyebrow" id="announceEyebrow"></p>
