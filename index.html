@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=29">
+  <link rel="stylesheet" href="./style.css?v=30">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=31" defer></script>
+  <script src="./app.js?v=32" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -28,6 +28,7 @@
       <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small></span>
     </a>
     <div id="headerStats" class="header-stats" hidden>
+      <span id="headerBanner" class="hs-banner" hidden></span>
       <span class="hs-item" title="Your gold"><img src="./assets/game-coins.png?v=2" alt="Gold"><b id="roundGold">—</b><small>gold</small></span>
       <span id="headerArmy" class="hs-item" title="Total military"><img src="./assets/game-swords.png?v=2" alt="Military"><b id="roundMilitaryTotal">—</b><small>army</small></span>
       <span id="roundKingBadge" class="hs-item hs-role" title="You are the King" hidden><img src="./assets/game-throne.png?v=2" alt="You are the King"></span>
@@ -38,7 +39,7 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.2.4</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.3.0</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -178,14 +179,27 @@
               <label for="allianceScope">Visibility</label><select id="allianceScope"><option value="public">Public alliance</option><option value="secret">Secret alliance</option></select>
               <button class="button button-secondary button-full" type="submit">Send offer</button>
             </form>
-            <form id="commandForm" class="action-card">
+            <form id="treatyForm" class="action-card">
+              <img class="action-icon-image" src="./assets/game-raven.png?v=2" alt=""><h3>Make a treaty</h3><p class="muted small-text">Send gold, soldiers or ships with a message to an ally or any other house. Your offering is held until they answer.</p>
+              <label for="treatyTarget">House</label><select id="treatyTarget" required></select>
+              <div class="form-columns-3">
+                <div><label for="treatyGold">Gold</label><input id="treatyGold" type="number" min="0" value="0" inputmode="numeric"></div>
+                <div><label for="treatyInfantry">Infantry</label><input id="treatyInfantry" type="number" min="0" value="0" inputmode="numeric"></div>
+                <div><label for="treatyNavy">Ships</label><input id="treatyNavy" type="number" min="0" value="0" inputmode="numeric"></div>
+              </div>
+              <label for="treatyMessage">Message</label><input id="treatyMessage" maxlength="300" placeholder="Your terms, or a few kind words…" autocomplete="off">
+              <button class="button button-secondary button-full" type="submit">Send treaty</button>
+            </form>
+            <form id="commandForm" class="action-card" hidden>
               <img class="action-icon-image" src="./assets/game-throne.png?v=2" alt=""><h3>Royal command</h3><p class="muted small-text">The king may issue one command per round during court.</p>
               <label for="commandSelect">Command</label><select id="commandSelect"><option value="levy">Royal levy — collect up to 3 gold from each other house</option><option value="embargo">Royal embargo — block a house's recruitment through next round</option></select>
               <label for="commandTarget">Embargo target (if applicable)</label><select id="commandTarget"></select>
               <button class="button button-primary button-full" type="submit">Issue decree</button>
             </form>
           </div>
-          <div class="alliance-area"><div class="section-head"><h3>Alliance offers & treaties</h3><span id="badgeOffers" class="note-badge" hidden></span></div><div id="allianceList" class="alliance-list"></div></div>
+          <div class="alliance-area"><div class="section-head"><h3>Alliances & offers</h3><span id="badgeOffers" class="note-badge" hidden></span></div><div id="allianceList" class="alliance-list"></div></div>
+          <div class="alliance-area"><div class="section-head"><h3>Treaties</h3><span id="badgeTreaties" class="note-badge" hidden></span></div><div id="treatyList" class="alliance-list"></div></div>
+          <div class="alliance-area"><div class="section-head"><h3>War councils & spoils</h3><span id="badgeWar" class="note-badge" hidden></span><button class="button button-danger button-small" type="button" data-action="go-to-war">⚔ Go to war</button></div><div id="warList" class="alliance-list"></div></div>
           <div class="chat-area">
             <div class="section-head"><div><p class="panel-kicker">WORDS CAN WIN WARS</p><h3><img class="section-heading-icon" src="./assets/game-raven.png?v=2" alt="">Court messages</h3></div></div>
             <div class="chat-tabs"><button class="chat-tab active" data-chat-tab="public" type="button">Public<span id="badgeTabPublic" class="note-badge" hidden></span></button><button class="chat-tab" data-chat-tab="secret" type="button">Private<span id="badgeTabSecret" class="note-badge" hidden></span></button></div>
@@ -234,14 +248,15 @@
               <button class="button button-secondary button-full" type="submit">Attempt spy mission</button>
             </form>
             <form id="attackForm" class="action-card action-card-wide">
-              <img class="action-icon-image" src="./assets/game-swords.png?v=2" alt=""><h3>Plan an attack</h3><p class="muted small-text">Choose a capital and commit existing units. Orders are hidden from other houses and resolve after the following round. Attacks unlock after Round 1.</p>
+              <img class="action-icon-image" src="./assets/game-swords.png?v=2" alt=""><h3>Go to war</h3><p class="muted small-text">Pick the capital you will attack on the map, then commit units. Orders are hidden from other houses and resolve after the following round. Attacks unlock after Round 1.</p>
+              <div class="war-target"><div id="warTargetBox" class="war-target-box is-empty">No target chosen yet</div><button id="pickTargetButton" class="button button-secondary" type="button" data-action="pick-target">🗺 Choose target on the map</button></div>
               <div class="form-columns">
-                <div><label for="attackTarget">Target capital</label><select id="attackTarget" required></select></div>
                 <div><label for="attackInfantry">Infantry to send</label><input id="attackInfantry" type="number" min="0" value="3" required></div>
                 <div><label for="attackNavy">Navy to send</label><input id="attackNavy" type="number" min="0" value="0" required></div>
                 <div><label for="attackDragons">Dragons to send</label><input id="attackDragons" type="number" min="0" value="0" required></div>
+                <div><label for="attackAlly">March with an ally (optional)</label><select id="attackAlly"></select></div>
               </div>
-              <button class="button button-danger button-full" type="submit">Commit secret attack</button>
+              <button class="button button-danger button-full" type="submit">Declare war</button>
               <div id="attackOrderStatus" class="small-text muted"></div>
             </form>
           </div>
@@ -260,6 +275,7 @@
     <button id="mapToggleButton" class="map-toggle" type="button" data-action="open-map" aria-haspopup="dialog">🗺 Map</button>
     <dialog id="mapDialog" class="map-dialog" aria-labelledby="realmMapTitle">
       <div class="section-head"><div><p class="panel-kicker">THE SEVEN KINGDOMS</p><h2 id="realmMapTitle">Westeros</h2></div><button class="button button-quiet button-small" type="button" data-action="close-map">Close ✕</button></div>
+      <p id="mapHint" class="map-hint" hidden></p>
       <svg class="realm-map" viewBox="0 0 640 1000" role="group" aria-label="Map of Westeros showing the house capitals" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <radialGradient id="mapPaper" cx="50%" cy="48%" r="75%"><stop offset="0" stop-color="#ecdcb2"/><stop offset=".7" stop-color="#dcc592"/><stop offset="1" stop-color="#b99a5e"/></radialGradient>

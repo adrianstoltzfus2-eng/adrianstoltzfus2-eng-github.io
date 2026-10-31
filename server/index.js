@@ -56,6 +56,8 @@ let players = new Map();
 let tokenToPlayerId = new Map();
 let alliances = [];
 let allianceOffers = [];
+let treaties = [];
+let spoils = [];
 let publicMessages = [];
 let privateMessages = [];
 let taxLedger = [];
@@ -104,6 +106,8 @@ function resetWorld(keepPlayers = true) {
   capitals = freshCapitals();
   alliances.length = 0;
   allianceOffers.length = 0;
+  treaties.length = 0;
+  spoils.length = 0;
   publicMessages.length = 0;
   privateMessages.length = 0;
   taxLedger.length = 0;
@@ -165,10 +169,10 @@ function scheduleHostDisconnect(roomCode) {
   hostDisconnectTimers.set(roomCode, timer);
 }
 function captureWorld() {
-  return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
+  return { players, tokenToPlayerId, alliances, allianceOffers, treaties, spoils, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
 }
 function activateWorld(world) {
-  ({ players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
+  ({ players, tokenToPlayerId, alliances, allianceOffers, treaties, spoils, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
 }
 const initialWorld = structuredClone(captureWorld());
 function withWorld(roomCode, callback) {
@@ -232,7 +236,8 @@ function makePrivateHouseView(h) {
     pendingAttack: h.pendingAttack ? {
       ...h.pendingAttack,
       targetName: target?.name || h.pendingAttack.targetName,
-      units: { ...h.pendingAttack.units }
+      units: { ...h.pendingAttack.units },
+      ally: h.pendingAttack.ally ? { ...h.pendingAttack.ally, units: { ...h.pendingAttack.ally.units } } : null
     } : null,
     hasAttackedThisRound: h.hasAttackedThisRound,
     commandUsedRound: h.commandUsedRound,
@@ -269,6 +274,9 @@ function viewFor(playerId) {
     runoff,
     allianceOffers: visibleOffers,
     alliances: visibleAlliances,
+    treaties: myHouse ? treaties.filter(t => t.fromHouseId === myHouse.id || t.toHouseId === myHouse.id).map(t => ({ ...t, isOutgoing: t.fromHouseId === myHouse.id })) : [],
+    warInvites: myHouse ? houses.filter(x => x.pendingAttack?.ally?.houseId === myHouse.id && x.pendingAttack.ally.status === 'invited').map(x => ({ leaderHouseId: x.id, targetCapitalId: x.pendingAttack.targetCapitalId, targetName: x.pendingAttack.targetName, units: { ...x.pendingAttack.units }, resolveRound: x.pendingAttack.resolveRound })) : [],
+    spoils: myHouse ? spoils.filter(x => [x.houseA, x.houseB].includes(myHouse.id)).slice(0, 10).map(x => ({ ...x, claims: { ...x.claims }, capitalName: findCapital(x.capitalId)?.name || '' })) : [],
     publicMessages: publicMessages.map(m => ({ ...m })),
     privateMessages: privateForMe,
     spyReports: myHouse ? myHouse.spyReports.map(r => ({ ...r })) : [],
@@ -321,6 +329,44 @@ function minorHouseError(h, playerId) {
 }
 function isHost(player) { return Boolean(player && player.id === hostId); }
 function isCourt() { return phase === 'COURT'; }
+function canDiplomacy() { return phase === 'ACTION' || phase === 'COURT'; }
+function houseMembers(houseId) { return [...players.values()].filter(p => p.houseId === houseId && !p.left); }
+function houseIsBotOnly(houseId) { const m = houseMembers(houseId); return m.length > 0 && m.every(p => p.isBot); }
+function areAllied(a, b) { return alliances.some(x => [x.houseA, x.houseB].includes(a) && [x.houseA, x.houseB].includes(b)); }
+function wholeNumber(value) { const n = Number(value || 0); return Number.isInteger(n) && n >= 0 ? n : null; }
+function closeTreaty(t, status) {
+  const from = findHouse(t.fromHouseId), to = findHouse(t.toHouseId);
+  const receiver = status === 'accepted' ? to : from;
+  if (receiver) { receiver.money += t.gold; receiver.infantry += t.infantry; receiver.navy += t.navy; }
+  t.status = status;
+  t.closedRound = round;
+  const settled = treaties.filter(x => x.status !== 'pending');
+  if (settled.length > 30) for (const old of settled.slice(30)) treaties.splice(treaties.indexOf(old), 1);
+}
+function forceStrength(u) { return u.infantry + u.navy + u.dragons * 5 + (u.dragons ? 2 : 0); }
+function giveSpoil(s, winnerId, how) {
+  const cap = findCapital(s.capitalId);
+  if (cap) { cap.ownerHouseId = winnerId; cap.contested = null; }
+  s.status = 'settled'; s.winnerId = winnerId;
+  addEvent('battle', `${cap?.name || 'The captured capital'} now belongs to House ${houseName(winnerId)} ${how}.`);
+}
+function settleSpoils(forced) {
+  for (const s of spoils) {
+    if (s.status !== 'open') continue;
+    const [a, b] = [s.houseA, s.houseB];
+    if (s.claims[a] && s.claims[a] === s.claims[b]) { giveSpoil(s, s.claims[a], 'by agreement of the allies'); continue; }
+    if (!forced || s.deadlineRound > round) continue;
+    const ha = findHouse(a), hb = findHouse(b);
+    const sa = forceStrength({ infantry: ha.infantry, navy: ha.navy, dragons: ha.dragons }) + randomInt(0, 6);
+    const sb = forceStrength({ infantry: hb.infantry, navy: hb.navy, dragons: hb.dragons }) + randomInt(0, 6);
+    const winner = sa >= sb ? ha : hb, loser = winner === ha ? hb : ha;
+    const lost = Math.ceil(loser.infantry * 0.25);
+    loser.infantry -= lost;
+    const al = alliances.find(x => [x.houseA, x.houseB].includes(a) && [x.houseA, x.houseB].includes(b));
+    if (al) alliances.splice(alliances.indexOf(al), 1);
+    giveSpoil(s, winner.id, `after the former allies fought over it (${Math.max(sa, sb)} vs. ${Math.min(sa, sb)}); House ${loser.name} lost ${lost} infantry and the alliance is broken`);
+  }
+}
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 io.on('connection', socket => {
@@ -654,7 +700,15 @@ io.on('connection', socket => {
     if (h.pendingAttack) return fail('Your house already has a pending attack order.');
     if (h.hasAttackedThisRound) return fail('Your house has already planned an attack this round.');
     const target = findCapital(String(payload.targetCapitalId || ''));
-    if (!target || target.ownerHouseId === h.id) return fail('Choose a capital controlled by another house.');
+    if (!target || target.contested || !target.ownerHouseId || target.ownerHouseId === h.id) return fail('Choose a capital controlled by another house.');
+    if (areAllied(h.id, target.ownerHouseId)) return fail(`House ${houseName(target.ownerHouseId)} is your ally. Break the alliance before marching on their capital.`);
+    let allyHouse = null;
+    if (payload.allyHouseId) {
+      allyHouse = findHouse(String(payload.allyHouseId));
+      if (!allyHouse || !areAllied(h.id, allyHouse.id)) return fail('You can only invite a current ally to join your war.');
+      if (allyHouse.id === target.ownerHouseId) return fail('Your ally cannot march against its own capital.');
+      if (allyHouse.pendingAttack || allyHouse.hasAttackedThisRound) return fail(`House ${allyHouse.name} is already committed to another war this round.`);
+    }
     const units = { infantry: Number(payload.infantry), navy: Number(payload.navy), dragons: Number(payload.dragons) };
     if (Object.values(units).some(n => !Number.isInteger(n) || n < 0)) return fail('Committed forces must be whole numbers of zero or greater.');
     if (units.infantry + units.navy + units.dragons < 1) return fail('Commit at least one unit to the attack.');
@@ -662,22 +716,36 @@ io.on('connection', socket => {
     h.infantry -= units.infantry;
     h.navy -= units.navy;
     h.dragons -= units.dragons;
-    h.pendingAttack = { targetCapitalId: target.id, targetName: target.name, orderedRound: round, resolveRound: round + 1, units };
+    h.pendingAttack = { targetCapitalId: target.id, targetName: target.name, orderedRound: round, resolveRound: round + 1, units, ally: allyHouse ? { houseId: allyHouse.id, status: 'invited', units: { infantry: 0, navy: 0, dragons: 0 } } : null };
     h.hasAttackedThisRound = true;
     addEvent('normal', `House ${h.name} secretly committed an attack against a capital.`);
-    return ok(`Attack order placed. It will resolve after Round ${round + 1} court.`);
+    if (allyHouse && houseIsBotOnly(allyHouse.id)) {
+      const botUnits = { infantry: Math.min(3, allyHouse.infantry), navy: 0, dragons: 0 };
+      if (botUnits.infantry > 0) {
+        allyHouse.infantry -= botUnits.infantry;
+        allyHouse.hasAttackedThisRound = true;
+        h.pendingAttack.ally.status = 'joined';
+        h.pendingAttack.ally.units = botUnits;
+      } else h.pendingAttack.ally.status = 'declined';
+    }
+    return ok(allyHouse ? `War declared. House ${allyHouse.name} has been invited to march with you; resolves after Round ${round + 1} court.` : `Attack order placed. It will resolve after Round ${round + 1} court.`);
   });
 
   action(socket, 'offer-alliance', (player, payload) => {
     const check = requireHouse(player); if (check.ok === false) return check;
-    if (!isCourt()) return fail('Alliance offers can only be sent during court.');
+    if (!canDiplomacy()) return fail('Alliance offers can be sent during the action and court phases.');
     const target = findHouse(String(payload.targetHouseId || ''));
     const scope = payload.scope === 'secret' ? 'secret' : 'public';
     if (!target || target.id === check.id) return fail('Choose another house.');
-    const existing = alliances.some(a => [a.houseA, a.houseB].includes(check.id) && [a.houseA, a.houseB].includes(target.id));
-    if (existing) return fail('Your houses already have an alliance.');
-    const duplicate = allianceOffers.some(o => o.fromHouseId === check.id && o.toHouseId === target.id);
-    if (duplicate) return fail('Your house already has an outstanding offer to that house.');
+    if (!houseMembers(target.id).length) return fail(`No player leads House ${target.name} in this game.`);
+    if (areAllied(check.id, target.id)) return fail('Your houses already have an alliance.');
+    if (allianceOffers.some(o => o.fromHouseId === check.id && o.toHouseId === target.id)) return fail('Your house already has an outstanding offer to that house.');
+    if (allianceOffers.some(o => o.fromHouseId === target.id && o.toHouseId === check.id)) return fail(`House ${target.name} already offered you an alliance. Accept it in the Relations menu.`);
+    if (houseIsBotOnly(target.id)) {
+      alliances.push({ id: randomUUID(), houseA: check.id, houseB: target.id, scope, createdRound: round });
+      addEvent('important', `House ${target.name} accepted an alliance with House ${check.name}.`);
+      return ok(`House ${target.name} accepted your alliance.`);
+    }
     allianceOffers.unshift({ id: randomUUID(), fromHouseId: check.id, toHouseId: target.id, scope, round });
     addEvent('normal', scope === 'public' ? `House ${check.name} publicly offered an alliance to House ${target.name}.` : `House ${check.name} sent a secret alliance offer.`);
     return ok('Alliance offer sent.');
@@ -685,13 +753,12 @@ io.on('connection', socket => {
 
   action(socket, 'respond-alliance', (player, payload) => {
     const check = requireHouse(player); if (check.ok === false) return check;
-    if (!isCourt()) return fail('Alliance offers can only be answered during court.');
+    if (!canDiplomacy()) return fail('Alliance offers can be answered during the action and court phases.');
     const offer = allianceOffers.find(o => o.id === String(payload.offerId || ''));
     if (!offer || offer.toHouseId !== check.id) return fail('That offer is no longer available to your house.');
     allianceOffers.splice(allianceOffers.indexOf(offer), 1);
     if (payload.accept === true) {
-      const already = alliances.some(a => [a.houseA, a.houseB].includes(offer.fromHouseId) && [a.houseA, a.houseB].includes(offer.toHouseId));
-      if (!already) alliances.push({ id: randomUUID(), houseA: offer.fromHouseId, houseB: offer.toHouseId, scope: offer.scope, createdRound: round });
+      if (!areAllied(offer.fromHouseId, offer.toHouseId)) alliances.push({ id: randomUUID(), houseA: offer.fromHouseId, houseB: offer.toHouseId, scope: offer.scope, createdRound: round });
       addEvent('important', `House ${check.name} accepted an alliance with House ${houseName(offer.fromHouseId)}.`);
       return ok('Alliance accepted.');
     }
@@ -701,13 +768,94 @@ io.on('connection', socket => {
 
   action(socket, 'break-alliance', (player, payload) => {
     const check = requireHouse(player); if (check.ok === false) return check;
-    if (!isCourt()) return fail('Alliances can only be broken during court.');
+    if (!canDiplomacy()) return fail('Alliances can be broken during the action and court phases.');
     const alliance = alliances.find(a => a.id === String(payload.allianceId || ''));
     if (!alliance || ![alliance.houseA, alliance.houseB].includes(check.id)) return fail('Your house is not part of that alliance.');
     const other = alliance.houseA === check.id ? alliance.houseB : alliance.houseA;
     alliances.splice(alliances.indexOf(alliance), 1);
     addEvent('important', `House ${check.name} broke its alliance with House ${houseName(other)}.`);
     return ok('Alliance broken.');
+  });
+
+  action(socket, 'offer-treaty', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    if (!canDiplomacy()) return fail('Treaties can be offered during the action and court phases.');
+    const target = findHouse(String(payload.targetHouseId || ''));
+    if (!target || target.id === h.id) return fail('Choose another house for the treaty.');
+    if (!houseMembers(target.id).length) return fail(`No player leads House ${target.name} in this game.`);
+    const gold = wholeNumber(payload.gold), infantry = wholeNumber(payload.infantry), navy = wholeNumber(payload.navy);
+    if (gold === null || infantry === null || navy === null) return fail('Gold, soldiers and ships must be whole numbers of zero or more.');
+    const message = String(payload.message || '').trim().slice(0, 300);
+    if (gold + infantry + navy === 0 && !message) return fail('Add gold, soldiers, ships or a message to the treaty.');
+    if (gold > h.money) return fail(`You only have ${h.money} gold.`);
+    if (infantry > h.infantry) return fail(`You only have ${h.infantry} infantry available.`);
+    if (navy > h.navy) return fail(`You only have ${h.navy} ships available.`);
+    if (treaties.some(t => t.status === 'pending' && t.fromHouseId === h.id && t.toHouseId === target.id)) return fail(`You already have a treaty waiting on House ${target.name}.`);
+    h.money -= gold; h.infantry -= infantry; h.navy -= navy;
+    const treaty = { id: randomUUID(), fromHouseId: h.id, toHouseId: target.id, gold, infantry, navy, message, round, status: 'pending' };
+    treaties.unshift(treaty);
+    addEvent('normal', `House ${h.name} sent a treaty to House ${target.name}.`);
+    if (houseIsBotOnly(target.id)) {
+      closeTreaty(treaty, 'accepted');
+      addEvent('important', `House ${target.name} accepted a treaty from House ${h.name}.`);
+      return ok(`House ${target.name} accepted your treaty.`);
+    }
+    return ok('Treaty sent. Your offering is held until they reply.');
+  });
+
+  action(socket, 'respond-treaty', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    if (!canDiplomacy()) return fail('Treaties can be answered during the action and court phases.');
+    const t = treaties.find(x => x.id === String(payload.treatyId || ''));
+    if (!t || t.status !== 'pending' || t.toHouseId !== h.id) return fail('That treaty is no longer available to your house.');
+    const accept = payload.accept === true;
+    closeTreaty(t, accept ? 'accepted' : 'declined');
+    addEvent(accept ? 'important' : 'normal', `House ${h.name} ${accept ? 'accepted' : 'declined'} a treaty from House ${houseName(t.fromHouseId)}.`);
+    return ok(accept ? 'Treaty accepted. The offering is yours.' : 'Treaty declined. The offering returns to its sender.');
+  });
+
+  action(socket, 'cancel-treaty', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    const t = treaties.find(x => x.id === String(payload.treatyId || ''));
+    if (!t || t.status !== 'pending' || t.fromHouseId !== h.id) return fail('That treaty cannot be withdrawn.');
+    closeTreaty(t, 'cancelled');
+    return ok('Treaty withdrawn. Your offering has returned.');
+  });
+
+  action(socket, 'respond-war', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    if (!canDiplomacy()) return fail('War invitations can be answered during the action and court phases.');
+    const leader = houses.find(x => x.id === String(payload.leaderHouseId || '') && x.pendingAttack?.ally?.houseId === h.id && x.pendingAttack.ally.status === 'invited');
+    if (!leader) return fail('That war invitation is no longer open.');
+    const ally = leader.pendingAttack.ally;
+    if (payload.accept !== true) {
+      ally.status = 'declined';
+      addEvent('normal', `House ${h.name} declined to march with House ${leader.name}.`);
+      return ok('You declined the war invitation.');
+    }
+    if (h.pendingAttack || h.hasAttackedThisRound) return fail('Your house is already committed to a war this round.');
+    const units = { infantry: wholeNumber(payload.infantry), navy: wholeNumber(payload.navy), dragons: wholeNumber(payload.dragons) };
+    if (Object.values(units).some(n => n === null)) return fail('Committed forces must be whole numbers of zero or more.');
+    if (units.infantry + units.navy + units.dragons < 1) return fail('Commit at least one unit to join the war.');
+    if (units.infantry > h.infantry || units.navy > h.navy || units.dragons > h.dragons) return fail('Your house does not have enough uncommitted forces.');
+    h.infantry -= units.infantry; h.navy -= units.navy; h.dragons -= units.dragons;
+    h.hasAttackedThisRound = true;
+    ally.status = 'joined'; ally.units = units;
+    addEvent('important', `House ${h.name} joined House ${leader.name} in a secret war.`);
+    return ok('Your forces march with your ally.');
+  });
+
+  action(socket, 'claim-spoils', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    const s = spoils.find(x => x.id === String(payload.spoilId || '') && x.status === 'open' && [x.houseA, x.houseB].includes(h.id));
+    if (!s) return fail('Those spoils are no longer in dispute.');
+    const claim = String(payload.claimHouseId || '');
+    if (![s.houseA, s.houseB].includes(claim)) return fail('Choose one of the two allied houses to rule the capital.');
+    s.claims[h.id] = claim;
+    settleSpoils(false);
+    if (s.status === 'settled') return ok('You agreed. The capital has a new ruler.');
+    const other = s.houseA === h.id ? s.houseB : s.houseA;
+    return ok(`Your choice is recorded. If you and House ${houseName(other)} still disagree when court ends in Round ${s.deadlineRound}, you will fight for it.`);
   });
 
   action(socket, 'king-command', (player, payload) => {
@@ -783,6 +931,7 @@ io.on('connection', socket => {
     if (phase === 'COURT') {
       phase = 'RESOLUTION';
       resolveDueAttacks();
+      settleSpoils(true);
       addEvent('important', `Round ${round} court has concluded. The realm has entered resolution.`);
       return ok('Round resolution has begun.');
     }
@@ -813,7 +962,7 @@ function resolveDueAttacks() {
     const order = attacker.pendingAttack;
     if (!order || order.resolveRound > round) continue;
     const target = findCapital(order.targetCapitalId);
-    if (!target || target.ownerHouseId === attacker.id) {
+    if (!target || !target.ownerHouseId || target.ownerHouseId === attacker.id) {
       addEvent('battle', `House ${attacker.name} found no enemy holding at ${order.targetName}; the attack was spent.`);
       attacker.pendingAttack = null;
       continue;
@@ -822,9 +971,24 @@ function resolveDueAttacks() {
     let defense = target.defense + randomInt(0, 3);
     if ((defender?.id === 'stark' && target.id === 'winterfell') || (defender?.id === 'martell' && target.id === 'sunspear') || (defender?.id === 'arryn' && target.id === 'the-eyrie')) defense += 2;
     // Each troop contributes one strength; ships can support an attack, and dragons add five each plus a siege bonus.
-    const attackStrength = order.units.infantry + order.units.navy + order.units.dragons * 5 + (order.units.dragons ? 2 : 0) + randomInt(0, 3);
-    if (attackStrength >= defense) {
-      const previousOwner = target.ownerHouseId;
+    const allyOrder = order.ally?.status === 'joined' ? order.ally : null;
+    const allyHouse = allyOrder ? findHouse(allyOrder.houseId) : null;
+    if (order.ally && order.ally.status === 'invited') addEvent('battle', `House ${houseName(order.ally.houseId)} never answered House ${attacker.name}'s call to war.`);
+    const attackStrength = forceStrength(order.units) + (allyOrder ? forceStrength(allyOrder.units) : 0) + randomInt(0, 3);
+    if (attackStrength >= defense && allyHouse) {
+      const plunder = Math.min(defender?.money || 0, 6);
+      if (defender) defender.money -= plunder;
+      const share = Math.floor(plunder / 2);
+      attacker.money += plunder - share; allyHouse.money += share;
+      target.ownerHouseId = null;
+      target.contested = { houseA: attacker.id, houseB: allyHouse.id };
+      const claims = { [attacker.id]: null, [allyHouse.id]: null };
+      const spoil = { id: randomUUID(), capitalId: target.id, houseA: attacker.id, houseB: allyHouse.id, claims, round, deadlineRound: round + 1, plunder, status: 'open' };
+      if (houseIsBotOnly(allyHouse.id)) claims[allyHouse.id] = attacker.id;
+      spoils.unshift(spoil);
+      addEvent('battle', `Houses ${attacker.name} and ${allyHouse.name} stormed ${target.name} together (attack ${attackStrength} vs. defense ${defense}) and split ${plunder} gold of plunder. They must agree who will rule it, or fight for it.`);
+      settleSpoils(false);
+    } else if (attackStrength >= defense) {
       target.ownerHouseId = attacker.id;
       addEvent('battle', `House ${attacker.name} captured ${target.name} from House ${defender?.name || 'an unknown house'} (attack ${attackStrength} vs. defense ${defense}).`);
     } else {

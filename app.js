@@ -134,15 +134,50 @@
     pill.innerHTML = `<i></i><span>${escapeHtml(label)}</span>`;
   }
 
-  function emitAction(eventName, payload = {}) {
+  function emitAction(eventName, payload = {}, onOk) {
     if (!socket?.connected) {
       showToast('Not connected to the game server yet.', 'error');
       return;
     }
     socket.emit(eventName, payload, result => {
       if (!result?.ok) showToast(result?.message || 'Action failed.', 'error');
-      else if (result.message) showToast(result.message, 'success');
+      else {
+        if (result.message) showToast(result.message, 'success');
+        if (onOk) onOk(result);
+      }
     });
+  }
+
+  // ---- Locked buttons stay tappable: tapping one explains why it is locked ----
+  function lock(el, reason) {
+    if (!el) return;
+    el.disabled = false;
+    el.classList.toggle('is-locked', Boolean(reason));
+    if (reason) { el.dataset.lockReason = reason; el.setAttribute('aria-disabled', 'true'); }
+    else { delete el.dataset.lockReason; el.removeAttribute('aria-disabled'); }
+  }
+  const lockAttr = reason => (reason ? ` data-lock-reason="${escapeHtml(reason)}"` : '');
+  document.addEventListener('click', event => {
+    const locked = event.target.closest?.('.is-locked');
+    if (!locked) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    showToast(locked.dataset.lockReason || 'That is not available right now.', 'error');
+  }, true);
+  document.addEventListener('submit', event => {
+    const locked = event.target.querySelector?.('button.is-locked');
+    if (!locked) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    showToast(locked.dataset.lockReason || 'That is not available right now.', 'error');
+  }, true);
+
+  // ---- The whole interface wears your house colour ----
+  function applyTheme() {
+    const house = state?.me?.houseId ? state.houses.find(h => h.id === state.me.houseId) : null;
+    document.body.classList.toggle('house-themed', Boolean(house));
+    if (house?.color) document.body.style.setProperty('--accent', house.color);
+    else document.body.style.removeProperty('--accent');
   }
 
   function allHouseOptions(excludeHouseId = null, includeEmpty = false) {
@@ -193,7 +228,7 @@
     const gameTypeLabel = setup.gameType === 'LAST_DRAGON' ? 'Last Dragon · rules coming later' : 'Classic';
     $('lobbySettings').textContent = `${gameTypeLabel} · ${activePlayers.length} of ${setup.maxPlayers} players`;
     lobbyCanChangeHouse = state.phase === 'LOBBY' && state.houses.some(h => h.id !== state.me.houseId && !minorHouseReason(h, state.me.id));
-    document.querySelector('[data-action="edit-menu-house"]').disabled = !lobbyCanChangeHouse;
+    lock(document.querySelector('[data-action="edit-menu-house"]'), lobbyCanChangeHouse ? '' : 'There are no other houses available right now.');
     const houseRank = id => { const i = state.houses.findIndex(h => h.id === id); return i < 0 ? state.houses.length : i; };
     const lobbyOrder = [...state.players].sort((a, b) => houseRank(a.houseId) - houseRank(b.houseId));
     $('lobbyRoster').innerHTML = lobbyOrder.length ? lobbyOrder.map(p => {
@@ -201,7 +236,7 @@
       const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
       const status = p.isBot ? 'Bot player' : p.left ? 'Left the game' : p.connected ? 'Connected' : 'Reconnecting';
       const own = p.id === state.me.id;
-      const houseControl = own ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
+      const houseControl = own ? `<button class="lobby-banner-button ${lobbyCanChangeHouse ? '' : 'is-locked'}" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house"${lockAttr(lobbyCanChangeHouse ? '' : 'There are no other houses available right now.')}>${banner}</button>` : banner;
       const nameEdit = own ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
       const botControls = p.isBot && state.isHost && state.phase === 'LOBBY' ? `<button class="player-edit-name" type="button" data-action="edit-bot" data-bot-id="${escapeHtml(p.id)}" aria-label="Edit ${escapeHtml(p.username)}">✎</button><button class="player-edit-name player-remove-bot" type="button" data-action="remove-bot" data-bot-id="${escapeHtml(p.id)}" aria-label="Remove ${escapeHtml(p.username)}">✕</button>` : '';
       return `<div class="player-row ${p.left ? 'player-left' : ''} ${own ? 'player-row-own' : ''}" ${own && house?.color ? `style="--house-color:${escapeHtml(house.color)}"` : ''}><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}${nameEdit}${botControls}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'} · ${status}</small></div></div>`;
@@ -210,12 +245,12 @@
     const hasBaratheon = state.players.some(p => p.connected && p.houseId === 'baratheon');
     const canAddBot = canStart && activePlayers.length < Number(setup.maxPlayers);
     $('addBotButton').hidden = !canStart;
-    $('addBotButton').disabled = !canAddBot;
+    lock($('addBotButton'), canAddBot ? '' : 'The hall is full. Raise the player limit or remove someone first.');
     $('startGameButton').hidden = !canStart;
     const connectedPlayers = activePlayers.filter(p => p.connected);
     const hasMinor = connectedPlayers.some(p => state.houses.find(h => h.id === p.houseId)?.type === 'minor');
     const thinMajors = hasMinor ? state.houses.filter(h => h.type === 'major' && connectedPlayers.filter(p => p.houseId === h.id).length < 2).map(h => h.name) : [];
-    $('startGameButton').disabled = canStart && (!hasBaratheon || connectedPlayers.length < 2 || thinMajors.length > 0);
+    lock($('startGameButton'), !canStart ? '' : !hasBaratheon ? 'A connected player or bot must join House Baratheon first, so the crown has someone to claim it.' : connectedPlayers.length < 2 ? 'At least 2 connected players are needed to begin.' : thinMajors.length ? `With minor houses in play, every major house needs at least 2 players. Still short: ${thinMajors.map(capName).join(', ')}.` : '');
     $('lobbyHostNote').textContent = !canStart ? 'The server owner will begin the game when everyone is ready.'
       : !hasBaratheon ? 'A connected player or bot must join House Baratheon to receive its first-king buff.'
       : thinMajors.length ? `With minor houses in play, every major house needs at least 2 players. Still short: ${thinMajors.join(', ')}.`
@@ -236,7 +271,7 @@
       return `<option value="${escapeHtml(player.id)}">${escapeHtml(player.username)}${playerHouse ? ` · House ${escapeHtml(playerHouse.name)}` : ''}${player.connected ? '' : ' · reconnecting'}</option>`;
     }).join('');
     $('handPlayerSelect').disabled = !candidates.length;
-    $('handSelectionForm').querySelector('button').disabled = true;
+    lock($('handSelectionForm').querySelector('button'), 'Choose a player to appoint first.');
   }
 
   function renderVotePanel() {
@@ -248,7 +283,94 @@
     candidateSelect.disabled = !state.me || state.me.vote !== null || state.voteCandidates.length === 0;
     $('voteProgress').textContent = `${state.votesCast}/${state.voteTotal} votes cast`;
     $('voteStatus').textContent = state.me?.vote ? `Your vote has been recorded for ${escapeHtml(playerName(state.me.vote))}.` : state.runoff ? 'Runoff election: only the tied candidates can receive votes.' : 'Your vote is private until the election closes.';
-    $('voteForm').querySelector('button').disabled = candidateSelect.disabled;
+    lock($('voteForm').querySelector('button'), candidateSelect.disabled ? (state.me?.vote ? 'Your vote has already been cast.' : 'There is no candidate to vote for yet.') : '');
+  }
+
+  // ---- War: the target is chosen on the map ----
+  let warTargetId = null;
+  let pickingTarget = false;
+  const capName = text => String(text || '').replace(/^\w/, c => c.toUpperCase());
+  const diploOpen = () => state?.phase === 'ACTION' || state?.phase === 'COURT';
+  const alliesOf = houseId => (state?.alliances || []).filter(a => a.houseA === houseId || a.houseB === houseId).map(a => (a.houseA === houseId ? a.houseB : a.houseA));
+
+  function warTargetProblem(capital) {
+    const mine = state.myHouse;
+    if (capital.contested) return `${capital.name} is contested between two victorious allies. Wait until they settle who rules it.`;
+    if (!capital.ownerHouseId || capital.ownerHouseId === mine.id) return `${capital.name} is already yours.`;
+    if (alliesOf(mine.id).includes(capital.ownerHouseId)) return `${capital.name} belongs to your ally, House ${capName(prettyHouse(capital.ownerHouseId))}. Break the alliance before marching on it.`;
+    return '';
+  }
+  function warBlockReason() {
+    const h = state?.myHouse;
+    if (!h) return 'Choose a house first.';
+    if (state.round < 2) return 'Wars cannot begin until Round 2. Round 1 is for building and scheming.';
+    if (state.phase !== 'ACTION') return 'War is declared during the action phase. Wait for the next round to begin.';
+    if (h.pendingAttack) return 'Your house has already committed an army to a war that has not resolved yet.';
+    if (h.hasAttackedThisRound) return 'Your house is already committed to a war this round.';
+    if (!state.capitals.some(c => !warTargetProblem(c))) return 'There is no capital you can attack right now.';
+    return '';
+  }
+  function attackLockReason() {
+    const block = warBlockReason();
+    if (block) return block;
+    if (!warTargetId) return 'Choose a target capital on the map first.';
+    const h = state.myHouse;
+    const inf = Number($('attackInfantry').value), nav = Number($('attackNavy').value), dr = Number($('attackDragons').value);
+    if ([inf, nav, dr].some(n => !Number.isInteger(n) || n < 0)) return 'Units to send must be whole numbers, zero or more.';
+    if (inf + nav + dr < 1) return 'Commit at least one unit to the war.';
+    if (inf > h.infantry || nav > h.navy || dr > h.dragons) return `You only have ${h.infantry} infantry, ${h.navy} ships and ${h.dragons} dragons to send.`;
+    return '';
+  }
+  function updateAttackLock() {
+    if (!state?.myHouse) return;
+    lock($('attackForm').querySelector('button[type="submit"]'), attackLockReason());
+    lock($('pickTargetButton'), warBlockReason());
+    lock(document.querySelector('[data-action="go-to-war"]'), warBlockReason());
+  }
+  function renderWarTarget() {
+    const c = state.capitals.find(x => x.id === warTargetId);
+    const box = $('warTargetBox');
+    box.classList.toggle('is-empty', !c);
+    box.innerHTML = c ? `${escapeHtml(c.name)}<small>${escapeHtml(c.region)} · House ${escapeHtml(capName(prettyHouse(c.ownerHouseId)))}</small>` : 'No target chosen yet';
+    $('pickTargetButton').textContent = c ? '🗺 Change target on the map' : '🗺 Choose target on the map';
+  }
+
+  // Map: owner colours, contested capitals, and target picking.
+  const normName = text => String(text || '').toLowerCase().replace(/[^a-z]/g, '');
+  function renderMap() {
+    if (!state?.capitals) return;
+    const byName = new Map(state.capitals.map(c => [normName(c.name), c]));
+    $('mapDialog').querySelectorAll('.map-cap').forEach(el => {
+      const label = el.querySelector('.cap-name');
+      const cap = label ? byName.get(normName(label.textContent)) : null;
+      if (!cap) return;
+      const owner = state.houses.find(h => h.id === cap.ownerHouseId);
+      el.dataset.capital = cap.id;
+      el.style.setProperty('--cap-color', owner?.color || '#7d2a14');
+      el.classList.toggle('is-contested', Boolean(cap.contested));
+      const sub = el.querySelector('.cap-sub');
+      if (sub) sub.textContent = cap.contested ? 'Contested' : owner ? `House ${capName(owner.name)}` : '';
+      el.classList.toggle('is-target', pickingTarget && state.myHouse && !warTargetProblem(cap));
+    });
+  }
+  function showMapHint(text) {
+    const hint = $('mapHint');
+    hint.textContent = text || '';
+    hint.hidden = !text;
+  }
+  function startPick() {
+    pickingTarget = true;
+    $('mapDialog').classList.add('pick-mode');
+    showMapHint('Tap the capital you wish to attack. Highlighted capitals can be targeted.');
+    renderMap();
+    setMapOpen(true);
+  }
+  function endPick() {
+    if (!pickingTarget && !$('mapDialog').classList.contains('pick-mode')) return;
+    pickingTarget = false;
+    $('mapDialog').classList.remove('pick-mode');
+    showMapHint('');
+    if (state) renderMap();
   }
 
   function renderRoundActions() {
@@ -256,17 +378,22 @@
     $('infantryCostLabel').textContent = house.infantryCost;
     $('navyCostLabel').textContent = house.navyCost;
     $('spyTarget').innerHTML = state.houses.filter(h => h.id !== house.id).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
-    $('attackTarget').innerHTML = state.capitals.filter(c => c.ownerHouseId !== house.id).map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)} · ${escapeHtml(prettyHouse(c.ownerHouseId))}</option>`).join('');
+    $('attackAlly').innerHTML = '<option value="">No ally — march alone</option>' + alliesOf(house.id).map(id => `<option value="${escapeHtml(id)}">House ${escapeHtml(capName(prettyHouse(id)))}</option>`).join('');
     $('attackInfantry').max = house.infantry;
     $('attackNavy').max = house.navy;
     $('attackDragons').max = house.dragons;
     $('attackDragons').disabled = house.dragons === 0;
-    const attackLocked = state.phase !== 'ACTION' || state.round < 2 || Boolean(house.pendingAttack) || house.hasAttackedThisRound;
-    $('attackForm').hidden = state.round === 1;
-    $('attackForm').querySelector('button').disabled = attackLocked || !state.capitals.some(c => c.ownerHouseId !== house.id);
-    $('attackOrderStatus').textContent = state.round < 2 ? 'Attacks unlock after Round 1.' : house.pendingAttack ? `Committed for resolution after Round ${house.pendingAttack.resolveRound}.` : house.hasAttackedThisRound ? 'Your house has already planned an attack this round.' : 'The target and committed forces remain secret until the attack resolves.';
+    $('attackForm').hidden = false;
+    const target = state.capitals.find(c => c.id === warTargetId);
+    if (!target || warTargetProblem(target)) warTargetId = null;
+    renderWarTarget();
+    const ally = house.pendingAttack?.ally;
+    const allyNote = !ally ? '' : ally.status === 'joined' ? ` House ${capName(prettyHouse(ally.houseId))} marches with you (${ally.units.infantry + ally.units.navy + ally.units.dragons} units).` : ally.status === 'declined' ? ` House ${capName(prettyHouse(ally.houseId))} declined to march.` : ` Waiting for House ${capName(prettyHouse(ally.houseId))} to answer your call.`;
+    $('attackOrderStatus').textContent = state.round < 2 ? 'Attacks unlock after Round 1.' : house.pendingAttack ? `Committed against ${house.pendingAttack.targetName}; resolves after Round ${house.pendingAttack.resolveRound}.${allyNote}` : house.hasAttackedThisRound ? 'Your house is already committed to a war this round.' : 'The target and committed forces stay secret until the attack resolves. A winning pair of allies split the plunder.';
+    updateAttackLock();
     updateRecruitButton();
-    $('spyForm').querySelector('button').disabled = state.phase !== 'ACTION' || house.money < 8 || state.me.lastSpyRound === state.round;
+    const spyReason = state.phase !== 'ACTION' ? 'Spies can only be sent during the action phase.' : state.me.lastSpyRound === state.round ? 'You have already sent spies this round.' : house.money < 8 ? `A spy mission costs 8 gold, but your house only has ${house.money}.` : '';
+    lock($('spyForm').querySelector('button'), spyReason);
     $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(r => r.success ? `<article class="spy-report"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · successful</span></div><p>${r.infantry} infantry · ${r.navy} ships · ${r.dragons} dragons</p>${r.pendingTarget ? `<small>Possible planned attack: ${escapeHtml(r.pendingTarget)}</small>` : '<small>No pending attack seen.</small>'}</article>` : `<article class="spy-report spy-failed"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · failed</span></div><p>Your agents returned without reliable force estimates.</p></article>`).join('')}` : '';
   }
 
@@ -274,11 +401,14 @@
     const button = $('recruitForm')?.querySelector('button');
     if (!button) return;
     const house = state?.myHouse;
-    if (!house) { button.disabled = true; return; }
+    if (!house) return lock(button, 'Choose a house first.');
     const unit = $('unitSelect').value;
     const amount = Number($('unitAmount').value);
     const cost = unit === 'navy' ? house.navyCost : house.infantryCost;
-    button.disabled = state.phase !== 'ACTION' || house.lockedByEmbargo || !Number.isInteger(amount) || amount < 1 || amount > 10 || cost * amount > house.money;
+    lock(button, state.phase !== 'ACTION' ? 'Recruiting is only possible during the action phase.'
+      : house.lockedByEmbargo ? 'A royal embargo blocks your recruitment this round.'
+      : !Number.isInteger(amount) || amount < 1 || amount > 10 ? 'Choose a whole number of units between 1 and 10.'
+      : cost * amount > house.money ? `That costs ${cost * amount} gold, but your house only has ${house.money}.` : '');
   }
 
   function renderRoundOverview() {
@@ -288,6 +418,13 @@
     $('roundMilitaryTotal').textContent = total === null ? '—' : total;
     $('headerArmy').title = house ? `${house.infantry} infantry · ${house.navy} navy · ${house.dragons} dragons` : 'Forces unavailable';
     // King / Hand icons only appear for the player who holds that role.
+    const myDef = state.houses.find(item => item.id === state.me?.houseId);
+    const banner = $('headerBanner');
+    if (banner.dataset.house !== (myDef?.id || '')) {
+      banner.dataset.house = myDef?.id || '';
+      banner.innerHTML = myDef ? houseBanner(myDef, 'hs-banner-art') : '';
+    }
+    banner.hidden = !myDef;
     $('roundKingBadge').hidden = !state.isKing;
     $('roundHandBadge').hidden = !state.isHand;
   }
@@ -313,25 +450,76 @@
     }
   }
 
+  const goodsMarkup = t => {
+    const parts = [];
+    if (t.gold) parts.push(`${t.gold} gold`);
+    if (t.infantry) parts.push(`${t.infantry} infantry`);
+    if (t.navy) parts.push(`${t.navy} ships`);
+    return parts.length ? `<div class="treaty-goods">${parts.map(x => `<span>${escapeHtml(x)}</span>`).join('')}</div>` : '';
+  };
+  const houseColor = id => state.houses.find(h => h.id === id)?.color || '#c8a86c';
+  const TREATY_STATUS = { accepted: 'Accepted', declined: 'Declined', cancelled: 'Withdrawn' };
+
   function renderAlliances() {
-    $('allianceTarget').innerHTML = state.houses.filter(h => h.id !== state.me?.houseId).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
-    $('commandTarget').innerHTML = state.houses.filter(h => h.id !== state.myHouse?.id).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
-    $('allianceForm').querySelector('button').disabled = state.phase !== 'COURT' || !state.myHouse;
-    $('commandForm').querySelector('button').disabled = state.phase !== 'COURT' || !state.isKing || !state.myHouse || state.myHouse.commandUsedRound === state.round;
+    const mine = state.myHouse;
+    const myId = mine?.id;
+    const open = diploOpen();
+    const allied = new Set(alliesOf(myId));
+    const offers = state.allianceOffers || [];
+    const alliances = state.alliances || [];
+    const withPlayers = state.houses.filter(h => h.id !== myId && h.players.length > 0);
+    const proposable = withPlayers.filter(h => !allied.has(h.id) && !offers.some(o => (o.fromHouseId === myId && o.toHouseId === h.id) || (o.fromHouseId === h.id && o.toHouseId === myId)));
+    $('allianceTarget').innerHTML = proposable.map(h => `<option value="${escapeHtml(h.id)}">House ${escapeHtml(capName(h.name))}</option>`).join('');
+    $('treatyTarget').innerHTML = withPlayers.map(h => `<option value="${escapeHtml(h.id)}">House ${escapeHtml(capName(h.name))}${allied.has(h.id) ? ' · ally' : ''}</option>`).join('');
+    $('commandTarget').innerHTML = state.houses.filter(h => h.id !== myId).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
+    const closedMsg = 'Diplomacy is open during the action and court phases.';
+    lock($('allianceForm').querySelector('button'), !mine ? 'Choose a house first.' : !open ? closedMsg : !withPlayers.length ? 'No other house has a player yet.' : !proposable.length ? 'Every house with a player is already your ally or has a pending offer.' : '');
+    lock($('treatyForm').querySelector('button'), !mine ? 'Choose a house first.' : !open ? closedMsg : !withPlayers.length ? 'No other house has a player yet.' : '');
+    // Royal commands exist only for the king.
+    $('commandForm').hidden = !state.isKing;
+    lock($('commandForm').querySelector('button'), !state.isKing ? '' : state.phase !== 'COURT' ? 'Royal commands can only be issued during court.' : mine?.commandUsedRound === state.round ? 'You have already used your royal command this round.' : '');
     $('commandSelect').disabled = !state.isKing;
     $('commandTarget').disabled = !state.isKing || $('commandSelect').value !== 'embargo';
     $('kingBadge').textContent = state.king ? `King: ${state.king.username}` : 'No king';
 
-    const offers = state.allianceOffers || [];
-    const alliances = state.alliances || [];
     let markup = '';
-    if (offers.length) {
-      markup += offers.map(o => `<div class="alliance-row offer-row"><div><strong>${o.isOutgoing ? `Offer to House ${escapeHtml(prettyHouse(o.toHouseId))}` : `Offer from House ${escapeHtml(prettyHouse(o.fromHouseId))}`}</strong><small>${o.scope === 'secret' ? 'Secret offer' : 'Public offer'} · Round ${o.round}</small></div><div class="alliance-row-actions">${o.canRespond ? `<button class="button button-primary button-small" data-action="respond-alliance" data-offer-id="${escapeHtml(o.id)}" data-accept="true" ${state.phase !== 'COURT' ? 'disabled' : ''}>Accept</button><button class="button button-quiet button-small" data-action="respond-alliance" data-offer-id="${escapeHtml(o.id)}" data-accept="false" ${state.phase !== 'COURT' ? 'disabled' : ''}>Decline</button>` : '<span class="subtle-label">Awaiting reply</span>'}</div></div>`).join('');
+    markup += offers.map(o => `<div class="alliance-row offer-row"><div><strong>${o.isOutgoing ? `Offer to House ${escapeHtml(capName(prettyHouse(o.toHouseId)))}` : `Offer from House ${escapeHtml(capName(prettyHouse(o.fromHouseId)))}`}</strong><small>${o.scope === 'secret' ? 'Secret offer' : 'Public offer'} · Round ${o.round}</small></div><div class="alliance-row-actions">${o.canRespond ? `<button class="button button-primary button-small ${open ? '' : 'is-locked'}" data-action="respond-alliance" data-offer-id="${escapeHtml(o.id)}" data-accept="true"${lockAttr(open ? '' : closedMsg)}>Accept</button><button class="button button-quiet button-small ${open ? '' : 'is-locked'}" data-action="respond-alliance" data-offer-id="${escapeHtml(o.id)}" data-accept="false"${lockAttr(open ? '' : closedMsg)}>Decline</button>` : '<span class="subtle-label">Awaiting reply</span>'}</div></div>`).join('');
+    markup += alliances.map(a => `<div class="alliance-row"><div><strong>${escapeHtml(capName(prettyHouse(a.houseA)))} <span class="alliance-link">↔</span> ${escapeHtml(capName(prettyHouse(a.houseB)))}</strong><small>${a.scope === 'secret' ? 'Secret alliance' : 'Public alliance'} · since Round ${a.createdRound}</small></div>${mine && (a.houseA === myId || a.houseB === myId) ? `<button class="button button-quiet button-small ${open ? '' : 'is-locked'}" data-action="break-alliance" data-alliance-id="${escapeHtml(a.id)}"${lockAttr(open ? '' : closedMsg)}><img class="button-icon" src="./assets/game-chain.png?v=2" alt="">Break</button>` : ''}</div>`).join('');
+    $('allianceList').innerHTML = markup || '<p class="muted small-text">No alliances or alliance offers yet.</p>';
+
+    const treaties = [...(state.treaties || [])].sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1)).slice(0, 14);
+    $('treatyList').innerHTML = treaties.map(t => {
+      const otherId = t.isOutgoing ? t.toHouseId : t.fromHouseId;
+      const pending = t.status === 'pending';
+      const label = pending ? (t.isOutgoing ? 'Awaiting reply' : 'Awaiting your answer') : TREATY_STATUS[t.status] || t.status;
+      const actions = pending ? (t.isOutgoing
+        ? `<button class="button button-quiet button-small" data-action="cancel-treaty" data-treaty-id="${escapeHtml(t.id)}">Withdraw</button>`
+        : `<button class="button button-primary button-small ${open ? '' : 'is-locked'}" data-action="respond-treaty" data-treaty-id="${escapeHtml(t.id)}" data-accept="true"${lockAttr(open ? '' : closedMsg)}>Accept</button><button class="button button-quiet button-small ${open ? '' : 'is-locked'}" data-action="respond-treaty" data-treaty-id="${escapeHtml(t.id)}" data-accept="false"${lockAttr(open ? '' : closedMsg)}>Decline</button>`) : '';
+      return `<article class="treaty-card" style="--house-color:${escapeHtml(houseColor(otherId))}"><header><strong>${t.isOutgoing ? 'To' : 'From'} House ${escapeHtml(capName(prettyHouse(otherId)))}${allied.has(otherId) ? ' · ally' : ''}</strong><span class="treaty-status is-${escapeHtml(t.status)}">${escapeHtml(label)}</span></header>${goodsMarkup(t)}${t.message ? `<p class="treaty-note">“${escapeHtml(t.message)}”</p>` : ''}<small>Round ${t.round}</small>${actions ? `<div class="treaty-actions">${actions}</div>` : ''}</article>`;
+    }).join('') || '<p class="muted small-text">No treaties yet. Send one to an ally or to any other house.</p>';
+
+    // War councils: invitations from allies, your own marching orders, and the spoils of won wars.
+    let war = '';
+    war += (state.warInvites || []).map(w => {
+      const idp = `warJoin-${w.leaderHouseId}`;
+      const leader = capName(prettyHouse(w.leaderHouseId));
+      const startInf = Math.min(3, mine?.infantry || 0);
+      return `<article class="treaty-card war-card" style="--house-color:${escapeHtml(houseColor(w.leaderHouseId))}"><header><strong>House ${escapeHtml(leader)} calls you to war</strong><span class="treaty-status">Target: ${escapeHtml(w.targetName)}</span></header><p class="treaty-note">They have committed ${w.units.infantry} infantry, ${w.units.navy} ships and ${w.units.dragons} dragons. Win together and you split the plunder, then agree who rules ${escapeHtml(w.targetName)} or fight for it. Resolves after Round ${w.resolveRound}.</p><div class="join-grid"><div><label for="${idp}-inf">Infantry</label><input id="${idp}-inf" type="number" min="0" value="${startInf}" inputmode="numeric"></div><div><label for="${idp}-nav">Ships</label><input id="${idp}-nav" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="${idp}-dra">Dragons</label><input id="${idp}-dra" type="number" min="0" value="0" inputmode="numeric"></div></div><div class="treaty-actions"><button class="button button-danger button-small ${open ? '' : 'is-locked'}" data-action="join-war" data-leader="${escapeHtml(w.leaderHouseId)}"${lockAttr(open ? '' : closedMsg)}>March with them</button><button class="button button-quiet button-small ${open ? '' : 'is-locked'}" data-action="decline-war" data-leader="${escapeHtml(w.leaderHouseId)}"${lockAttr(open ? '' : closedMsg)}>Decline</button></div></article>`;
+    }).join('');
+    if (mine?.pendingAttack) {
+      const pa = mine.pendingAttack;
+      const note = !pa.ally ? 'You march alone.' : pa.ally.status === 'joined' ? `House ${capName(prettyHouse(pa.ally.houseId))} marches with you.` : pa.ally.status === 'declined' ? `House ${capName(prettyHouse(pa.ally.houseId))} declined.` : `Waiting for House ${capName(prettyHouse(pa.ally.houseId))} to answer.`;
+      war += `<article class="treaty-card war-card"><header><strong>Your war on ${escapeHtml(pa.targetName)}</strong><span class="treaty-status">Resolves after Round ${pa.resolveRound}</span></header><p class="treaty-note">${escapeHtml(note)}</p></article>`;
     }
-    if (alliances.length) {
-      markup += alliances.map(a => `<div class="alliance-row"><div><strong>${escapeHtml(prettyHouse(a.houseA))} <span class="alliance-link">↔</span> ${escapeHtml(prettyHouse(a.houseB))}</strong><small>${a.scope === 'secret' ? 'Secret alliance' : 'Public alliance'} · since Round ${a.createdRound}</small></div>${state.myHouse && (a.houseA === state.myHouse.id || a.houseB === state.myHouse.id) ? `<button class="button button-quiet button-small" data-action="break-alliance" data-alliance-id="${escapeHtml(a.id)}" ${state.phase !== 'COURT' ? 'disabled' : ''}><img class="button-icon" src="./assets/game-chain.png?v=2" alt="">Break</button>` : ''}</div>`).join('');
-    }
-    $('allianceList').innerHTML = markup || '<p class="muted small-text">No active alliance offers or treaties.</p>';
+    war += (state.spoils || []).map(sp => {
+      const other = sp.houseA === myId ? sp.houseB : sp.houseA;
+      const nm = id => capName(prettyHouse(id));
+      if (sp.status !== 'open') return `<article class="treaty-card war-card"><header><strong>${escapeHtml(sp.capitalName)}</strong><span class="treaty-status is-accepted">Settled</span></header><p class="treaty-note">Now ruled by House ${escapeHtml(nm(sp.winnerId))}.</p></article>`;
+      const myClaim = sp.claims[myId], theirClaim = sp.claims[other];
+      const claimBtn = id => `<button class="button button-secondary button-small ${myClaim === id ? 'is-mine' : ''}" data-action="claim-spoils" data-spoil-id="${escapeHtml(sp.id)}" data-claim="${escapeHtml(id)}">${myClaim === id ? '✓ ' : ''}House ${escapeHtml(nm(id))} rules</button>`;
+      return `<article class="treaty-card war-card" style="--house-color:${escapeHtml(houseColor(other))}"><header><strong>Spoils: ${escapeHtml(sp.capitalName)}</strong><span class="treaty-status">Decide by the end of Round ${sp.deadlineRound} court</span></header><p class="treaty-note">You and House ${escapeHtml(nm(other))} won it together and split ${sp.plunder} gold of plunder. You must both name the same ruler, or you will fight each other for it.</p><small>Your choice: ${myClaim ? `House ${escapeHtml(nm(myClaim))}` : 'not chosen'} · Their choice: ${theirClaim ? `House ${escapeHtml(nm(theirClaim))}` : 'not chosen'}</small><div class="spoil-claims">${claimBtn(sp.houseA)}${claimBtn(sp.houseB)}</div></article>`;
+    }).join('');
+    $('warList').innerHTML = war || '<p class="muted small-text">No wars are being waged. Press “Go to war” to pick a target on the map.</p>';
   }
 
   const selectedRecipients = new Set();
@@ -370,7 +558,7 @@
       }).join('')}`
       : '<p class="muted small-text">No other players are at court yet.</p>';
     $('chatMessage').disabled = !state.myHouse;
-    $('chatForm').querySelector('button').disabled = !state.myHouse;
+    lock($('chatForm').querySelector('button'), state.myHouse ? '' : 'Choose a house before you speak at court.');
     $('chatMessage').placeholder = isPrivate ? 'Whisper to the chosen players…' : 'Speak before the court…';
   }
 
@@ -408,7 +596,7 @@
     if (!h) return;
     updateBadges();
     const myAlliances = (state.alliances || []).filter(a => a.houseA === h.id || a.houseB === h.id).length;
-    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length;
+    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length + (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing).length + (state.warInvites || []).length;
     const total = h.infantry + h.navy + h.dragons;
     // Hub buttons (details are hidden on phones)
     $('hubMoneyGold').textContent = `${h.money} gold`;
@@ -416,7 +604,7 @@
     $('hubMoneyCapitals').textContent = plural(h.capitalCount, 'capital') + ' held';
     $('hubRelAlliances').textContent = plural(myAlliances, 'alliance');
     $('hubRelOffers').textContent = waiting ? `${plural(waiting, 'offer')} awaiting your reply` : 'No offers waiting';
-    $('hubRelRole').textContent = state.isKing ? 'You wear the crown — traitors & taxes' : 'Alliances & secret messages';
+    $('hubRelRole').textContent = state.isKing ? 'You wear the crown — traitors & taxes' : 'Alliances, treaties & messages';
     $('hubArmyTotal').textContent = `${total} units`;
     $('hubArmyDetail').textContent = `${h.infantry} infantry · ${h.navy} navy · ${h.dragons} dragons`;
     $('hubArmyCosts').textContent = `Recruit: infantry ${h.infantryCost}g · navy ${h.navyCost}g`;
@@ -433,8 +621,8 @@
     $('armyInfantryCost').textContent = `${h.infantryCost} gold`;
     $('armyNavyCost').textContent = `${h.navyCost} gold`;
     $('battleReports').innerHTML = (state.events || []).filter(e => e.kind === 'battle').map(e => `<div class="resolution-item"><span>R${e.round}</span><p>${escapeHtml(e.text)}</p></div>`).join('') || '<p class="muted small-text">No battles have been fought yet.</p>';
-    $('armyPhaseNote').textContent = state.phase === 'ACTION' ? '' : 'Recruiting, spying and attack orders open during the action phase.';
-    $('relationsPhaseNote').textContent = state.phase === 'COURT' ? '' : 'Alliance offers and royal decrees open during the court phase. Messages can be sent at any time.';
+    $('armyPhaseNote').textContent = state.phase === 'ACTION' ? '' : 'Recruiting, spying and declaring war open during the action phase.';
+    $('relationsPhaseNote').textContent = diploOpen() ? (state.isKing && state.phase !== 'COURT' ? 'Royal decrees open during the court phase.' : '') : 'Alliances, treaties and war councils open during the action and court phases. Messages can be sent at any time.';
     // King's ledger
     $('kingTools').hidden = !state.isKing;
     if (state.isKing) {
@@ -585,7 +773,7 @@
   }
 
   // ---- Notification badges: on the three hub buttons, and on the exact box inside each menu ----
-  const seenNotes = { ready: false, pub: new Set(), sec: new Set(), offers: new Set(), battles: new Set(), gold: 0 };
+  const seenNotes = { ready: false, pub: new Set(), sec: new Set(), offers: new Set(), treaties: new Set(), war: new Set(), battles: new Set(), gold: 0 };
   let currentHub = null;
   const markSeen = (set, list) => list.forEach(item => set.add(item.id));
   function noteLists() {
@@ -594,6 +782,8 @@
       pub: (state.publicMessages || []).filter(m => m.senderId !== me),
       sec: (state.privateMessages || []).filter(m => m.senderId !== me),
       offers: (state.allianceOffers || []).filter(o => o.canRespond),
+      treaties: (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing),
+      war: [...(state.warInvites || []).map(w => ({ id: `${w.leaderHouseId}:${w.resolveRound}` })), ...(state.spoils || []).filter(x => x.status === 'open').map(x => ({ id: x.id }))],
       battles: (state.events || []).filter(e => e.kind === 'battle')
     };
   }
@@ -610,7 +800,7 @@
     const h = state?.myHouse;
     if (!h || !state.me || !kind) return;
     const n = noteLists();
-    if (kind === 'relations') { markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.pub, activeChatTab === 'public' ? n.pub : []); markSeen(seenNotes.sec, activeChatTab === 'secret' ? n.sec : []); }
+    if (kind === 'relations') { markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.treaties, n.treaties); markSeen(seenNotes.war, n.war); markSeen(seenNotes.pub, activeChatTab === 'public' ? n.pub : []); markSeen(seenNotes.sec, activeChatTab === 'secret' ? n.sec : []); }
     if (kind === 'army') markSeen(seenNotes.battles, n.battles);
     if (kind === 'money') seenNotes.gold = h.money;
   }
@@ -619,7 +809,7 @@
     if (!h || !state.me) return;
     const n = noteLists();
     if (!seenNotes.ready) {
-      markSeen(seenNotes.pub, n.pub); markSeen(seenNotes.sec, n.sec); markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.battles, n.battles);
+      markSeen(seenNotes.pub, n.pub); markSeen(seenNotes.sec, n.sec); markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.treaties, n.treaties); markSeen(seenNotes.war, n.war); markSeen(seenNotes.battles, n.battles);
       seenNotes.gold = h.money;
       seenNotes.ready = true;
     }
@@ -627,15 +817,17 @@
     if (currentHub === 'relations') markSeen(activeChatTab === 'public' ? seenNotes.pub : seenNotes.sec, activeChatTab === 'public' ? n.pub : n.sec);
     if (h.money < seenNotes.gold) seenNotes.gold = h.money;
     const count = (list, set) => list.filter(item => !set.has(item.id)).length;
-    const unPub = count(n.pub, seenNotes.pub), unSec = count(n.sec, seenNotes.sec), unOffers = count(n.offers, seenNotes.offers), unBattles = count(n.battles, seenNotes.battles);
+    const unPub = count(n.pub, seenNotes.pub), unSec = count(n.sec, seenNotes.sec), unOffers = count(n.offers, seenNotes.offers), unTreaties = count(n.treaties, seenNotes.treaties), unWar = count(n.war, seenNotes.war), unBattles = count(n.battles, seenNotes.battles);
     const gain = Math.max(0, h.money - seenNotes.gold);
     const text = value => (value ? String(Math.min(value, 99)) : '');
-    setBadge('badgeRelations', text(unPub + unSec + unOffers));
+    setBadge('badgeRelations', text(unPub + unSec + unOffers + unTreaties + unWar));
     setBadge('badgeArmy', text(unBattles));
     setBadge('badgeMoney', gain ? `+${gain}` : '');
     setBadge('badgeTabPublic', text(unPub));
     setBadge('badgeTabSecret', text(unSec));
     setBadge('badgeOffers', text(unOffers));
+    setBadge('badgeTreaties', text(unTreaties));
+    setBadge('badgeWar', text(unWar));
     setBadge('badgeBattles', text(unBattles));
     setBadge('badgeGold', gain ? `+${gain}` : '');
   }
@@ -703,6 +895,7 @@
 
   function render() {
     updateScreens();
+    applyTheme();
     if (!state) return;
     // Preserve all form selections and text while another player causes a shared-state update.
     const savedValues = {};
@@ -731,6 +924,7 @@
     renderChat();
     renderEvents();
     renderHub();
+    renderMap();
 
     for (const [id, value] of Object.entries(savedValues)) {
       const element = $(id);
@@ -742,6 +936,7 @@
       }
     }
     updateRecruitButton();
+    if (state.myHouse) updateAttackLock();
     if (wasFocused) {
       const element = $(wasFocused);
       if (element && !element.disabled) {
@@ -886,7 +1081,7 @@
     emitAction('appoint-hand', { playerId: $('handPlayerSelect').value });
   });
   $('handPlayerSelect').addEventListener('change', event => {
-    $('handSelectionForm').querySelector('button').disabled = !event.target.value;
+    lock($('handSelectionForm').querySelector('button'), event.target.value ? '' : 'Choose a player to appoint first.');
   });
   $('lobbyNameForm').addEventListener('submit', event => {
     event.preventDefault();
@@ -911,6 +1106,22 @@
   // Clicking the dimmed backdrop closes the map.
   $('mapDialog').addEventListener('click', event => {
     if (event.target === event.currentTarget) return setMapOpen(false);
+    if (pickingTarget) {
+      const pick = event.target.closest('.map-cap');
+      if (pick) {
+        const capital = state.capitals.find(c => c.id === pick.dataset.capital);
+        if (!capital) return showMapHint('The Red Keep and King’s Landing cannot be attacked. Choose a house capital.');
+        const problem = warTargetProblem(capital);
+        if (problem) return showMapHint(problem);
+        warTargetId = capital.id;
+        setMapOpen(false);
+        renderWarTarget();
+        updateAttackLock();
+        $('attackForm').scrollIntoView({ block: 'center', behavior: 'smooth' });
+        showToast(`Target chosen: ${capital.name}. Commit your forces and declare war.`, 'success');
+        return;
+      }
+    }
     // Tap a capital to pop it out on touch screens; tapping elsewhere puts it back.
     const cap = event.target.closest('.map-cap');
     $('mapDialog').querySelectorAll('.map-cap.is-active').forEach(el => { if (el !== cap) el.classList.remove('is-active'); });
@@ -922,6 +1133,7 @@
     if (cap && cap.parentNode.lastElementChild !== cap) cap.parentNode.appendChild(cap);
   });
 
+  $('mapDialog').addEventListener('close', endPick);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !$('mapDialog').open) closeHub();
   });
@@ -968,6 +1180,8 @@
     if (action === 'close-hub') { closeHub(); return; }
     if (action === 'close-announce') { closeAnnouncement(); return; }
     if (action === 'toggle-traitor') { emitAction('mark-traitor', { playerId: button.dataset.playerId, traitor: button.dataset.traitor === 'true' }); return; }
+    if (action === 'pick-target') { startPick(); return; }
+    if (action === 'go-to-war') { openHub('army'); startPick(); return; }
     if (action === 'open-map') { setMapOpen(true); return; }
     if (action === 'close-map') { setMapOpen(false); return; }
     if (action === 'change-house') {
@@ -982,6 +1196,14 @@
     else if (action === 'advance-phase') emitAction('advance-phase');
     else if (action === 'respond-alliance') emitAction('respond-alliance', { offerId: button.dataset.offerId, accept: button.dataset.accept === 'true' });
     else if (action === 'break-alliance') emitAction('break-alliance', { allianceId: button.dataset.allianceId });
+    else if (action === 'respond-treaty') emitAction('respond-treaty', { treatyId: button.dataset.treatyId, accept: button.dataset.accept === 'true' });
+    else if (action === 'cancel-treaty') emitAction('cancel-treaty', { treatyId: button.dataset.treatyId });
+    else if (action === 'decline-war') emitAction('respond-war', { leaderHouseId: button.dataset.leader, accept: false });
+    else if (action === 'join-war') {
+      const idp = `warJoin-${button.dataset.leader}`;
+      emitAction('respond-war', { leaderHouseId: button.dataset.leader, accept: true, infantry: Number($(`${idp}-inf`).value), navy: Number($(`${idp}-nav`).value), dragons: Number($(`${idp}-dra`).value) });
+    }
+    else if (action === 'claim-spoils') emitAction('claim-spoils', { spoilId: button.dataset.spoilId, claimHouseId: button.dataset.claim });
   });
 
   $('voteForm').addEventListener('submit', event => {
@@ -1004,11 +1226,24 @@
   $('attackForm').addEventListener('submit', event => {
     event.preventDefault();
     emitAction('plan-attack', {
-      targetCapitalId: $('attackTarget').value,
+      targetCapitalId: warTargetId,
+      allyHouseId: $('attackAlly').value || undefined,
       infantry: Number($('attackInfantry').value),
       navy: Number($('attackNavy').value),
       dragons: Number($('attackDragons').value)
-    });
+    }, () => { warTargetId = null; });
+  });
+  ['attackInfantry', 'attackNavy', 'attackDragons'].forEach(id => $(id).addEventListener('input', updateAttackLock));
+
+  $('treatyForm').addEventListener('submit', event => {
+    event.preventDefault();
+    emitAction('offer-treaty', {
+      targetHouseId: $('treatyTarget').value,
+      gold: Number($('treatyGold').value || 0),
+      infantry: Number($('treatyInfantry').value || 0),
+      navy: Number($('treatyNavy').value || 0),
+      message: $('treatyMessage').value
+    }, () => { $('treatyGold').value = 0; $('treatyInfantry').value = 0; $('treatyNavy').value = 0; $('treatyMessage').value = ''; });
   });
 
   $('allianceForm').addEventListener('submit', event => {
