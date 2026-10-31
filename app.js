@@ -151,7 +151,8 @@
       const own = p.id === state.me.id;
       const houseControl = own ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
       const nameEdit = own ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
-      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}${nameEdit}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'} · ${status}</small></div></div>`;
+      const botControls = p.isBot && state.isHost && state.phase === 'LOBBY' ? `<button class="player-edit-name" type="button" data-action="edit-bot" data-bot-id="${escapeHtml(p.id)}" aria-label="Edit ${escapeHtml(p.username)}">✎</button><button class="player-edit-name player-remove-bot" type="button" data-action="remove-bot" data-bot-id="${escapeHtml(p.id)}" aria-label="Remove ${escapeHtml(p.username)}">✕</button>` : '';
+      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}${nameEdit}${botControls}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'} · ${status}</small></div></div>`;
     }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
     const canStart = state.isHost && state.phase === 'LOBBY';
     const hasBaratheon = state.players.some(p => p.connected && p.houseId === 'baratheon');
@@ -381,6 +382,35 @@
     $('lobbyNameInput').focus();
   }
 
+  let editingBotId = null;
+  function openBotEditor(botId) {
+    const bot = state?.players?.find(p => p.id === botId && p.isBot);
+    if (!bot) return;
+    editingBotId = botId;
+    const maxPlayers = Number(state.settings?.maxPlayers);
+    $('botNameInput').value = bot.username;
+    $('botHouseSelect').innerHTML = state.houses.map(h => {
+      const unavailable = h.type === 'minor' && (maxPlayers < 7 || h.players.some(p => !p.left && p.id !== bot.id));
+      return `<option value="${escapeHtml(h.id)}" ${unavailable ? 'disabled' : ''}>${escapeHtml(h.name)}${h.type === 'minor' ? ' · Minor' : ''}</option>`;
+    }).join('');
+    $('botHouseSelect').value = bot.houseId;
+    $('botEditDialog').showModal();
+  }
+
+  function removeBot(botId) {
+    const bot = state?.players?.find(p => p.id === botId && p.isBot);
+    if (bot && window.confirm(`Remove ${bot.username} from the lobby?`)) emitAction('remove-bot', { botId });
+  }
+
+  function setMapOpen(open) {
+    const dialog = $('mapDialog');
+    if (open) {
+      const img = dialog.querySelector('img[data-src]');
+      if (img) { img.src = img.dataset.src; img.removeAttribute('data-src'); }
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) dialog.close();
+  }
+
   function openHouseChooser() {
     $('lobbyEditMenu').close?.();
     if (!lobbyCanChangeHouse) return showToast('There are no other houses available right now.', 'error');
@@ -588,6 +618,18 @@
     });
   });
 
+  $('botEditForm').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!socket?.connected) return showToast('Not connected to the game server yet.', 'error');
+    socket.emit('edit-bot', { botId: editingBotId, username: $('botNameInput').value.trim(), houseId: $('botHouseSelect').value }, result => {
+      if (!result?.ok) return showToast(result?.message || 'Could not update the bot.', 'error');
+      $('botEditDialog').close();
+      showToast(result.message || 'Bot updated.', 'success');
+    });
+  });
+  // Clicking the dimmed backdrop closes the map.
+  $('mapDialog').addEventListener('click', event => { if (event.target === event.currentTarget) setMapOpen(false); });
+
   document.addEventListener('click', event => {
     const tab = event.target.closest('[data-chat-tab]');
     if (tab) {
@@ -609,6 +651,12 @@
     if (action === 'close-edit-menu') { $('lobbyEditMenu').close(); return; }
     if (action === 'close-name-dialog') { $('lobbyNameDialog').close(); return; }
     if (action === 'add-bot') { emitAction('add-bot'); return; }
+    if (action === 'edit-bot') { openBotEditor(button.dataset.botId); return; }
+    if (action === 'remove-bot') { removeBot(button.dataset.botId); return; }
+    if (action === 'remove-bot-dialog') { $('botEditDialog').close(); removeBot(editingBotId); return; }
+    if (action === 'close-bot-dialog') { $('botEditDialog').close(); return; }
+    if (action === 'open-map') { setMapOpen(true); return; }
+    if (action === 'close-map') { setMapOpen(false); return; }
     if (action === 'change-house') {
       setPickedHouse(null);
       $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);

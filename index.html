@@ -7,10 +7,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon.png?v=2">
-  <link rel="stylesheet" href="./style.css?v=22">
+  <link rel="stylesheet" href="./style.css?v=23">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=23" defer></script>
+  <script src="./app.js?v=24" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -26,7 +26,7 @@
       <span id="roundPill" class="round-pill">LOBBY</span>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.1.5</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.1.6</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -104,6 +104,17 @@
     </form>
   </dialog>
 
+  <dialog id="botEditDialog" class="lobby-dialog">
+    <form id="botEditForm">
+      <p class="eyebrow">HOST ONLY · BOT</p><h2>Edit bot</h2>
+      <label for="botNameInput">Name</label><input id="botNameInput" maxlength="22" minlength="2" required>
+      <label for="botHouseSelect">House</label><select id="botHouseSelect" required></select>
+      <button class="button button-primary button-full" type="submit">Save bot</button>
+      <button class="button button-danger button-full" type="button" data-action="remove-bot-dialog">Remove bot</button>
+      <button class="button button-quiet button-full" type="button" data-action="close-bot-dialog">Cancel</button>
+    </form>
+  </dialog>
+
   <main id="kingSelectionScreen" class="realm-screen" hidden>
     <section class="realm-card panel king-selection-card">
       <p class="eyebrow">THE FIRST KING</p>
@@ -135,11 +146,12 @@
       <div id="hostControls" class="host-controls"></div>
     </section>
 
-    <section class="panel map-panel" aria-labelledby="realmMapTitle">
-      <div class="section-head"><div><p class="panel-kicker">THE SEVEN KINGDOMS</p><h2 id="realmMapTitle">Westeros</h2></div><span class="subtle-label">House capitals</span></div>
-      <div class="realm-map-scroll"><img class="westeros-map" src="https://mapofwesteros.com/downloads/map-of-westeros.svg" alt="Map of Westeros with its castles and cities, including the playable houses’ capitals"></div>
+    <button id="mapToggleButton" class="map-toggle" type="button" data-action="open-map" aria-haspopup="dialog">🗺 Map</button>
+    <dialog id="mapDialog" class="map-dialog" aria-labelledby="realmMapTitle">
+      <div class="section-head"><div><p class="panel-kicker">THE SEVEN KINGDOMS</p><h2 id="realmMapTitle">Westeros</h2></div><button class="button button-quiet button-small" type="button" data-action="close-map">Close ✕</button></div>
+      <div class="realm-map-scroll"><img class="westeros-map" data-src="https://mapofwesteros.com/downloads/map-of-westeros.svg" alt="Map of Westeros with its castles and cities, including the playable houses’ capitals"></div>
       <p class="map-caption">Map artwork by <a href="https://mapofwesteros.com/about/" target="_blank" rel="noopener">Map of Westeros</a> · shown with attribution for non-commercial use.</p>
-    </section>
+    </dialog>
 
     <div class="dashboard-grid">
       <aside class="left-column">

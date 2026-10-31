@@ -490,7 +490,9 @@ io.on('connection', socket => {
     if (phase !== 'LOBBY') return fail('Bots can only be added in the lobby.');
     if (!gameSettings.configured) return fail('Finish game setup before adding bots.');
     if ([...players.values()].filter(existing => !existing.left).length >= gameSettings.maxPlayers) return fail('The game is full.');
-    const botNumber = [...players.values()].filter(existing => existing.isBot).length + 1;
+    const usedNames = new Set([...players.values()].map(existing => existing.username));
+    let botNumber = 1;
+    while (usedNames.has(`Bot ${botNumber}`)) botNumber += 1;
     const activeMembers = houseId => [...players.values()].filter(existing => !existing.left && existing.houseId === houseId);
     let house;
     if (activeMembers('baratheon').length === 0) house = findHouse('baratheon');
@@ -503,6 +505,37 @@ io.on('connection', socket => {
     players.set(bot.id, bot);
     addEvent('normal', `${bot.username} joined House ${house.name}.`);
     return ok(`${bot.username} joined the lobby as House ${house.name}.`);
+  });
+
+  action(socket, 'edit-bot', (player, payload) => {
+    const check = requirePlayer(player); if (check.ok === false) return check;
+    if (!isHost(player)) return fail('Only the host can edit a bot.');
+    if (phase !== 'LOBBY') return fail('Bots can only be edited in the lobby.');
+    const bot = players.get(String(payload.botId || ''));
+    if (!bot || !bot.isBot || bot.left) return fail('That bot is no longer in the lobby.');
+    const name = String(payload.username || '').trim().replace(/\s+/g, ' ');
+    if (name.length < 2 || name.length > 22) return fail('Name must be between 2 and 22 characters.');
+    const h = findHouse(String(payload.houseId || '')); if (!h) return fail('That house does not exist.');
+    if (h.type === 'minor' && Number(gameSettings.maxPlayers) < 7) return fail('Minor houses unlock when the player limit is 7 or more.');
+    if (h.type === 'minor' && [...players.values()].some(p => !p.left && p.houseId === h.id && p.id !== bot.id)) return fail('That minor house has already been claimed.');
+    const previousName = bot.username;
+    const previousHouse = bot.houseId;
+    bot.username = name;
+    bot.houseId = h.id;
+    if (previousHouse !== h.id) addEvent('normal', `${name} moved to House ${h.name}.`);
+    else if (previousName !== name) addEvent('normal', `${previousName} is now called ${name}.`);
+    return ok(`${name} updated.`);
+  });
+
+  action(socket, 'remove-bot', (player, payload) => {
+    const check = requirePlayer(player); if (check.ok === false) return check;
+    if (!isHost(player)) return fail('Only the host can remove a bot.');
+    if (phase !== 'LOBBY') return fail('Bots can only be removed in the lobby.');
+    const bot = players.get(String(payload.botId || ''));
+    if (!bot || !bot.isBot) return fail('That bot is no longer in the lobby.');
+    players.delete(bot.id);
+    addEvent('normal', `${bot.username} left the lobby.`);
+    return ok(`${bot.username} was removed.`);
   });
 
   action(socket, 'start-game', player => {

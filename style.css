@@ -154,8 +154,12 @@ body.throne-open { overflow: hidden; }
 .host-label { font-size: 9px; font-weight: 700; letter-spacing: .13em; color: var(--gold); white-space: nowrap; }
 .waiting-label { color: #a4a8b0; font-size: 10px; text-align: right; max-width: 190px; line-height: 1.5; }
 .dashboard-grid { display: grid; grid-template-columns: 250px minmax(420px, 1fr) 285px; align-items: start; gap: 16px; }
-.map-panel { margin-bottom: 16px; padding: 20px; }
-.map-panel h2 { font: 600 17px Cinzel, Georgia, serif; margin: 0; }
+.map-dialog { width: min(620px, calc(100vw - 20px)); max-height: calc(100vh - 20px); padding: 18px; overflow: auto; border: 1px solid rgba(217,190,135,.35); border-top: 2px solid var(--gold); border-radius: 10px; color: var(--text); background: linear-gradient(155deg, #22211f, #121519); box-shadow: 0 18px 70px #000b; }
+.map-dialog::backdrop { background: rgba(4,5,7,.76); backdrop-filter: blur(4px); }
+.map-dialog h2 { font: 600 17px Cinzel, Georgia, serif; margin: 0; }
+.map-dialog .section-head { margin-bottom: 12px; }
+.map-toggle { position: fixed; z-index: 30; right: 14px; bottom: max(env(safe-area-inset-bottom), 14px); padding: 10px 14px; border: 1px solid var(--line-bright); border-radius: 999px; color: var(--gold); background: #242832; box-shadow: var(--shadow); font: 600 11px Cinzel, Georgia, serif; letter-spacing: .08em; cursor: pointer; }
+.player-remove-bot { color: #e08a8a; }
 .realm-map-scroll { display: flex; justify-content: center; max-height: 78vh; overflow: auto; border: 1px solid rgba(217,190,135,.12); border-radius: 8px; background: #101820; }
 .westeros-map { display: block; width: min(100%, 540px); height: auto; max-height: 78vh; object-fit: contain; }
 .map-caption { margin: 10px 0 0; color: var(--muted); font-size: 9px; }
