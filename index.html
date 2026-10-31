@@ -7,10 +7,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=25">
+  <link rel="stylesheet" href="./style.css?v=26">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=27" defer></script>
+  <script src="./app.js?v=28" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -21,12 +21,18 @@
       <span class="brand-mark" aria-hidden="true"><img src="./assets/iron-throne-icon.png?v=2" alt=""></span>
       <span><strong>WAR OF WESTEROS</strong><small>THE GREAT HOUSES · MULTIPLAYER</small></span>
     </a>
+    <div id="headerStats" class="header-stats" hidden>
+      <span class="hs-item" title="Your gold"><img src="./assets/game-coins.png?v=2" alt="Gold"><b id="roundGold">—</b><small>gold</small></span>
+      <span id="headerArmy" class="hs-item" title="Total military"><img src="./assets/game-swords.png?v=2" alt="Military"><b id="roundMilitaryTotal">—</b><small>army</small></span>
+      <span id="roundKingBadge" class="hs-item hs-role" title="You are the King" hidden><img src="./assets/game-throne.png?v=2" alt="You are the King"></span>
+      <span id="roundHandBadge" class="hs-item hs-role" title="You are the Hand of the King" hidden><img src="./assets/game-hand.png?v=2" alt="You are the Hand of the King"></span>
+    </div>
     <div class="topbar-right">
       <span id="connectionPill" class="status-pill status-offline"><i></i><span>Connecting</span></span>
-      <span id="roundPill" class="round-pill">LOBBY</span>
+      <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.2.0</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.2.1</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -132,18 +138,8 @@
   </main>
 
   <main id="gameScreen" class="game-screen" hidden>
-    <section class="round-overview panel" aria-label="Your Round 1 status">
-      <div class="round-overview-grid">
-        <article class="round-stat"><img src="./assets/game-coins.png?v=2" alt=""><div><span>YOUR GOLD</span><strong><b id="roundGold">—</b> gold</strong><small>Available to spend</small></div></article>
-        <article class="round-stat"><img src="./assets/game-swords.png?v=2" alt=""><div><span>TOTAL MILITARY</span><strong id="roundMilitaryTotal">—</strong><small id="roundMilitaryDetail">Infantry · Navy · Dragons</small></div></article>
-        <article class="round-stat"><img src="./assets/game-throne.png?v=2" alt=""><div><span>THE KING</span><strong id="roundKingName">—</strong><small id="roundKingBadge" class="round-role-badge" hidden>YOU ARE KING</small></div></article>
-        <article class="round-stat"><img src="./assets/game-hand.png?v=2" alt=""><div><span>HAND OF THE KING</span><strong id="roundHandName">—</strong><small id="roundHandBadge" class="round-role-badge" hidden>YOU ARE THE HAND</small></div></article>
-      </div>
-      <p id="roundRoleMessage" class="round-role-message"></p>
-    </section>
     <section class="welcome-strip panel">
       <div><p class="eyebrow" id="phaseEyebrow">THE COUNCIL</p><h1 id="phaseTitle">The Great Houses</h1><p id="phaseDescription" class="muted">Choose your house to begin.</p></div>
-      <div id="hostControls" class="host-controls"></div>
     </section>
 
     <section id="actionHub" class="action-hub" aria-label="Round menus" hidden>
@@ -291,12 +287,6 @@
     </dialog>
 
     <div class="dashboard-grid">
-      <aside class="left-column">
-        <section class="panel sidebar-panel">
-          <div class="section-head"><div><p class="panel-kicker">THE COURT</p><h2>Players</h2></div><span id="playerCount" class="count-pill">0 players</span></div>
-          <div id="playerRoster" class="player-roster"></div>
-        </section>
-      </aside>
 
       <section class="center-column">
         <section id="lobbyPanel" class="panel section-panel">

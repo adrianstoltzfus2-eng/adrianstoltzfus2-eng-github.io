@@ -120,16 +120,6 @@
   }
 
   function renderPlayers() {
-    const activePlayers = state.players.filter(player => !player.left);
-    $('playerCount').textContent = `${activePlayers.length} player${activePlayers.length === 1 ? '' : 's'}`;
-    $('playerRoster').innerHTML = state.players.length ? state.players.map(p => {
-      const house = state.houses.find(h => h.id === p.houseId);
-      const status = p.isBot ? 'Bot player' : p.left ? 'Left the game' : p.connected ? 'Connected' : 'Reconnecting';
-      const nameEdit = p.id === state.me?.id && state.phase === 'LOBBY' ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
-      const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
-      const houseControl = p.id === state.me?.id && state.phase === 'LOBBY' ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
-      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}${p.isHand ? ' <em class="hand-tag">HAND</em>' : ''}${p.traitor ? ' <em class="traitor-tag">TRAITOR</em>' : ''}${nameEdit}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'} · ${status}</small></div></div>`;
-    }).join('') : '<p class="muted small-text">No players have joined yet.</p>';
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
 
@@ -166,7 +156,7 @@
       const houseControl = own ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
       const nameEdit = own ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
       const botControls = p.isBot && state.isHost && state.phase === 'LOBBY' ? `<button class="player-edit-name" type="button" data-action="edit-bot" data-bot-id="${escapeHtml(p.id)}" aria-label="Edit ${escapeHtml(p.username)}">✎</button><button class="player-edit-name player-remove-bot" type="button" data-action="remove-bot" data-bot-id="${escapeHtml(p.id)}" aria-label="Remove ${escapeHtml(p.username)}">✕</button>` : '';
-      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}${nameEdit}${botControls}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'} · ${status}</small></div></div>`;
+      return `<div class="player-row ${p.left ? 'player-left' : ''} ${own ? 'player-row-own' : ''}" ${own && house?.color ? `style="--house-color:${escapeHtml(house.color)}"` : ''}><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}${nameEdit}${botControls}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'} · ${status}</small></div></div>`;
     }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
     const canStart = state.isHost && state.phase === 'LOBBY';
     const hasBaratheon = state.players.some(p => p.connected && p.houseId === 'baratheon');
@@ -247,13 +237,32 @@
     const house = state.myHouse;
     $('roundGold').textContent = house ? house.money : '—';
     const total = house ? house.infantry + house.navy + house.dragons : null;
-    $('roundMilitaryTotal').textContent = total === null ? '—' : `${total} units`;
-    $('roundMilitaryDetail').textContent = house ? `${house.infantry} infantry · ${house.navy} navy · ${house.dragons} dragons` : 'Forces unavailable';
-    $('roundKingName').textContent = state.king?.username || 'Awaiting appointment';
-    $('roundHandName').textContent = state.hand?.username || 'Awaiting appointment';
+    $('roundMilitaryTotal').textContent = total === null ? '—' : total;
+    $('headerArmy').title = house ? `${house.infantry} infantry · ${house.navy} navy · ${house.dragons} dragons` : 'Forces unavailable';
+    // King / Hand icons only appear for the player who holds that role.
     $('roundKingBadge').hidden = !state.isKing;
     $('roundHandBadge').hidden = !state.isHand;
-    $('roundRoleMessage').textContent = state.isKing && state.isHand ? 'You are both King and Hand of the King.' : state.isKing ? 'You are the King. Your decisions shape the court.' : state.isHand ? 'You are the Hand of the King.' : 'You serve on the royal council.';
+  }
+
+  const HOST_STEPS = { ACTION: ['OPEN COURT', 'Open the court'], COURT: ['RESOLVE', 'Resolve this round'], RESOLUTION: ['NEXT ROUND', 'Begin the next round'] };
+  // The header pill shows the round for everyone; for the host it doubles as the "advance" button.
+  function updateRoundPill() {
+    const pill = $('roundPill');
+    if (!pill || !state) return;
+    const step = state.isHost ? HOST_STEPS[state.phase] : null;
+    if (step) {
+      pill.textContent = `ROUND ${state.round} · ${step[0]} →`;
+      pill.dataset.action = 'advance-phase';
+      pill.title = step[1];
+      pill.disabled = false;
+      pill.classList.add('round-pill-action');
+    } else {
+      pill.textContent = phaseLabel(state.phase);
+      delete pill.dataset.action;
+      pill.removeAttribute('title');
+      pill.disabled = true;
+      pill.classList.remove('round-pill-action');
+    }
   }
 
   function renderAlliances() {
@@ -368,20 +377,11 @@
     $('phaseEyebrow').textContent = phaseInfo[0];
     $('phaseTitle').textContent = state.phase === 'ACTION' ? `Round ${state.round}: prepare your moves` : phaseInfo[1];
     $('phaseDescription').textContent = phaseInfo[2];
-    $('roundPill').textContent = phaseLabel(state.phase);
+    updateRoundPill();
 
     $('lobbyPanel').hidden = state.phase !== 'LOBBY';
     $('electionPanel').hidden = state.phase !== 'KING_VOTE';
     $('resolutionPanel').hidden = state.phase !== 'RESOLUTION';
-
-    const controls = $('hostControls');
-    if (state.isHost) {
-      const action = ({ LOBBY: ['start-game', 'Begin the game'], ACTION: ['advance-phase', 'Open the court →'], COURT: ['advance-phase', 'Resolve this round →'], RESOLUTION: ['advance-phase', `Begin Round ${state.round + 1} →`] })[state.phase];
-      controls.innerHTML = `<span class="host-label">YOU ARE HOST</span><button class="button button-primary" data-action="${action[0]}">${action[1]}</button>`;
-    } else {
-      const message = state.phase === 'LOBBY' ? 'The host will begin when everyone is ready.' : 'Waiting for the host to advance the phase.';
-      controls.innerHTML = `<span class="waiting-label">${escapeHtml(message)}</span>`;
-    }
   }
 
   const normHouse = value => String(value || '').toLowerCase().replace(/^house\s+/, '').trim();
@@ -410,6 +410,8 @@
     $('gameScreen').hidden = !inGame;
     $('buildLabel').hidden = inGame;
     $('gameVersion').hidden = inGame;
+    $('headerStats').hidden = !inGame;
+    document.body.classList.toggle('in-game', inGame);
     document.body.classList.toggle('throne-open', showThrone);
     if (hostSetup) {
       $('hostRoomPin').textContent = gameCode || '——';
@@ -521,7 +523,7 @@
     renderWaitingRoom();
     if (state.phase === 'HAND_SELECTION') {
       renderKingSelection();
-      $('roundPill').textContent = 'FIRST KING';
+      updateRoundPill();
       return;
     }
     renderPhase();
