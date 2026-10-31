@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=28">
+  <link rel="stylesheet" href="./style.css?v=29">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=30" defer></script>
+  <script src="./app.js?v=31" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -38,7 +38,7 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.2.3</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.2.4</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -161,7 +161,7 @@
         <div class="hub-sheet-body">
           <div id="hubMoney" class="hub-pane" hidden>
             <div class="money-grid">
-              <article class="money-card"><span>YOUR GOLD</span><strong id="moneyGold">—</strong><small>Available to spend</small></article>
+              <article class="money-card"><span id="badgeGold" class="note-badge" hidden></span><span>YOUR GOLD</span><strong id="moneyGold">—</strong><small>Available to spend</small></article>
               <article class="money-card"><span>INCOME PER ROUND</span><strong id="moneyIncome">—</strong><small id="moneyIncomeNote"></small></article>
             </div>
             <div><div class="subsection-title">Capitals held</div><div id="moneyCapitals" class="event-list"></div></div>
@@ -185,15 +185,14 @@
               <button class="button button-primary button-full" type="submit">Issue decree</button>
             </form>
           </div>
-          <div class="alliance-area"><div class="section-head"><h3>Alliance offers & treaties</h3></div><div id="allianceList" class="alliance-list"></div></div>
+          <div class="alliance-area"><div class="section-head"><h3>Alliance offers & treaties</h3><span id="badgeOffers" class="note-badge" hidden></span></div><div id="allianceList" class="alliance-list"></div></div>
           <div class="chat-area">
             <div class="section-head"><div><p class="panel-kicker">WORDS CAN WIN WARS</p><h3><img class="section-heading-icon" src="./assets/game-raven.png?v=2" alt="">Court messages</h3></div></div>
-            <div class="chat-tabs"><button class="chat-tab active" data-chat-tab="public" type="button">Public court</button><button class="chat-tab" data-chat-tab="secret" type="button">Secret messages</button></div>
+            <div class="chat-tabs"><button class="chat-tab active" data-chat-tab="public" type="button">Public<span id="badgeTabPublic" class="note-badge" hidden></span></button><button class="chat-tab" data-chat-tab="secret" type="button">Private<span id="badgeTabSecret" class="note-badge" hidden></span></button></div>
+            <div id="chatRecipients" class="chat-recipients" hidden><p class="muted small-text">Whisper to — choose one or more players:</p><div id="recipientChips" class="recipient-chips"></div></div>
             <div id="publicChat" class="chat-log"></div>
             <div id="secretChat" class="chat-log" hidden></div>
             <form id="chatForm" class="chat-form">
-              <select id="chatScope" aria-label="Message visibility"><option value="public">Public message</option><option value="secret">Secret to house</option></select>
-              <select id="chatTarget" aria-label="Secret message target" hidden></select>
               <input id="chatMessage" maxlength="350" placeholder="Speak before the court…" autocomplete="off" required>
               <button class="button button-primary" type="submit">Send</button>
             </form>
@@ -248,6 +247,10 @@
           </div>
           <div id="spyReports" class="spy-reports"></div>
         </section>
+            <section class="panel section-panel hub-block">
+              <div class="section-head"><div><p class="panel-kicker">THE REALM’S RECORD</p><h2>Battle reports</h2></div><span id="badgeBattles" class="note-badge" hidden></span></div>
+              <div id="battleReports" class="event-list"></div>
+            </section>
 
           </div>
         </div>

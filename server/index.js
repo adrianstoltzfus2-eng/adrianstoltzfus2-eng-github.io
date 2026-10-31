@@ -248,8 +248,8 @@ function viewFor(playerId) {
   const visibleOffers = allianceOffers.filter(o => o.scope === 'public' || (myHouse && (o.fromHouseId === myHouse.id || o.toHouseId === myHouse.id)))
     .map(o => ({ ...o, isOutgoing: Boolean(myHouse && o.fromHouseId === myHouse.id), canRespond: Boolean(myHouse && o.toHouseId === myHouse.id) }));
   const visibleAlliances = alliances.filter(a => a.scope === 'public' || (myHouse && (a.houseA === myHouse.id || a.houseB === myHouse.id))).map(a => ({ ...a }));
-  const privateForMe = myHouse ? privateMessages.filter(m => m.senderHouseId === myHouse.id || m.targetHouseId === myHouse.id).map(m => ({
-    ...m, senderHouseName: houseName(m.senderHouseId), targetHouseName: houseName(m.targetHouseId)
+  const privateForMe = me ? privateMessages.filter(m => m.senderId === me.id || (m.targets || []).some(t => t.id === me.id)).map(m => ({
+    ...m, senderHouseName: houseName(m.senderHouseId), targets: (m.targets || []).map(t => ({ ...t, name: players.get(t.id)?.username || t.name, houseId: players.get(t.id)?.houseId ?? t.houseId }))
   })) : [];
   return {
     phase, round, hostId, king: kingPlayerId && players.has(kingPlayerId) ? { id: kingPlayerId, username: players.get(kingPlayerId).username } : null,
@@ -760,12 +760,13 @@ io.on('connection', socket => {
     if (!message) return fail('Write a message first.');
     const scope = payload.scope === 'secret' ? 'secret' : 'public';
     if (scope === 'public') {
-      publicMessages.push({ id: randomUUID(), senderName: player.username, senderHouseName: check.name, senderHouseId: check.id, scope, round, message });
+      publicMessages.push({ id: randomUUID(), senderId: player.id, senderName: player.username, senderHouseName: check.name, senderHouseId: check.id, scope, round, message });
       if (publicMessages.length > 150) publicMessages.shift();
     } else {
-      const target = findHouse(String(payload.targetHouseId || ''));
-      if (!target || target.id === check.id) return fail('Choose another house to message privately.');
-      privateMessages.push({ id: randomUUID(), senderName: player.username, senderHouseId: check.id, targetHouseId: target.id, senderHouseName: check.name, targetHouseName: target.name, scope: 'secret', round, message });
+      const wanted = [...new Set((Array.isArray(payload.targetPlayerIds) ? payload.targetPlayerIds : []).map(String))].filter(id => id !== player.id).slice(0, 16);
+      const targets = wanted.map(id => players.get(id)).filter(p => p && !p.left);
+      if (!targets.length) return fail('Choose at least one player to message privately.');
+      privateMessages.push({ id: randomUUID(), senderId: player.id, senderName: player.username, senderHouseId: check.id, senderHouseName: check.name, targets: targets.map(t => ({ id: t.id, name: t.username, houseId: t.houseId })), scope: 'secret', round, message });
       if (privateMessages.length > 150) privateMessages.shift();
     }
     return ok('Message sent.');

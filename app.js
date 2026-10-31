@@ -334,21 +334,44 @@
     $('allianceList').innerHTML = markup || '<p class="muted small-text">No active alliance offers or treaties.</p>';
   }
 
-  function messageMarkup(messages, includeTarget = false) {
-    return messages.map(m => `<article class="chat-message ${m.scope === 'secret' ? 'chat-secret-message' : ''}"><div class="chat-message-meta"><strong>${escapeHtml(m.senderName)}</strong><span>${escapeHtml(m.senderHouseName)} · R${m.round}${includeTarget && m.targetHouseName ? ` · to ${escapeHtml(m.targetHouseName)}` : ''}</span></div><p>${escapeHtml(m.message)}</p></article>`).join('') || '<p class="muted small-text chat-empty">No messages yet. Start the conversation.</p>';
+  const selectedRecipients = new Set();
+  const chatOthers = () => (state?.players || []).filter(p => !p.left && !p.isBot && p.id !== state.me?.id);
+
+  function messageMarkup(messages, isPrivate = false) {
+    const myId = state.me?.id;
+    return messages.map(m => {
+      const house = state.houses.find(h => h.id === m.senderHouseId);
+      const mine = m.senderId === myId;
+      const to = isPrivate
+        ? (m.targets || []).map(t => { const th = state.houses.find(h => h.id === t.houseId); return `<span class="msg-chip" style="--house-color:${escapeHtml(th?.color || '#c8a86c')}">${houseBanner(th, 'msg-banner msg-banner-sm')}${escapeHtml(t.id === myId ? 'You' : t.name)}</span>`; }).join('')
+        : '<span class="msg-chip msg-chip-all">The whole court</span>';
+      return `<article class="chat-message ${isPrivate ? 'chat-secret-message' : ''} ${mine ? 'chat-mine' : ''}" style="--house-color:${escapeHtml(house?.color || '#c8a86c')}"><div class="msg-head">${houseBanner(house, 'msg-banner')}<div class="msg-meta"><strong>${escapeHtml(mine ? 'You' : m.senderName)}</strong><span>House ${escapeHtml(m.senderHouseName || house?.name || '')} · R${m.round}</span></div></div><div class="msg-to"><em>to</em>${to}</div><p>${escapeHtml(m.message)}</p></article>`;
+    }).join('') || '<p class="muted small-text chat-empty">No messages yet. Start the conversation.</p>';
   }
 
   function renderChat() {
+    const logs = [$('publicChat'), $('secretChat')].map(el => [el, el.scrollHeight - el.scrollTop - el.clientHeight < 40]);
     $('publicChat').innerHTML = messageMarkup(state.publicMessages || []);
     $('secretChat').innerHTML = messageMarkup(state.privateMessages || [], true);
-    $('publicChat').hidden = activeChatTab !== 'public';
-    $('secretChat').hidden = activeChatTab !== 'secret';
+    logs.forEach(([el, atBottom]) => { if (atBottom) el.scrollTop = el.scrollHeight; });
+    const isPrivate = activeChatTab === 'secret';
+    $('publicChat').hidden = isPrivate;
+    $('secretChat').hidden = !isPrivate;
     document.querySelectorAll('[data-chat-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.chatTab === activeChatTab));
-    $('chatTarget').innerHTML = state.houses.filter(h => h.id !== state.myHouse?.id).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
-    $('chatScope').disabled = !state.myHouse;
+    // Who a private message goes to: individual players, any number of them.
+    const others = chatOthers();
+    [...selectedRecipients].forEach(id => { if (!others.some(p => p.id === id)) selectedRecipients.delete(id); });
+    $('chatRecipients').hidden = !isPrivate;
+    $('recipientChips').innerHTML = others.length
+      ? `<button type="button" class="recipient-chip recipient-all ${selectedRecipients.size === others.length ? 'selected' : ''}" data-recipient="__all">Everyone</button>${others.map(p => {
+        const house = state.houses.find(item => item.id === p.houseId);
+        const on = selectedRecipients.has(p.id);
+        return `<button type="button" class="recipient-chip ${on ? 'selected' : ''}" data-recipient="${escapeHtml(p.id)}" aria-pressed="${on}" style="--house-color:${escapeHtml(house?.color || '#c8a86c')}">${houseBanner(house, 'msg-banner msg-banner-sm')}<span>${escapeHtml(p.username)}</span></button>`;
+      }).join('')}`
+      : '<p class="muted small-text">No other players are at court yet.</p>';
     $('chatMessage').disabled = !state.myHouse;
     $('chatForm').querySelector('button').disabled = !state.myHouse;
-    $('chatTarget').hidden = $('chatScope').value !== 'secret';
+    $('chatMessage').placeholder = isPrivate ? 'Whisper to the chosen players…' : 'Speak before the court…';
   }
 
   const HUBS = { money: ['YOUR TREASURY', 'Money', 'hubMoney'], relations: ['COURT & DIPLOMACY', 'Relations', 'hubRelations'], army: ['FORCES & WAR', 'Army', 'hubArmy'] };
@@ -366,9 +389,11 @@
   }
   function closeHub() {
     if ($('hubOverlay').hidden) return;
+    markHubSeen(currentHub);
     $('hubOverlay').hidden = true;
     currentHub = null;
     document.body.classList.remove('hub-open');
+    updateBadges();
   }
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -407,6 +432,7 @@
     $('armyDragons').textContent = h.dragons;
     $('armyInfantryCost').textContent = `${h.infantryCost} gold`;
     $('armyNavyCost').textContent = `${h.navyCost} gold`;
+    $('battleReports').innerHTML = (state.events || []).filter(e => e.kind === 'battle').map(e => `<div class="resolution-item"><span>R${e.round}</span><p>${escapeHtml(e.text)}</p></div>`).join('') || '<p class="muted small-text">No battles have been fought yet.</p>';
     $('armyPhaseNote').textContent = state.phase === 'ACTION' ? '' : 'Recruiting, spying and attack orders open during the action phase.';
     $('relationsPhaseNote').textContent = state.phase === 'COURT' ? '' : 'Alliance offers and royal decrees open during the court phase. Messages can be sent at any time.';
     // King's ledger
@@ -558,9 +584,19 @@
     sendHousesToThrone();
   }
 
-  // ---- Hub notification badges (unread messages / offers, gold received, new battle reports) ----
-  const seenNotes = { ready: false, chat: new Set(), offers: new Set(), battles: new Set(), gold: 0 };
+  // ---- Notification badges: on the three hub buttons, and on the exact box inside each menu ----
+  const seenNotes = { ready: false, pub: new Set(), sec: new Set(), offers: new Set(), battles: new Set(), gold: 0 };
   let currentHub = null;
+  const markSeen = (set, list) => list.forEach(item => set.add(item.id));
+  function noteLists() {
+    const me = state.me.id;
+    return {
+      pub: (state.publicMessages || []).filter(m => m.senderId !== me),
+      sec: (state.privateMessages || []).filter(m => m.senderId !== me),
+      offers: (state.allianceOffers || []).filter(o => o.canRespond),
+      battles: (state.events || []).filter(e => e.kind === 'battle')
+    };
+  }
   function setBadge(id, text) {
     const el = $(id);
     if (!el) return;
@@ -569,28 +605,39 @@
     el.textContent = text || '';
     if (text && text !== previous) { el.classList.remove('badge-pop'); void el.offsetWidth; el.classList.add('badge-pop'); }
   }
+  // Boxes inside a menu keep their badge while you are in it; they count as seen when you close the menu.
+  function markHubSeen(kind) {
+    const h = state?.myHouse;
+    if (!h || !state.me || !kind) return;
+    const n = noteLists();
+    if (kind === 'relations') { markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.pub, activeChatTab === 'public' ? n.pub : []); markSeen(seenNotes.sec, activeChatTab === 'secret' ? n.sec : []); }
+    if (kind === 'army') markSeen(seenNotes.battles, n.battles);
+    if (kind === 'money') seenNotes.gold = h.money;
+  }
   function updateBadges() {
     const h = state?.myHouse;
     if (!h || !state.me) return;
-    const chat = [...(state.publicMessages || []).filter(m => m.senderName !== state.me.username), ...(state.privateMessages || []).filter(m => m.senderHouseId !== h.id)];
-    const offers = (state.allianceOffers || []).filter(o => o.canRespond);
-    const battles = (state.events || []).filter(e => e.kind === 'battle');
-    const markAll = () => {
-      if (currentHub === 'relations') { chat.forEach(m => seenNotes.chat.add(m.id)); offers.forEach(o => seenNotes.offers.add(o.id)); }
-      if (currentHub === 'army') battles.forEach(e => seenNotes.battles.add(e.id));
-      if (currentHub === 'money') seenNotes.gold = h.money;
-    };
+    const n = noteLists();
     if (!seenNotes.ready) {
-      const open = currentHub; currentHub = 'relations'; markAll(); currentHub = 'army'; markAll(); currentHub = 'money'; markAll(); currentHub = open;
+      markSeen(seenNotes.pub, n.pub); markSeen(seenNotes.sec, n.sec); markSeen(seenNotes.offers, n.offers); markSeen(seenNotes.battles, n.battles);
+      seenNotes.gold = h.money;
       seenNotes.ready = true;
     }
-    markAll();
+    // The chat tab you are reading counts as seen straight away.
+    if (currentHub === 'relations') markSeen(activeChatTab === 'public' ? seenNotes.pub : seenNotes.sec, activeChatTab === 'public' ? n.pub : n.sec);
     if (h.money < seenNotes.gold) seenNotes.gold = h.money;
-    const unread = chat.filter(m => !seenNotes.chat.has(m.id)).length + offers.filter(o => !seenNotes.offers.has(o.id)).length;
-    const newBattles = battles.filter(e => !seenNotes.battles.has(e.id)).length;
-    setBadge('badgeRelations', unread ? String(Math.min(unread, 99)) : '');
-    setBadge('badgeArmy', newBattles ? String(Math.min(newBattles, 99)) : '');
-    setBadge('badgeMoney', h.money > seenNotes.gold ? `+${h.money - seenNotes.gold}` : '');
+    const count = (list, set) => list.filter(item => !set.has(item.id)).length;
+    const unPub = count(n.pub, seenNotes.pub), unSec = count(n.sec, seenNotes.sec), unOffers = count(n.offers, seenNotes.offers), unBattles = count(n.battles, seenNotes.battles);
+    const gain = Math.max(0, h.money - seenNotes.gold);
+    const text = value => (value ? String(Math.min(value, 99)) : '');
+    setBadge('badgeRelations', text(unPub + unSec + unOffers));
+    setBadge('badgeArmy', text(unBattles));
+    setBadge('badgeMoney', gain ? `+${gain}` : '');
+    setBadge('badgeTabPublic', text(unPub));
+    setBadge('badgeTabSecret', text(unSec));
+    setBadge('badgeOffers', text(unOffers));
+    setBadge('badgeBattles', text(unBattles));
+    setBadge('badgeGold', gain ? `+${gain}` : '');
   }
 
   // ---- King / Hand announcements: the new player's banner replaces the old one ----
@@ -884,6 +931,19 @@
     if (tab) {
       activeChatTab = tab.dataset.chatTab;
       renderChat();
+      const log = $(activeChatTab === 'public' ? 'publicChat' : 'secretChat');
+      log.scrollTop = log.scrollHeight;
+      updateBadges();
+      return;
+    }
+    const chip = event.target.closest('[data-recipient]');
+    if (chip) {
+      const id = chip.dataset.recipient;
+      const others = chatOthers();
+      if (id === '__all') { if (selectedRecipients.size === others.length) selectedRecipients.clear(); else others.forEach(p => selectedRecipients.add(p.id)); }
+      else if (selectedRecipients.has(id)) selectedRecipients.delete(id);
+      else selectedRecipients.add(id);
+      renderChat();
       return;
     }
     const button = event.target.closest('[data-action]');
@@ -965,13 +1025,14 @@
     emitAction('king-command', { command: $('commandSelect').value, targetHouseId: $('commandTarget').value });
   });
 
-  $('chatScope').addEventListener('change', () => {
-    $('chatTarget').hidden = $('chatScope').value !== 'secret';
-  });
-
   $('chatForm').addEventListener('submit', event => {
     event.preventDefault();
-    emitAction('send-chat', { scope: $('chatScope').value, targetHouseId: $('chatTarget').value, message: $('chatMessage').value });
+    const message = $('chatMessage').value.trim();
+    if (!message) return;
+    // The tab you are on decides the type: Public goes to the whole court, Private to the players you chose.
+    const scope = activeChatTab === 'secret' ? 'secret' : 'public';
+    if (scope === 'secret' && !selectedRecipients.size) return showToast('Choose at least one player to whisper to.', 'error');
+    emitAction('send-chat', { scope, targetPlayerIds: [...selectedRecipients], message });
     $('chatMessage').value = '';
   });
 
