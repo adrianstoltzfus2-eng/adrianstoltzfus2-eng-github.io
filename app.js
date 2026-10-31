@@ -11,6 +11,7 @@
   let preparingHost = false;
   let showHostSetup = false;
   let changingLobbyHouse = false;
+  let lobbyCanChangeHouse = false;
   let gameCode = localStorage.getItem(roomCodeKey)?.toUpperCase() || '';
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
   const hashHouse = /^#house=([a-z\-]{2,40})$/i.exec(location.hash);
@@ -119,10 +120,15 @@
   }
 
   function renderPlayers() {
-    $('playerCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
+    const activePlayers = state.players.filter(player => !player.left);
+    $('playerCount').textContent = `${activePlayers.length} player${activePlayers.length === 1 ? '' : 's'}`;
     $('playerRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
-      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${houseBanner(house, 'player-house-banner')}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}${p.isHand ? ' <em class="hand-tag">HAND</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'}</small></div></div>`;
+      const status = p.isBot ? 'Bot player' : p.left ? 'Left the game' : p.connected ? 'Connected' : 'Reconnecting';
+      const nameEdit = p.id === state.me?.id && state.phase === 'LOBBY' ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
+      const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
+      const houseControl = p.id === state.me?.id && state.phase === 'LOBBY' ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
+      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}${p.isHand ? ' <em class="hand-tag">HAND</em>' : ''}${nameEdit}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'} · ${status}</small></div></div>`;
     }).join('') : '<p class="muted small-text">No players have joined yet.</p>';
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
@@ -131,22 +137,30 @@
     if (!state?.me) return;
     $('lobbyRoomPin').textContent = gameCode || '——';
     $('hostRoomPin').textContent = gameCode || '——';
-    $('lobbyCount').textContent = `${state.players.length} player${state.players.length === 1 ? '' : 's'}`;
+    const activePlayers = state.players.filter(player => !player.left);
+    $('lobbyCount').textContent = `${activePlayers.length} player${activePlayers.length === 1 ? '' : 's'}`;
     const setup = state.settings || { maxPlayers: 16, gameType: 'CLASSIC' };
     const gameTypeLabel = setup.gameType === 'LAST_DRAGON' ? 'Last Dragon · rules coming later' : 'Classic';
-    $('lobbySettings').textContent = `${gameTypeLabel} · ${state.players.length} of ${setup.maxPlayers} players`;
-    const canChangeHouse = state.phase === 'LOBBY' && state.houses.some(h => h.id !== state.me.houseId && (h.type !== 'minor' || Number(setup.maxPlayers) >= 7) && (h.type !== 'minor' || !h.players.some(p => p.id !== state.me.id)));
-    $('lobbyChangeHouseButton').hidden = !canChangeHouse;
+    $('lobbySettings').textContent = `${gameTypeLabel} · ${activePlayers.length} of ${setup.maxPlayers} players`;
+    lobbyCanChangeHouse = state.phase === 'LOBBY' && state.houses.some(h => h.id !== state.me.houseId && (h.type !== 'minor' || Number(setup.maxPlayers) >= 7) && (h.type !== 'minor' || !h.players.some(p => !p.left && p.id !== state.me.id)));
+    document.querySelector('[data-action="edit-menu-house"]').disabled = !lobbyCanChangeHouse;
     $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
       const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
-      return `<div class="player-row"><span class="online-dot ${p.connected ? 'online' : ''}"></span>${banner}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'}${p.connected ? '' : ' · reconnecting'}</small></div></div>`;
+      const status = p.isBot ? 'Bot player' : p.left ? 'Left the game' : p.connected ? 'Connected' : 'Reconnecting';
+      const own = p.id === state.me.id;
+      const houseControl = own ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
+      const nameEdit = own ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
+      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">SERVER OWNER</em>' : ''}${nameEdit}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'Joining · house not chosen'} · ${status}</small></div></div>`;
     }).join('') : '<p class="muted">The hall is quiet. Be the first to join.</p>';
     const canStart = state.isHost && state.phase === 'LOBBY';
     const hasBaratheon = state.players.some(p => p.connected && p.houseId === 'baratheon');
+    const canAddBot = canStart && activePlayers.length < Number(setup.maxPlayers);
+    $('addBotButton').hidden = !canStart;
+    $('addBotButton').disabled = !canAddBot;
     $('startGameButton').hidden = !canStart;
-    $('startGameButton').disabled = canStart && !hasBaratheon;
-    $('lobbyHostNote').textContent = canStart ? (hasBaratheon ? 'As server owner, begin when everyone is ready.' : 'A connected player must join House Baratheon to receive its first-king buff.') : 'The server owner will begin the game when everyone is ready.';
+    $('startGameButton').disabled = canStart && (!hasBaratheon || activePlayers.filter(p => p.connected).length < 2);
+    $('lobbyHostNote').textContent = canStart ? (hasBaratheon ? 'As server owner, begin when everyone is ready.' : 'A connected player or bot must join House Baratheon to receive its first-king buff.') : 'The server owner will begin the game when everyone is ready.';
   }
 
   function renderKingSelection() {
@@ -157,7 +171,7 @@
     $('handSelectionForm').hidden = !state.isKing;
     $('kingWaitingMessage').hidden = state.isKing;
     $('kingWaitingMessage').textContent = `${king?.username || 'The king'} is choosing the Hand of the King. The game will begin when the appointment is made.`;
-    const candidates = state.players.filter(player => player.id !== state.me?.id);
+    const candidates = state.players.filter(player => player.id !== state.me?.id && !player.left);
     $('handPlayerSelect').innerHTML = '<option value="" disabled selected>Choose a player</option>' + candidates.map(player => {
       const playerHouse = state.houses.find(item => item.id === player.houseId);
       return `<option value="${escapeHtml(player.id)}">${escapeHtml(player.username)}${playerHouse ? ` · House ${escapeHtml(playerHouse.name)}` : ''}${player.connected ? '' : ' · reconnecting'}</option>`;
@@ -338,7 +352,7 @@
     const houses = state.houses.map(h => {
       const unlocked = Number(state.settings?.maxPlayers) >= 7;
       const locked = h.type === 'minor' && !unlocked;
-      const claimed = h.type === 'minor' && h.players.length > 0 && !h.players.some(p => p.id === state.me?.id);
+      const claimed = h.type === 'minor' && h.players.some(p => !p.left && p.id !== state.me?.id);
       return {
         id: h.id, name: h.name, motto: h.motto, color: h.color,
         status: locked ? 'locked' : claimed ? 'claimed' : 'open',
@@ -358,6 +372,24 @@
     if (state.me.houseId === house.id) return;
     if (state.phase !== 'LOBBY') { showToast('The game has already begun, so your house cannot change now.', 'error'); return; }
     emitAction('select-house', { houseId: house.id });
+  }
+
+  function openNameEditor() {
+    $('lobbyEditMenu').close?.();
+    $('lobbyNameInput').value = state?.me?.username || '';
+    $('lobbyNameDialog').showModal();
+    $('lobbyNameInput').focus();
+  }
+
+  function openHouseChooser() {
+    $('lobbyEditMenu').close?.();
+    if (!lobbyCanChangeHouse) return showToast('There are no other houses available right now.', 'error');
+    changingLobbyHouse = true;
+    setPickedHouse(null);
+    $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
+    transitionThrone('house');
+    render();
+    sendHousesToThrone();
   }
 
   function render() {
@@ -545,6 +577,16 @@
   $('handPlayerSelect').addEventListener('change', event => {
     $('handSelectionForm').querySelector('button').disabled = !event.target.value;
   });
+  $('lobbyNameForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const username = $('lobbyNameInput').value.trim();
+    if (!socket?.connected) return showToast('Not connected to the game server yet.', 'error');
+    socket.emit('edit-player-name', { username }, result => {
+      if (!result?.ok) return showToast(result?.message || 'Could not update your name.', 'error');
+      $('lobbyNameDialog').close();
+      showToast(result.message || 'Name updated.', 'success');
+    });
+  });
 
   document.addEventListener('click', event => {
     const tab = event.target.closest('[data-chat-tab]');
@@ -556,20 +598,22 @@
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action;
+    if (action === 'edit-player') {
+      if (document.body.classList.contains('mobile-device')) $('lobbyEditMenu').showModal();
+      else if (button.dataset.editKind === 'house') openHouseChooser();
+      else openNameEditor();
+      return;
+    }
+    if (action === 'edit-menu-name') { openNameEditor(); return; }
+    if (action === 'edit-menu-house') { openHouseChooser(); return; }
+    if (action === 'close-edit-menu') { $('lobbyEditMenu').close(); return; }
+    if (action === 'close-name-dialog') { $('lobbyNameDialog').close(); return; }
+    if (action === 'add-bot') { emitAction('add-bot'); return; }
     if (action === 'change-house') {
       setPickedHouse(null);
       $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
       sendHousesToThrone();
       render();
-      return;
-    }
-    if (action === 'lobby-change-house') {
-      changingLobbyHouse = true;
-      setPickedHouse(null);
-      $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
-      transitionThrone('house');
-      render();
-      sendHousesToThrone();
       return;
     }
     if (action === 'select-house') emitAction('select-house', { houseId: button.dataset.houseId });

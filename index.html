@@ -7,10 +7,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon.png?v=2">
-  <link rel="stylesheet" href="./style.css?v=21">
+  <link rel="stylesheet" href="./style.css?v=22">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=22" defer></script>
+  <script src="./app.js?v=23" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -26,7 +26,7 @@
       <span id="roundPill" class="round-pill">LOBBY</span>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.1.4</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.1.5</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -81,13 +81,28 @@
       <h1>Those Gathered</h1>
       <p class="muted">The houses are assembling. Here are the players who have joined or are joining.</p>
       <p class="room-pin-line">Room PIN <strong id="lobbyRoomPin">——</strong><span>Share this with your players.</span></p>
-      <button id="lobbyChangeHouseButton" class="button button-quiet button-small" type="button" data-action="lobby-change-house" hidden>Change house</button>
       <p id="lobbySettings" class="lobby-settings muted small-text"></p>
       <div class="lobby-roster-wrap"><div class="section-head"><h2>Players</h2><span id="lobbyCount" class="count-pill">0 players</span></div><div id="lobbyRoster" class="player-roster"></div></div>
+      <button id="addBotButton" class="button button-secondary button-full" type="button" data-action="add-bot" hidden>Add bot</button>
       <button id="startGameButton" class="button button-primary button-full" type="button" hidden>Begin the game <span>→</span></button>
       <p id="lobbyHostNote" class="muted small-text lobby-host-note"></p>
     </section>
   </main>
+
+  <dialog id="lobbyEditMenu" class="lobby-dialog">
+    <p class="eyebrow">YOUR PLAYER</p><h2>What would you like to change?</h2>
+    <button class="button button-secondary button-full" type="button" data-action="edit-menu-name">Change name</button>
+    <button class="button button-secondary button-full" type="button" data-action="edit-menu-house">Change house</button>
+    <button class="button button-quiet button-full" type="button" data-action="close-edit-menu">Cancel</button>
+  </dialog>
+  <dialog id="lobbyNameDialog" class="lobby-dialog">
+    <form id="lobbyNameForm">
+      <p class="eyebrow">YOUR PLAYER</p><h2>Change your name</h2>
+      <label for="lobbyNameInput">Name</label><input id="lobbyNameInput" maxlength="22" minlength="2" required>
+      <button class="button button-primary button-full" type="submit">Save name</button>
+      <button class="button button-quiet button-full" type="button" data-action="close-name-dialog">Cancel</button>
+    </form>
+  </dialog>
 
   <main id="kingSelectionScreen" class="realm-screen" hidden>
     <section class="realm-card panel king-selection-card">
@@ -118,6 +133,12 @@
     <section class="welcome-strip panel">
       <div><p class="eyebrow" id="phaseEyebrow">THE COUNCIL</p><h1 id="phaseTitle">The Great Houses</h1><p id="phaseDescription" class="muted">Choose your house to begin.</p></div>
       <div id="hostControls" class="host-controls"></div>
+    </section>
+
+    <section class="panel map-panel" aria-labelledby="realmMapTitle">
+      <div class="section-head"><div><p class="panel-kicker">THE SEVEN KINGDOMS</p><h2 id="realmMapTitle">Westeros</h2></div><span class="subtle-label">House capitals</span></div>
+      <div class="realm-map-scroll"><img class="westeros-map" src="https://mapofwesteros.com/downloads/map-of-westeros.svg" alt="Map of Westeros with its castles and cities, including the playable houses’ capitals"></div>
+      <p class="map-caption">Map artwork by <a href="https://mapofwesteros.com/about/" target="_blank" rel="noopener">Map of Westeros</a> · shown with attribution for non-commercial use.</p>
     </section>
 
     <div class="dashboard-grid">

@@ -191,18 +191,30 @@ function addEvent(kind, text) {
   events.unshift({ id: randomUUID(), round, kind, text: String(text).slice(0, 400) });
   if (events.length > 80) events.length = 80;
 }
-function connectedPlayers() { return [...players.values()].filter(p => p.connected); }
-function eligiblePlayers() { return [...players.values()].filter(p => p.connected && p.houseId); }
+function connectedPlayers() { return [...players.values()].filter(p => p.connected && !p.left); }
+function eligiblePlayers() { return [...players.values()].filter(p => p.connected && !p.left && p.houseId); }
+function runBotTurns() {
+  for (const bot of players.values()) {
+    if (!bot.isBot || bot.left || !bot.houseId) continue;
+    const house = findHouse(bot.houseId);
+    if (!house || house.lockedUntilRound >= round) continue;
+    const amount = Math.min(2, Math.floor(house.money / house.infantryCost));
+    if (amount < 1) continue;
+    house.money -= amount * house.infantryCost;
+    house.infantry += amount;
+    addEvent('normal', `${bot.username} recruited ${amount} infantry for House ${house.name}.`);
+  }
+}
 function recalculateCapitalCounts() {
   for (const h of houses) h.capitalCount = capitals.filter(c => c.ownerHouseId === h.id).length;
 }
 function playerPublic(p) {
-  return { id: p.id, username: p.username, connected: p.connected, houseId: p.houseId, isKing: p.id === kingPlayerId, isHand: p.id === handPlayerId };
+  return { id: p.id, username: p.username, connected: p.connected, left: Boolean(p.left), isBot: Boolean(p.isBot), houseId: p.houseId, isKing: p.id === kingPlayerId, isHand: p.id === handPlayerId };
 }
 function currentHouseView(h) {
   if (!h) return null;
   const { money, infantry, navy, dragons, infantryCost, navyCost, pendingAttack, hasAttackedThisRound, commandUsedRound, lockedUntilRound, spyReports, ...definition } = h;
-  const members = [...players.values()].filter(p => p.houseId === h.id).map(p => ({ id: p.id, username: p.username, connected: p.connected }));
+  const members = [...players.values()].filter(p => p.houseId === h.id).map(p => ({ id: p.id, username: p.username, connected: p.connected, left: Boolean(p.left) }));
   return { ...definition, players: members, capitalCount: capitals.filter(c => c.ownerHouseId === h.id).length };
 }
 function makePrivateHouseView(h) {
@@ -369,9 +381,9 @@ io.on('connection', socket => {
         if (!hostId && roomOwners.get(roomCode) !== token) return fail('Waiting for the host to enter the game. Try again in a moment.');
         if (hostId && !gameSettings.configured) return fail('The host is setting up the game. Try joining again in a moment.');
         if (phase !== 'LOBBY') return fail('This game has already started.');
-        if (gameSettings.configured && players.size >= gameSettings.maxPlayers) return fail('This game is full.');
+        if (gameSettings.configured && [...players.values()].filter(existing => !existing.left).length >= gameSettings.maxPlayers) return fail('This game is full.');
         playerId = randomUUID();
-        player = { id: playerId, username: name, token, houseId: null, vote: null, lastSpyRound: 0, connected: true, socketId: socket.id };
+        player = { id: playerId, username: name, token, houseId: null, vote: null, lastSpyRound: 0, connected: true, left: false, socketId: socket.id };
         players.set(playerId, player);
         tokenToPlayerId.set(token, playerId);
         isNew = true;
@@ -380,6 +392,7 @@ io.on('connection', socket => {
       } else {
         player.username = name;
         player.connected = true;
+        player.left = false;
         player.socketId = socket.id;
         if (player.houseId && phase === 'LOBBY') {
           const h = findHouse(player.houseId);
@@ -403,6 +416,7 @@ io.on('connection', socket => {
       const player = getPlayerForSocket(socket);
       if (player && player.socketId === socket.id) {
         player.connected = false;
+        player.left = true;
         player.socketId = null;
         hostSignedOut = player.id === hostId;
       }
@@ -438,7 +452,7 @@ io.on('connection', socket => {
     if (phase !== 'LOBBY') return fail('House selection is closed after the lobby.');
     const h = findHouse(String(payload.houseId || '')); if (!h) return fail('That house does not exist.');
     if (h.type === 'minor' && Number(gameSettings.maxPlayers) < 7) return fail('Minor houses unlock when the host sets a player limit of 7 or more.');
-    if (h.type === 'minor' && [...players.values()].some(p => p.houseId === h.id && p.id !== player.id)) return fail('That minor house has already been claimed.');
+    if (h.type === 'minor' && [...players.values()].some(p => !p.left && p.houseId === h.id && p.id !== player.id)) return fail('That minor house has already been claimed.');
     const previous = player.houseId;
     player.houseId = h.id;
     player.vote = null;
@@ -453,11 +467,42 @@ io.on('connection', socket => {
     const maxPlayers = Number(payload.maxPlayers);
     const gameType = String(payload.gameType || '');
     if (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 16) return fail('Choose a player limit from 2 to 16.');
-    if (maxPlayers < players.size) return fail(`The player limit cannot be lower than the ${players.size} players already joined.`);
+    const activeCount = [...players.values()].filter(existing => !existing.left).length;
+    if (maxPlayers < activeCount) return fail(`The player limit cannot be lower than the ${activeCount} players already joined.`);
     if (!['CLASSIC', 'LAST_DRAGON'].includes(gameType)) return fail('Choose Classic or Last Dragon.');
     gameSettings = { configured: true, maxPlayers, gameType };
     addEvent('important', `The host set up a ${gameType === 'LAST_DRAGON' ? 'Last Dragon' : 'Classic'} game for ${maxPlayers} players.`);
     return ok('Game setup saved. The hall is open.');
+  });
+
+  action(socket, 'edit-player-name', (player, payload) => {
+    const check = requirePlayer(player); if (check.ok === false) return check;
+    if (phase !== 'LOBBY') return fail('Names can only be changed in the lobby.');
+    const name = String(payload.username || '').trim().replace(/\s+/g, ' ');
+    if (name.length < 2 || name.length > 22) return fail('Name must be between 2 and 22 characters.');
+    player.username = name;
+    return ok('Your name has been updated.');
+  });
+
+  action(socket, 'add-bot', (player) => {
+    const check = requirePlayer(player); if (check.ok === false) return check;
+    if (!isHost(player)) return fail('Only the host can add a bot.');
+    if (phase !== 'LOBBY') return fail('Bots can only be added in the lobby.');
+    if (!gameSettings.configured) return fail('Finish game setup before adding bots.');
+    if ([...players.values()].filter(existing => !existing.left).length >= gameSettings.maxPlayers) return fail('The game is full.');
+    const botNumber = [...players.values()].filter(existing => existing.isBot).length + 1;
+    const activeMembers = houseId => [...players.values()].filter(existing => !existing.left && existing.houseId === houseId);
+    let house;
+    if (activeMembers('baratheon').length === 0) house = findHouse('baratheon');
+    else {
+      const openMinor = Number(gameSettings.maxPlayers) >= 7 && houses.find(candidate => candidate.type === 'minor' && activeMembers(candidate.id).length === 0);
+      if (openMinor) house = openMinor;
+      else house = [...houses].filter(candidate => candidate.type === 'major').sort((a, b) => activeMembers(a.id).length - activeMembers(b.id).length)[0];
+    }
+    const bot = { id: randomUUID(), username: `Bot ${botNumber}`, token: `bot-${randomUUID()}`, houseId: house.id, vote: null, lastSpyRound: 0, connected: true, left: false, isBot: true, socketId: null };
+    players.set(bot.id, bot);
+    addEvent('normal', `${bot.username} joined House ${house.name}.`);
+    return ok(`${bot.username} joined the lobby as House ${house.name}.`);
   });
 
   action(socket, 'start-game', player => {
@@ -466,11 +511,23 @@ io.on('connection', socket => {
     if (phase !== 'LOBBY') return fail('The game has already left the lobby.');
     if (!gameSettings.configured) return fail('The host must finish game setup first.');
     const connected = connectedPlayers();
-    if (!connected.length) return fail('At least one connected player must choose a house first.');
+    if (connected.length < 2) return fail('At least two players are needed so the king can appoint a Hand.');
     if (connected.some(p => !p.houseId)) return fail('Everyone connected must choose a house before the game begins.');
     const baratheons = connected.filter(p => p.houseId === 'baratheon');
-    if (!baratheons.length) return fail('At least one connected player must join House Baratheon to receive its first-king buff.');
+    if (!baratheons.length) return fail('A connected player or bot must join House Baratheon to receive its first-king buff.');
     kingPlayerId = baratheons[randomInt(0, baratheons.length - 1)].id;
+    const king = players.get(kingPlayerId);
+    if (king?.isBot) {
+      const candidates = connected.filter(candidate => candidate.id !== king.id);
+      handPlayerId = candidates[randomInt(0, candidates.length - 1)].id;
+      phase = 'ACTION';
+      round = 1;
+      for (const h of houses) h.hasAttackedThisRound = false;
+      runBotTurns();
+      addEvent('important', `${king.username} appointed ${players.get(handPlayerId).username} as Hand of the King.`);
+      addEvent('important', 'Round 1 begins. The game is underway.');
+      return ok(`${king.username} appointed the Hand of the King. Round 1 begins.`);
+    }
     handPlayerId = null;
     phase = 'HAND_SELECTION';
     runoff = false;
@@ -489,11 +546,13 @@ io.on('connection', socket => {
     const target = players.get(targetId);
     if (!target) return fail('Choose a player who has joined this game.');
     if (target.id === player.id) return fail('The king cannot appoint themself as the Hand of the King.');
+    if (target.left) return fail('Choose a player who has not left the game.');
     handPlayerId = target.id;
     addEvent('important', `${player.username} appointed ${target.username} as Hand of the King.`);
     phase = 'ACTION';
     round = 1;
     for (const h of houses) h.hasAttackedThisRound = false;
+    runBotTurns();
     addEvent('important', 'Round 1 begins. The game is underway.');
     return ok(`${target.username} is the Hand of the King. Round 1 begins.`);
   });
@@ -672,6 +731,7 @@ io.on('connection', socket => {
         const owned = capitals.filter(c => c.ownerHouseId === h.id).length;
         h.money += owned * (5 + (h.id === 'tyrell' ? 2 : 0));
       }
+      runBotTurns();
       addEvent('important', `Round ${round} begins. Houses received income from their controlled capitals.`);
       return ok(`Round ${round} has begun. Capital income has been paid.`);
     }
