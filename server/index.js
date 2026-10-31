@@ -243,7 +243,7 @@ function viewFor(playerId) {
     houses: houses.map(currentHouseView),
     players: [...players.values()].map(playerPublic),
     capitals: capitals.map(c => ({ ...c })),
-    minorHousesUnlocked: players.size >= 7,
+    minorHousesUnlocked: Number(gameSettings.maxPlayers) >= 7,
     voteCandidates,
     votesCast: voterIds.filter(id => players.get(id)?.vote).length,
     voteTotal: voterIds.length,
@@ -437,7 +437,7 @@ io.on('connection', socket => {
     const check = requirePlayer(player); if (check.ok === false) return check;
     if (phase !== 'LOBBY') return fail('House selection is closed after the lobby.');
     const h = findHouse(String(payload.houseId || '')); if (!h) return fail('That house does not exist.');
-    if (h.type === 'minor' && players.size < 7) return fail('Minor houses unlock when 7 players have joined.');
+    if (h.type === 'minor' && Number(gameSettings.maxPlayers) < 7) return fail('Minor houses unlock when the host sets a player limit of 7 or more.');
     if (h.type === 'minor' && [...players.values()].some(p => p.houseId === h.id && p.id !== player.id)) return fail('That minor house has already been claimed.');
     const previous = player.houseId;
     player.houseId = h.id;
@@ -488,6 +488,7 @@ io.on('connection', socket => {
     const targetId = String(payload.playerId || '');
     const target = players.get(targetId);
     if (!target) return fail('Choose a player who has joined this game.');
+    if (target.id === player.id) return fail('The king cannot appoint themself as the Hand of the King.');
     handPlayerId = target.id;
     addEvent('important', `${player.username} appointed ${target.username} as Hand of the King.`);
     phase = 'ACTION';

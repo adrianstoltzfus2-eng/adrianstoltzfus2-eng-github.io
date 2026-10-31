@@ -10,6 +10,7 @@
   let pickedHouse = null;
   let preparingHost = false;
   let showHostSetup = false;
+  let changingLobbyHouse = false;
   let gameCode = localStorage.getItem(roomCodeKey)?.toUpperCase() || '';
   try { pickedHouse = JSON.parse(localStorage.getItem(pickedHouseKey) || 'null'); } catch { pickedHouse = null; }
   const hashHouse = /^#house=([a-z\-]{2,40})$/i.exec(location.hash);
@@ -134,6 +135,8 @@
     const setup = state.settings || { maxPlayers: 16, gameType: 'CLASSIC' };
     const gameTypeLabel = setup.gameType === 'LAST_DRAGON' ? 'Last Dragon · rules coming later' : 'Classic';
     $('lobbySettings').textContent = `${gameTypeLabel} · ${state.players.length} of ${setup.maxPlayers} players`;
+    const canChangeHouse = state.phase === 'LOBBY' && state.houses.some(h => h.id !== state.me.houseId && (h.type !== 'minor' || Number(setup.maxPlayers) >= 7) && (h.type !== 'minor' || !h.players.some(p => p.id !== state.me.id)));
+    $('lobbyChangeHouseButton').hidden = !canChangeHouse;
     $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
       const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
@@ -154,11 +157,12 @@
     $('handSelectionForm').hidden = !state.isKing;
     $('kingWaitingMessage').hidden = state.isKing;
     $('kingWaitingMessage').textContent = `${king?.username || 'The king'} is choosing the Hand of the King. The game will begin when the appointment is made.`;
-    $('handPlayerSelect').innerHTML = '<option value="" disabled selected>Choose a player</option>' + state.players.map(player => {
+    const candidates = state.players.filter(player => player.id !== state.me?.id);
+    $('handPlayerSelect').innerHTML = '<option value="" disabled selected>Choose a player</option>' + candidates.map(player => {
       const playerHouse = state.houses.find(item => item.id === player.houseId);
       return `<option value="${escapeHtml(player.id)}">${escapeHtml(player.username)}${playerHouse ? ` · House ${escapeHtml(playerHouse.name)}` : ''}${player.connected ? '' : ' · reconnecting'}</option>`;
     }).join('');
-    $('handPlayerSelect').disabled = !state.players.length;
+    $('handPlayerSelect').disabled = !candidates.length;
     $('handSelectionForm').querySelector('button').disabled = true;
   }
 
@@ -297,8 +301,8 @@
   function updateScreens() {
     const loggedIn = Boolean(state?.me);
     const hostSetup = showHostSetup || (loggedIn && state?.phase === 'LOBBY' && state.isHost && !state.settings?.configured);
-    const showThrone = !loggedIn && (!gameCode || !pickedHouse);
-    const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup;
+    const showThrone = changingLobbyHouse || (!loggedIn && (!gameCode || !pickedHouse));
+    const waiting = loggedIn && state?.phase === 'LOBBY' && !hostSetup && !changingLobbyHouse;
     const inGame = loggedIn && state?.phase !== 'LOBBY' && state?.phase !== 'HAND_SELECTION';
     $('throneScreen').hidden = !showThrone;
     $('loginScreen').hidden = loggedIn || !gameCode || showThrone;
@@ -332,12 +336,13 @@
     const frame = $('throneFrame');
     if (!frame?.contentWindow || !state?.houses) return;
     const houses = state.houses.map(h => {
-      const locked = h.type === 'minor' && !state.minorHousesUnlocked;
+      const unlocked = Number(state.settings?.maxPlayers) >= 7;
+      const locked = h.type === 'minor' && !unlocked;
       const claimed = h.type === 'minor' && h.players.length > 0 && !h.players.some(p => p.id === state.me?.id);
       return {
         id: h.id, name: h.name, motto: h.motto, color: h.color,
         status: locked ? 'locked' : claimed ? 'claimed' : 'open',
-        note: locked ? `Minor house · unlocks at 7 players (${state.players.length}/7)` : claimed ? 'Already claimed by another player' : h.type === 'major' ? `Major house · ${h.players.length} sworn` : 'Minor house · one player only'
+        note: locked ? `Minor house · host must set the player limit to 7 or more (${state.settings?.maxPlayers || 0}/7)` : claimed ? 'Already claimed by another player' : h.type === 'major' ? `Major house · ${h.players.length} sworn` : 'Minor house · one player only'
       };
     });
     frame.contentWindow.postMessage({ type: 'iron-throne:houses', houses }, location.origin === 'null' ? '*' : location.origin);
@@ -490,6 +495,7 @@
     }
     if (event.data.type === 'iron-throne:pick' && typeof event.data.house === 'string') {
       setPickedHouse({ key: normHouse(event.data.house).slice(0, 40), name: String(event.data.name || event.data.house).slice(0, 60) });
+      if (state?.me) changingLobbyHouse = false;
       render();
     }
   });
@@ -555,6 +561,15 @@
       $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
       sendHousesToThrone();
       render();
+      return;
+    }
+    if (action === 'lobby-change-house') {
+      changingLobbyHouse = true;
+      setPickedHouse(null);
+      $('throneFrame')?.contentWindow?.postMessage({ type: 'iron-throne:reset' }, location.origin === 'null' ? '*' : location.origin);
+      transitionThrone('house');
+      render();
+      sendHousesToThrone();
       return;
     }
     if (action === 'select-house') emitAction('select-house', { houseId: button.dataset.houseId });

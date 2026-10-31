@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="./style.css?v=21">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=21" defer></script>
+  <script src="./app.js?v=22" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -26,7 +26,7 @@
       <span id="roundPill" class="round-pill">LOBBY</span>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.1.3</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.1.4</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -81,6 +81,7 @@
       <h1>Those Gathered</h1>
       <p class="muted">The houses are assembling. Here are the players who have joined or are joining.</p>
       <p class="room-pin-line">Room PIN <strong id="lobbyRoomPin">——</strong><span>Share this with your players.</span></p>
+      <button id="lobbyChangeHouseButton" class="button button-quiet button-small" type="button" data-action="lobby-change-house" hidden>Change house</button>
       <p id="lobbySettings" class="lobby-settings muted small-text"></p>
       <div class="lobby-roster-wrap"><div class="section-head"><h2>Players</h2><span id="lobbyCount" class="count-pill">0 players</span></div><div id="lobbyRoster" class="player-roster"></div></div>
       <button id="startGameButton" class="button button-primary button-full" type="button" hidden>Begin the game <span>→</span></button>
@@ -130,7 +131,7 @@
       <section class="center-column">
         <section id="lobbyPanel" class="panel section-panel">
           <div class="section-head"><div><p class="panel-kicker">FIRST COME, FIRST SERVED</p><h2>Choose your house</h2></div><span class="subtle-label">House selection</span></div>
-          <p class="muted section-intro">Major houses can have multiple players. Minor houses unlock once more than six players have joined and can only be claimed by one player.</p>
+          <p class="muted section-intro">Major houses can have multiple players. Minor houses unlock when the host sets the player limit to at least seven and can only be claimed by one player.</p>
           <div id="housePicker" class="house-picker"></div>
           <div class="lobby-footer"><div id="lobbyStatus" class="muted small-text">Waiting for players…</div><div id="lobbyPlayerList" class="lobby-player-list"></div></div>
         </section>
