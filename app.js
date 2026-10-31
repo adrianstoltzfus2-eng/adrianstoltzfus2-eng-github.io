@@ -133,6 +133,18 @@
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
 
+  // Why `house` can't be taken by player `excludeId` right now (null = available). Mirrors the server rules.
+  function minorHouseReason(house, excludeId) {
+    if (house.type !== 'minor') return null;
+    const maxPlayers = Number(state.settings?.maxPlayers);
+    if (maxPlayers < 7) return `Minor house · host must set the player limit to 7 or more (${maxPlayers || 0}/7)`;
+    if (house.players.some(p => !p.left && p.id !== excludeId)) return 'Already claimed by another player';
+    const slots = maxPlayers - 6;
+    const taken = state.players.filter(p => !p.left && p.id !== excludeId && state.houses.find(h => h.id === p.houseId)?.type === 'minor').length;
+    if (taken >= slots) return `All ${slots} minor-house place${slots === 1 ? '' : 's'} taken (one per player above 6)`;
+    return null;
+  }
+
   function renderWaitingRoom() {
     if (!state?.me) return;
     $('lobbyRoomPin').textContent = gameCode || '——';
@@ -142,9 +154,11 @@
     const setup = state.settings || { maxPlayers: 16, gameType: 'CLASSIC' };
     const gameTypeLabel = setup.gameType === 'LAST_DRAGON' ? 'Last Dragon · rules coming later' : 'Classic';
     $('lobbySettings').textContent = `${gameTypeLabel} · ${activePlayers.length} of ${setup.maxPlayers} players`;
-    lobbyCanChangeHouse = state.phase === 'LOBBY' && state.houses.some(h => h.id !== state.me.houseId && (h.type !== 'minor' || Number(setup.maxPlayers) >= 7) && (h.type !== 'minor' || !h.players.some(p => !p.left && p.id !== state.me.id)));
+    lobbyCanChangeHouse = state.phase === 'LOBBY' && state.houses.some(h => h.id !== state.me.houseId && !minorHouseReason(h, state.me.id));
     document.querySelector('[data-action="edit-menu-house"]').disabled = !lobbyCanChangeHouse;
-    $('lobbyRoster').innerHTML = state.players.length ? state.players.map(p => {
+    const houseRank = id => { const i = state.houses.findIndex(h => h.id === id); return i < 0 ? state.houses.length : i; };
+    const lobbyOrder = [...state.players].sort((a, b) => houseRank(a.houseId) - houseRank(b.houseId));
+    $('lobbyRoster').innerHTML = lobbyOrder.length ? lobbyOrder.map(p => {
       const house = state.houses.find(h => h.id === p.houseId);
       const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
       const status = p.isBot ? 'Bot player' : p.left ? 'Left the game' : p.connected ? 'Connected' : 'Reconnecting';
@@ -160,8 +174,14 @@
     $('addBotButton').hidden = !canStart;
     $('addBotButton').disabled = !canAddBot;
     $('startGameButton').hidden = !canStart;
-    $('startGameButton').disabled = canStart && (!hasBaratheon || activePlayers.filter(p => p.connected).length < 2);
-    $('lobbyHostNote').textContent = canStart ? (hasBaratheon ? 'As server owner, begin when everyone is ready.' : 'A connected player or bot must join House Baratheon to receive its first-king buff.') : 'The server owner will begin the game when everyone is ready.';
+    const connectedPlayers = activePlayers.filter(p => p.connected);
+    const hasMinor = connectedPlayers.some(p => state.houses.find(h => h.id === p.houseId)?.type === 'minor');
+    const thinMajors = hasMinor ? state.houses.filter(h => h.type === 'major' && connectedPlayers.filter(p => p.houseId === h.id).length < 2).map(h => h.name) : [];
+    $('startGameButton').disabled = canStart && (!hasBaratheon || connectedPlayers.length < 2 || thinMajors.length > 0);
+    $('lobbyHostNote').textContent = !canStart ? 'The server owner will begin the game when everyone is ready.'
+      : !hasBaratheon ? 'A connected player or bot must join House Baratheon to receive its first-king buff.'
+      : thinMajors.length ? `With minor houses in play, every major house needs at least 2 players. Still short: ${thinMajors.join(', ')}.`
+      : 'As server owner, begin when everyone is ready.';
   }
 
   function renderKingSelection() {
@@ -351,13 +371,13 @@
     const frame = $('throneFrame');
     if (!frame?.contentWindow || !state?.houses) return;
     const houses = state.houses.map(h => {
-      const unlocked = Number(state.settings?.maxPlayers) >= 7;
-      const locked = h.type === 'minor' && !unlocked;
-      const claimed = h.type === 'minor' && h.players.some(p => !p.left && p.id !== state.me?.id);
+      const reason = minorHouseReason(h, state.me?.id);
+      const locked = Boolean(reason) && reason !== 'Already claimed by another player';
+      const claimed = reason === 'Already claimed by another player';
       return {
         id: h.id, name: h.name, motto: h.motto, color: h.color,
         status: locked ? 'locked' : claimed ? 'claimed' : 'open',
-        note: locked ? `Minor house · host must set the player limit to 7 or more (${state.settings?.maxPlayers || 0}/7)` : claimed ? 'Already claimed by another player' : h.type === 'major' ? `Major house · ${h.players.length} sworn` : 'Minor house · one player only'
+        note: reason || (h.type === 'major' ? `Major house · ${h.players.length} sworn` : 'Minor house · one player only')
       };
     });
     frame.contentWindow.postMessage({ type: 'iron-throne:houses', houses }, location.origin === 'null' ? '*' : location.origin);
@@ -387,10 +407,9 @@
     const bot = state?.players?.find(p => p.id === botId && p.isBot);
     if (!bot) return;
     editingBotId = botId;
-    const maxPlayers = Number(state.settings?.maxPlayers);
     $('botNameInput').value = bot.username;
     $('botHouseSelect').innerHTML = state.houses.map(h => {
-      const unavailable = h.type === 'minor' && (maxPlayers < 7 || h.players.some(p => !p.left && p.id !== bot.id));
+      const unavailable = Boolean(minorHouseReason(h, bot.id));
       return `<option value="${escapeHtml(h.id)}" ${unavailable ? 'disabled' : ''}>${escapeHtml(h.name)}${h.type === 'minor' ? ' · Minor' : ''}</option>`;
     }).join('');
     $('botHouseSelect').value = bot.houseId;
