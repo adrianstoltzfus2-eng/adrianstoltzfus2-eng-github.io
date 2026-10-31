@@ -222,7 +222,12 @@ function recalculateCapitalCounts() {
 function playerPublic(p) {
   return { id: p.id, username: p.username, connected: p.connected, left: Boolean(p.left), isBot: Boolean(p.isBot), houseId: p.houseId, isKing: p.id === kingPlayerId, isHand: p.id === handPlayerId };
 }
-function incomePerCapital(h) { return 5 + (h.id === 'tyrell' ? 2 : 0); }
+function incomePerCapital(h) { return 15 + (h.id === 'tyrell' ? 3 : 0); }
+function armySize(h) { return h.infantry + h.navy + h.dragons; }
+function spyOdds(spend, targetId) {
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  return { success: clamp(0.30 + 0.045 * (spend - 2) - (targetId === 'targaryen' ? 0.15 : 0), 0.05, 0.95), caught: clamp(0.60 - 0.035 * (spend - 2), 0.05, 0.60) };
+}
 function houseIncome(h) { return capitals.filter(c => c.ownerHouseId === h.id).length * incomePerCapital(h); }
 function currentHouseView(h) {
   if (!h) return null;
@@ -236,7 +241,7 @@ function makePrivateHouseView(h) {
   return {
     id: h.id, name: h.name, money: h.money, infantry: h.infantry, navy: h.navy, dragons: h.dragons,
     infantryCost: h.infantryCost, navyCost: h.navyCost,
-    capitalCount: capitals.filter(c => c.ownerHouseId === h.id).length, incomePerCapital: incomePerCapital(h), incomePerRound: houseIncome(h),
+    capitalCount: capitals.filter(c => c.ownerHouseId === h.id).length, incomePerCapital: incomePerCapital(h), incomePerRound: houseIncome(h), upkeepPerRound: armySize(h),
     pendingAttack: h.pendingAttack ? {
       ...h.pendingAttack,
       targetName: target?.name || h.pendingAttack.targetName,
@@ -704,21 +709,25 @@ io.on('connection', socket => {
     if (player.lastSpyRound === round) return fail('You have already sent spies this round.');
     const target = findHouse(String(payload.targetHouseId || ''));
     if (!target || target.id === h.id) return fail('Choose another house as your target.');
-    if (h.money < 8) return fail('A spy mission costs 8 gold.');
-    h.money -= 8;
-    note(h, 'gold', -8, `Spy mission against House ${target.name}`);
+    const spend = Number(payload.spend ?? 8);
+    if (!Number.isInteger(spend) || spend < 2 || spend > 20) return fail('Spend between 2 and 20 gold on a spy mission.');
+    if (h.money < spend) return fail(`You chose to spend ${spend} gold, but your house only has ${h.money}.`);
+    h.money -= spend;
+    note(h, 'gold', -spend, `Spy mission against House ${target.name}`);
     player.lastSpyRound = round;
-    const successChance = target.id === 'targaryen' ? 0.48 : 0.65;
-    const success = Math.random() < successChance;
+    const odds = spyOdds(spend, target.id);
+    const success = Math.random() < odds.success;
+    const caught = !success && Math.random() < odds.caught;
     const pendingCapital = target.pendingAttack ? findCapital(target.pendingAttack.targetCapitalId) : null;
     const report = {
-      id: randomUUID(), targetHouseId: target.id, targetName: target.name, round, success,
+      id: randomUUID(), targetHouseId: target.id, targetName: target.name, round, success, caught, spent: spend,
       ...(success ? { infantry: target.infantry, navy: target.navy, dragons: target.dragons, pendingTarget: pendingCapital?.name || null } : {})
     };
     h.spyReports.unshift(report);
     if (h.spyReports.length > 15) h.spyReports.length = 15;
-    addEvent('normal', `House ${h.name} sent spies toward House ${target.name}.`);
-    return ok(success ? `Your spies returned with intelligence from House ${target.name}.` : `Your spy mission against House ${target.name} failed.`);
+    addEvent('normal', caught ? `Spies were caught in House ${target.name}'s halls.` : `House ${h.name} sent spies toward House ${target.name}.`);
+    if (caught) notify('spy-caught', [target.id], [], 'Spies caught', `Agents of House ${capWord(h.name)} were caught spying on your house.`, [h.id, target.id]);
+    return ok(caught ? `Your spies were captured. House ${target.name} knows it was you.` : success ? `Your spies returned with intelligence from House ${target.name}.` : `Your spy mission against House ${target.name} failed.`);
   });
 
   action(socket, 'plan-attack', (player, payload) => {
@@ -982,10 +991,28 @@ io.on('connection', socket => {
         h.hasAttackedThisRound = false;
         h.money += houseIncome(h);
         note(h, 'gold', houseIncome(h), 'Capital income');
+        // Army upkeep: 1 gold per unit, taken automatically. Unpaid troops desert.
+        const due = armySize(h);
+        const paid = Math.min(due, h.money);
+        h.money -= paid;
+        note(h, 'gold', -paid, `Army upkeep (${due} units)`);
+        let short = due - paid;
+        if (short > 0) {
+          const deserted = [];
+          for (const k of ['infantry', 'navy', 'dragons']) {
+            const take = Math.min(h[k], short);
+            if (!take) continue;
+            h[k] -= take; short -= take;
+            note(h, k, -take, 'Deserted: upkeep unpaid');
+            deserted.push(`${take} ${k}`);
+          }
+          notify('desertion', [h.id], [], 'Troops deserted', `House ${capWord(h.name)} could not pay its army. ${deserted.join(', ')} left the banners.`, [h.id]);
+          addEvent('normal', `Unpaid troops deserted House ${h.name}.`);
+        }
       }
       runBotTurns();
-      addEvent('important', `Round ${round} begins. Houses received income from their controlled capitals.`);
-      return ok(`Round ${round} has begun. Capital income has been paid.`);
+      addEvent('important', `Round ${round} begins. Houses received capital income and paid army upkeep.`);
+      return ok(`Round ${round} has begun. Capital income and army upkeep have been settled.`);
     }
     return fail('Use the election controls to leave the lobby or close the ballot.');
   });

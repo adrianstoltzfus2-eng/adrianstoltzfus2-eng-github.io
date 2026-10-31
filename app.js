@@ -392,10 +392,27 @@
     $('attackOrderStatus').textContent = state.round < 2 ? 'Attacks unlock after Round 1.' : house.pendingAttack ? `Committed against ${house.pendingAttack.targetName}; resolves after Round ${house.pendingAttack.resolveRound}.${allyNote}` : house.hasAttackedThisRound ? 'Your house is already committed to a war this round.' : 'The target and committed forces stay secret until the attack resolves. A winning pair of allies split the plunder.';
     updateAttackLock();
     updateRecruitButton();
-    const spyReason = state.phase !== 'ACTION' ? 'Spies can only be sent during the action phase.' : state.me.lastSpyRound === state.round ? 'You have already sent spies this round.' : house.money < 8 ? `A spy mission costs 8 gold, but your house only has ${house.money}.` : '';
-    lock($('spyForm').querySelector('button'), spyReason);
-    $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(r => r.success ? `<article class="spy-report"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · successful</span></div><p>${r.infantry} infantry · ${r.navy} ships · ${r.dragons} dragons</p>${r.pendingTarget ? `<small>Possible planned attack: ${escapeHtml(r.pendingTarget)}</small>` : '<small>No pending attack seen.</small>'}</article>` : `<article class="spy-report spy-failed"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · failed</span></div><p>Your agents returned without reliable force estimates.</p></article>`).join('')}` : '';
+    updateSpyForm();
+    $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(r => r.success ? `<article class="spy-report"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · successful${r.spent ? ` · ${r.spent} gold` : ''}</span></div><p>${r.infantry} infantry · ${r.navy} ships · ${r.dragons} dragons</p>${r.pendingTarget ? `<small>Possible planned attack: ${escapeHtml(r.pendingTarget)}</small>` : '<small>No pending attack seen.</small>'}</article>` : `<article class="spy-report spy-failed"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · ${r.caught ? 'caught' : 'failed'}${r.spent ? ` · ${r.spent} gold` : ''}</span></div><p>${r.caught ? 'Your agents were captured. The enemy knows who sent them.' : 'Your agents returned without reliable force estimates.'}</p></article>`).join('')}` : '';
   }
+
+  function spyOddsFor(spend, targetId) {
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    return { success: clamp(0.30 + 0.045 * (spend - 2) - (targetId === 'targaryen' ? 0.15 : 0), 0.05, 0.95), caught: clamp(0.60 - 0.035 * (spend - 2), 0.05, 0.60) };
+  }
+  function updateSpyForm() {
+    const house = state?.myHouse;
+    if (!house) return;
+    const spend = Number($('spyGold').value);
+    const valid = Number.isInteger(spend) && spend >= 2 && spend <= 20;
+    if (valid) {
+      const o = spyOddsFor(spend, $('spyTarget').value);
+      $('spyOdds').textContent = `Chance of success about ${Math.round(o.success * 100)}%. If they fail, about ${Math.round(o.caught * 100)}% are caught and expose you.`;
+    } else $('spyOdds').textContent = 'Spend between 2 and 20 gold.';
+    lock($('spyForm').querySelector('button'), state.phase !== 'ACTION' ? 'Spies can only be sent during the action phase.' : state.me.lastSpyRound === state.round ? 'You have already sent spies this round.' : !valid ? 'Spend a whole number of gold between 2 and 20.' : house.money < spend ? `You chose to spend ${spend} gold, but your house only has ${house.money}.` : '');
+  }
+  $('spyGold').addEventListener('input', updateSpyForm);
+  $('spyTarget').addEventListener('change', updateSpyForm);
 
   function updateRecruitButton() {
     const button = $('recruitForm')?.querySelector('button');
@@ -634,7 +651,7 @@
     const total = h.infantry + h.navy + h.dragons;
     // Hub buttons (details are hidden on phones)
     $('hubMoneyGold').textContent = `${h.money} gold`;
-    $('hubMoneyIncome').textContent = `+${h.incomePerRound} gold each round`;
+    $('hubMoneyIncome').textContent = `+${h.incomePerRound} income · −${h.upkeepPerRound} upkeep`;
     $('hubMoneyCapitals').textContent = plural(h.capitalCount, 'capital') + ' held';
     $('hubRelAlliances').textContent = plural(myAlliances, 'alliance');
     $('hubRelOffers').textContent = waiting ? `${plural(waiting, 'offer')} awaiting your reply` : 'No offers waiting';
@@ -644,8 +661,9 @@
     $('hubArmyCosts').textContent = `Recruit: infantry ${h.infantryCost}g · navy ${h.navyCost}g`;
     // Money sheet
     $('moneyGold').textContent = `${h.money} gold`;
-    $('moneyIncome').textContent = `+${h.incomePerRound} gold`;
-    $('moneyIncomeNote').textContent = `${plural(h.capitalCount, 'capital')} × ${h.incomePerCapital} gold, paid when a new round begins.`;
+    $('moneyIncome').textContent = `${h.incomePerRound - h.upkeepPerRound >= 0 ? '+' : '−'}${Math.abs(h.incomePerRound - h.upkeepPerRound)} gold`;
+    $('moneyIncomeNote').textContent = `Net per round: ${plural(h.capitalCount, 'capital')} × ${h.incomePerCapital} = ${h.incomePerRound} income, minus ${h.upkeepPerRound} army upkeep. Paid when a new round begins.`;
+    $('upkeepNote').textContent = `Each unit costs 1 gold per round, taken automatically after income. Your upkeep is ${h.upkeepPerRound} gold a round. If you cannot pay, unpaid troops desert.`;
     const led = h.ledger || [];
     const sum = (res, sign) => led.filter(e => e.res === res && Math.sign(e.delta) === sign).reduce((n, e) => n + Math.abs(e.delta), 0);
     $('ledgerTotals').innerHTML = `<span>Gold in <b class="in">+${sum('gold', 1)}</b></span><span>Gold out <b class="out">−${sum('gold', -1)}</b></span><span>Troops in <b class="in">+${sum('infantry', 1) + sum('navy', 1) + sum('dragons', 1)}</b></span><span>Troops out <b class="out">−${sum('infantry', -1) + sum('navy', -1) + sum('dragons', -1)}</b></span>`;
@@ -915,8 +933,8 @@
     if (!announceShowing) showNextAnnouncement();
   }
   // ---- Event notices: alliances, traitor labels, attacks, battle results ----
-  const NOTICE_LABEL = { alliance: 'ALLIANCE', 'alliance-broken': 'ALLIANCE BROKEN', traitor: 'TRAITOR', attacked: 'UNDER ATTACK', 'battle-won': 'VICTORY', 'battle-lost': 'DEFEAT' };
-  const NOTICE_MID = { alliance: 'game-handshake', 'alliance-broken': 'game-chain', attacked: 'game-swords', 'battle-won': 'game-swords', 'battle-lost': 'game-swords' };
+  const NOTICE_LABEL = { desertion: 'DESERTION', 'spy-caught': 'SPIES CAUGHT', alliance: 'ALLIANCE', 'alliance-broken': 'ALLIANCE BROKEN', traitor: 'TRAITOR', attacked: 'UNDER ATTACK', 'battle-won': 'VICTORY', 'battle-lost': 'DEFEAT' };
+  const NOTICE_MID = { 'spy-caught': 'game-eye', alliance: 'game-handshake', 'alliance-broken': 'game-chain', attacked: 'game-swords', 'battle-won': 'game-swords', 'battle-lost': 'game-swords' };
   const NOTICE_GOOD = new Set(['alliance', 'battle-won']);
   const noticeKey = () => `warOfWesterosNotices:${gameCode}`;
   let seenNoticeIds = null;
@@ -1022,7 +1040,7 @@
       }
     }
     updateRecruitButton();
-    if (state.myHouse) updateAttackLock();
+    if (state.myHouse) { updateAttackLock(); updateSpyForm(); }
     if (wasFocused) {
       const element = $(wasFocused);
       if (element && !element.disabled) {
@@ -1313,7 +1331,7 @@
 
   $('spyForm').addEventListener('submit', event => {
     event.preventDefault();
-    emitAction('spy', { targetHouseId: $('spyTarget').value });
+    emitAction('spy', { targetHouseId: $('spyTarget').value, spend: Number($('spyGold').value) });
   });
 
   $('attackForm').addEventListener('submit', event => {

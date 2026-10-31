@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=33">
+  <link rel="stylesheet" href="./style.css?v=34">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=35" defer></script>
+  <script src="./app.js?v=36" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -39,7 +39,7 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.5.0</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.6.0</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -163,7 +163,7 @@
           <div id="hubMoney" class="hub-pane" hidden>
             <div class="money-grid">
               <article class="money-card"><span id="badgeGold" class="note-badge" hidden></span><span>YOUR GOLD</span><strong id="moneyGold">—</strong><small>Available to spend</small></article>
-              <article class="money-card"><span>INCOME PER ROUND</span><strong id="moneyIncome">—</strong><small id="moneyIncomeNote"></small></article>
+              <article class="money-card"><span>NET PER ROUND</span><strong id="moneyIncome">—</strong><small id="moneyIncomeNote"></small></article>
             </div>
             <div><div class="subsection-title">Ledger · gold &amp; troops in and out</div><div id="ledgerTotals" class="ledger-totals"></div><div id="moneyLedger" class="ledger-list"></div><button id="ledgerToggle" class="button button-quiet button-small" type="button" data-action="toggle-ledger" hidden></button></div>
             <div><div class="subsection-title">Capitals held</div><div id="moneyCapitals" class="event-list"></div></div>
@@ -232,11 +232,11 @@
             <section class="panel section-panel hub-block">
               <div class="section-head"><div><p class="panel-kicker">YOUR FORCES</p><h2>Military &amp; upkeep</h2></div><button class="button button-secondary button-small" type="button" data-action="open-map"><img class="button-icon" src="./assets/game-castle.png?v=2" alt="">Open the map</button></div>
               <table class="upkeep-table"><thead><tr><th>Unit</th><th>Owned</th><th>Recruit cost</th><th>Upkeep / round</th></tr></thead><tbody>
-                <tr><td>Infantry</td><td id="armyInfantry">—</td><td id="armyInfantryCost">—</td><td>0 gold</td></tr>
-                <tr><td>Navy</td><td id="armyNavy">—</td><td id="armyNavyCost">—</td><td>0 gold</td></tr>
-                <tr><td>Dragons</td><td id="armyDragons">—</td><td>Not for sale</td><td>0 gold</td></tr>
+                <tr><td>Infantry</td><td id="armyInfantry">—</td><td id="armyInfantryCost">—</td><td>1 gold</td></tr>
+                <tr><td>Navy</td><td id="armyNavy">—</td><td id="armyNavyCost">—</td><td>1 gold</td></tr>
+                <tr><td>Dragons</td><td id="armyDragons">—</td><td>Not for sale</td><td>1 gold</td></tr>
               </tbody></table>
-              <p class="muted small-text">Military upkeep is not charged yet; it will appear here when it is.</p>
+              <p id="upkeepNote" class="muted small-text"></p>
             </section>
 
         <section id="actionPanel" class="panel section-panel hub-block">
@@ -249,8 +249,10 @@
               <button class="button button-primary button-full" type="submit">Recruit units</button>
             </form>
             <form id="spyForm" class="action-card">
-              <img class="action-icon-image" src="./assets/game-eye.png?v=2" alt=""><h3>Send spies</h3><p class="muted small-text">Costs 8 gold. A successful mission reveals available forces and any pending attack.</p>
+              <img class="action-icon-image" src="./assets/game-eye.png?v=2" alt=""><h3>Send spies</h3><p class="muted small-text">Spend as little as 2 gold. The more you spend, the likelier your spies succeed and the less likely they are caught. Caught spies tell the enemy who sent them. A success reveals forces and any pending attack.</p>
               <label for="spyTarget">Target house</label><select id="spyTarget" required></select>
+              <label for="spyGold">Gold to spend (2–20)</label><input id="spyGold" type="number" min="2" max="20" value="8" inputmode="numeric">
+              <p id="spyOdds" class="muted small-text"></p>
               <button class="button button-secondary button-full" type="submit">Attempt spy mission</button>
             </form>
             <form id="attackForm" class="action-card action-card-wide">
