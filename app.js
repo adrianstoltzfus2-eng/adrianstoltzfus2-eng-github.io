@@ -128,7 +128,7 @@
       const nameEdit = p.id === state.me?.id && state.phase === 'LOBBY' ? '<button class="player-edit-name" type="button" data-action="edit-player" data-edit-kind="name" aria-label="Edit your name">✎</button>' : '';
       const banner = house ? houseBanner(house, 'player-house-banner') : '<span class="player-house-banner player-house-pending" aria-hidden="true">?</span>';
       const houseControl = p.id === state.me?.id && state.phase === 'LOBBY' ? `<button class="lobby-banner-button" type="button" data-action="edit-player" data-edit-kind="house" aria-label="Change your house" ${lobbyCanChangeHouse ? '' : 'disabled'}>${banner}</button>` : banner;
-      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}${p.isHand ? ' <em class="hand-tag">HAND</em>' : ''}${nameEdit}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'} · ${status}</small></div></div>`;
+      return `<div class="player-row ${p.left ? 'player-left' : ''}"><span class="online-dot ${p.connected && !p.left ? 'online' : ''} ${p.isBot ? 'bot-dot' : ''}"></span>${houseControl}<div class="player-row-info"><strong>${escapeHtml(p.username)}${p.isBot ? ' <em class="bot-tag">BOT</em>' : ''}${p.id === state.hostId ? ' <em class="host-tag">HOST</em>' : ''}${p.isKing ? ' <em class="king-tag">KING</em>' : ''}${p.isHand ? ' <em class="hand-tag">HAND</em>' : ''}${p.traitor ? ' <em class="traitor-tag">TRAITOR</em>' : ''}${nameEdit}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house chosen'} · ${status}</small></div></div>`;
     }).join('') : '<p class="muted small-text">No players have joined yet.</p>';
     $('lobbyPlayerList').innerHTML = state.players.map(p => `<span class="mini-player ${p.houseId ? 'assigned' : ''}">${escapeHtml(p.username)}${p.houseId ? ` · ${escapeHtml(prettyHouse(p.houseId))}` : ''}</span>`).join('');
   }
@@ -294,6 +294,71 @@
     $('chatTarget').hidden = $('chatScope').value !== 'secret';
   }
 
+  const HUBS = { money: ['YOUR TREASURY', 'Money', 'hubMoney'], relations: ['COURT & DIPLOMACY', 'Relations', 'hubRelations'], army: ['FORCES & WAR', 'Army', 'hubArmy'] };
+  function openHub(kind) {
+    const cfg = HUBS[kind];
+    if (!cfg) return;
+    $('hubEyebrow').textContent = cfg[0];
+    $('hubTitle').textContent = cfg[1];
+    for (const [key, value] of Object.entries(HUBS)) $(value[2]).hidden = key !== kind;
+    $('hubOverlay').hidden = false;
+    $('hubOverlay').querySelector('.hub-sheet-body').scrollTop = 0;
+    document.body.classList.add('hub-open');
+  }
+  function closeHub() {
+    if ($('hubOverlay').hidden) return;
+    $('hubOverlay').hidden = true;
+    document.body.classList.remove('hub-open');
+  }
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+  function renderHub() {
+    const visible = state.phase === 'ACTION' || state.phase === 'COURT';
+    $('actionHub').hidden = !visible;
+    $('gameScreen').classList.toggle('hub-mode', visible);
+    $('mapToggleButton').hidden = visible;
+    if (!visible) closeHub();
+    const h = state.myHouse;
+    if (!h) return;
+    const myAlliances = (state.alliances || []).filter(a => a.houseA === h.id || a.houseB === h.id).length;
+    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length;
+    const total = h.infantry + h.navy + h.dragons;
+    // Hub buttons (details are hidden on phones)
+    $('hubMoneyGold').textContent = `${h.money} gold`;
+    $('hubMoneyIncome').textContent = `+${h.incomePerRound} gold each round`;
+    $('hubMoneyCapitals').textContent = plural(h.capitalCount, 'capital') + ' held';
+    $('hubRelAlliances').textContent = plural(myAlliances, 'alliance');
+    $('hubRelOffers').textContent = waiting ? `${plural(waiting, 'offer')} awaiting your reply` : 'No offers waiting';
+    $('hubRelRole').textContent = state.isKing ? 'You wear the crown — traitors & taxes' : 'Alliances & secret messages';
+    $('hubArmyTotal').textContent = `${total} units`;
+    $('hubArmyDetail').textContent = `${h.infantry} infantry · ${h.navy} navy · ${h.dragons} dragons`;
+    $('hubArmyCosts').textContent = `Recruit: infantry ${h.infantryCost}g · navy ${h.navyCost}g`;
+    // Money sheet
+    $('moneyGold').textContent = `${h.money} gold`;
+    $('moneyIncome').textContent = `+${h.incomePerRound} gold`;
+    $('moneyIncomeNote').textContent = `${plural(h.capitalCount, 'capital')} × ${h.incomePerCapital} gold, paid when a new round begins.`;
+    const mine = state.capitals.filter(c => c.ownerHouseId === h.id);
+    $('moneyCapitals').innerHTML = mine.length ? mine.map(c => `<div class="resolution-item"><span>+${h.incomePerCapital}</span><p>${escapeHtml(c.name)}</p></div>`).join('') : '<p class="muted small-text">Your house holds no capitals, so it earns no income.</p>';
+    // Army sheet
+    $('armyInfantry').textContent = h.infantry;
+    $('armyNavy').textContent = h.navy;
+    $('armyDragons').textContent = h.dragons;
+    $('armyInfantryCost').textContent = `${h.infantryCost} gold`;
+    $('armyNavyCost').textContent = `${h.navyCost} gold`;
+    $('armyPhaseNote').textContent = state.phase === 'ACTION' ? '' : 'Recruiting, spying and attack orders open during the action phase.';
+    $('relationsPhaseNote').textContent = state.phase === 'COURT' ? '' : 'Alliance offers and royal decrees open during the court phase. Messages can be sent at any time.';
+    // King's ledger
+    $('kingTools').hidden = !state.isKing;
+    if (state.isKing) {
+      const others = state.players.filter(p => !p.left && p.id !== state.me?.id);
+      $('traitorList').innerHTML = others.length ? others.map(p => {
+        const house = state.houses.find(item => item.id === p.houseId);
+        return `<div class="alliance-row"><div><strong>${escapeHtml(p.username)}${p.traitor ? ' <em class="traitor-tag">TRAITOR</em>' : ''}</strong><small>${house ? `House ${escapeHtml(house.name)}` : 'No house'}</small></div><button class="button ${p.traitor ? 'button-quiet' : 'button-danger'} button-small" type="button" data-action="toggle-traitor" data-player-id="${escapeHtml(p.id)}" data-traitor="${p.traitor ? 'false' : 'true'}">${p.traitor ? 'Pardon' : 'Label traitor'}</button></div>`;
+      }).join('') : '<p class="muted small-text">There is no one else at court.</p>';
+      $('taxLedger').innerHTML = (state.taxLedger || []).length ? state.taxLedger.map(t => `<article class="tax-entry"><strong>Round ${t.round} · ${escapeHtml(t.kind)} · ${t.demanded} gold demanded from each house</strong>${t.payments.map(x => `<div class="tax-row"><span>House ${escapeHtml(prettyHouse(x.houseId))}</span><span class="${x.amount >= t.demanded ? 'tax-paid' : x.amount > 0 ? 'tax-short' : 'tax-none'}">${x.amount >= t.demanded ? `Paid ${x.amount}` : x.amount > 0 ? `Paid ${x.amount} (short)` : 'Could not pay'}</span></div>`).join('')}</article>`).join('') : '<p class="muted small-text">No taxes or demands have been made yet. Issue a royal levy to see who pays.</p>';
+    }
+  }
+
   function renderEvents() {
     $('resolutionEvents').innerHTML = state.events.filter(e => e.kind === 'battle' || e.kind === 'important').map(e => `<div class="resolution-item"><span>R${e.round}</span><p>${escapeHtml(e.text)}</p></div>`).join('') || '<p class="muted small-text">No major events have been recorded yet.</p>';
   }
@@ -307,8 +372,6 @@
 
     $('lobbyPanel').hidden = state.phase !== 'LOBBY';
     $('electionPanel').hidden = state.phase !== 'KING_VOTE';
-    $('actionPanel').hidden = state.phase !== 'ACTION';
-    $('courtPanel').hidden = state.phase !== 'COURT';
     $('resolutionPanel').hidden = state.phase !== 'RESOLUTION';
 
     const controls = $('hostControls');
@@ -424,10 +487,9 @@
   function setMapOpen(open) {
     const dialog = $('mapDialog');
     if (open) {
-      const img = dialog.querySelector('img[data-src]');
-      if (img) { img.src = img.dataset.src; img.removeAttribute('data-src'); }
       if (!dialog.open) dialog.showModal();
     } else if (dialog.open) dialog.close();
+    dialog.querySelectorAll('.map-cap.is-active').forEach(cap => cap.classList.remove('is-active'));
   }
 
   function openHouseChooser() {
@@ -469,6 +531,7 @@
     renderAlliances();
     renderChat();
     renderEvents();
+    renderHub();
 
     for (const [id, value] of Object.entries(savedValues)) {
       const element = $(id);
@@ -647,7 +710,22 @@
     });
   });
   // Clicking the dimmed backdrop closes the map.
-  $('mapDialog').addEventListener('click', event => { if (event.target === event.currentTarget) setMapOpen(false); });
+  $('mapDialog').addEventListener('click', event => {
+    if (event.target === event.currentTarget) return setMapOpen(false);
+    // Tap a capital to pop it out on touch screens; tapping elsewhere puts it back.
+    const cap = event.target.closest('.map-cap');
+    $('mapDialog').querySelectorAll('.map-cap.is-active').forEach(el => { if (el !== cap) el.classList.remove('is-active'); });
+    if (cap) { cap.classList.toggle('is-active'); cap.parentNode.appendChild(cap); }
+  });
+  // Keep the hovered capital on top of its neighbours.
+  $('mapDialog').addEventListener('pointerover', event => {
+    const cap = event.target.closest('.map-cap');
+    if (cap && cap.parentNode.lastElementChild !== cap) cap.parentNode.appendChild(cap);
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !$('mapDialog').open) closeHub();
+  });
 
   document.addEventListener('click', event => {
     const tab = event.target.closest('[data-chat-tab]');
@@ -674,6 +752,9 @@
     if (action === 'remove-bot') { removeBot(button.dataset.botId); return; }
     if (action === 'remove-bot-dialog') { $('botEditDialog').close(); removeBot(editingBotId); return; }
     if (action === 'close-bot-dialog') { $('botEditDialog').close(); return; }
+    if (action === 'open-hub') { openHub(button.dataset.hub); return; }
+    if (action === 'close-hub') { closeHub(); return; }
+    if (action === 'toggle-traitor') { emitAction('mark-traitor', { playerId: button.dataset.playerId, traitor: button.dataset.traitor === 'true' }); return; }
     if (action === 'open-map') { setMapOpen(true); return; }
     if (action === 'close-map') { setMapOpen(false); return; }
     if (action === 'change-house') {

@@ -58,6 +58,7 @@ let alliances = [];
 let allianceOffers = [];
 let publicMessages = [];
 let privateMessages = [];
+let taxLedger = [];
 let events = [];
 let houses;
 let capitals;
@@ -105,6 +106,7 @@ function resetWorld(keepPlayers = true) {
   allianceOffers.length = 0;
   publicMessages.length = 0;
   privateMessages.length = 0;
+  taxLedger.length = 0;
   events.length = 0;
   if (!keepPlayers) {
     players.clear();
@@ -115,6 +117,7 @@ function resetWorld(keepPlayers = true) {
       p.houseId = null;
       p.vote = null;
       p.lastSpyRound = 0;
+      p.traitor = false;
       p.isKing = false;
       p.isHand = false;
     }
@@ -162,10 +165,10 @@ function scheduleHostDisconnect(roomCode) {
   hostDisconnectTimers.set(roomCode, timer);
 }
 function captureWorld() {
-  return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
+  return { players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
 }
 function activateWorld(world) {
-  ({ players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
+  ({ players, tokenToPlayerId, alliances, allianceOffers, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
 }
 const initialWorld = structuredClone(captureWorld());
 function withWorld(roomCode, callback) {
@@ -211,6 +214,8 @@ function recalculateCapitalCounts() {
 function playerPublic(p) {
   return { id: p.id, username: p.username, connected: p.connected, left: Boolean(p.left), isBot: Boolean(p.isBot), houseId: p.houseId, isKing: p.id === kingPlayerId, isHand: p.id === handPlayerId };
 }
+function incomePerCapital(h) { return 5 + (h.id === 'tyrell' ? 2 : 0); }
+function houseIncome(h) { return capitals.filter(c => c.ownerHouseId === h.id).length * incomePerCapital(h); }
 function currentHouseView(h) {
   if (!h) return null;
   const { money, infantry, navy, dragons, infantryCost, navyCost, pendingAttack, hasAttackedThisRound, commandUsedRound, lockedUntilRound, spyReports, ...definition } = h;
@@ -223,6 +228,7 @@ function makePrivateHouseView(h) {
   return {
     id: h.id, name: h.name, money: h.money, infantry: h.infantry, navy: h.navy, dragons: h.dragons,
     infantryCost: h.infantryCost, navyCost: h.navyCost,
+    capitalCount: capitals.filter(c => c.ownerHouseId === h.id).length, incomePerCapital: incomePerCapital(h), incomePerRound: houseIncome(h),
     pendingAttack: h.pendingAttack ? {
       ...h.pendingAttack,
       targetName: target?.name || h.pendingAttack.targetName,
@@ -253,7 +259,8 @@ function viewFor(playerId) {
     me: me ? { id: me.id, username: me.username, houseId: me.houseId, vote: me.vote, lastSpyRound: me.lastSpyRound } : null,
     myHouse: makePrivateHouseView(myHouse),
     houses: houses.map(currentHouseView),
-    players: [...players.values()].map(playerPublic),
+    players: [...players.values()].map(p => (me && me.id === kingPlayerId ? { ...playerPublic(p), traitor: Boolean(p.traitor) } : playerPublic(p))),
+    taxLedger: me && me.id === kingPlayerId ? taxLedger.map(t => ({ ...t, payments: t.payments.map(x => ({ ...x })) })) : [],
     capitals: capitals.map(c => ({ ...c })),
     minorHousesUnlocked: Number(gameSettings.maxPlayers) >= 7,
     voteCandidates,
@@ -712,12 +719,16 @@ io.on('connection', socket => {
     if (payload.command === 'levy') {
       let collected = 0;
       const bonus = h.id === 'baratheon' ? 1 : 0;
+      const payments = [];
       for (const other of houses) {
         if (other.id === h.id) continue;
         const amount = Math.min(3 + bonus, other.money);
         other.money -= amount;
         collected += amount;
+        payments.push({ houseId: other.id, amount });
       }
+      taxLedger.unshift({ id: randomUUID(), round, kind: 'Royal levy', demanded: 3 + bonus, payments });
+      if (taxLedger.length > 20) taxLedger.length = 20;
       h.money += collected;
       h.commandUsedRound = round;
       addEvent('important', `The king issued a royal levy. House ${h.name} collected ${collected} gold from the realm.`);
@@ -732,6 +743,15 @@ io.on('connection', socket => {
       return ok(`House ${target.name} cannot recruit through Round ${round + 1}.`);
     }
     return fail('Choose a valid royal command.');
+  });
+
+  action(socket, 'mark-traitor', (player, payload) => {
+    const check = requirePlayer(player); if (check.ok === false) return check;
+    if (player.id !== kingPlayerId) return fail('Only the king can label traitors.');
+    const target = players.get(String(payload.playerId || ''));
+    if (!target || target.left || target.id === player.id) return fail('Choose another player.');
+    target.traitor = payload.traitor === true;
+    return ok(target.traitor ? `${target.username} is now labelled a traitor.` : `${target.username} has been pardoned.`);
   });
 
   action(socket, 'send-chat', (player, payload) => {
@@ -770,8 +790,7 @@ io.on('connection', socket => {
       phase = 'ACTION';
       for (const h of houses) {
         h.hasAttackedThisRound = false;
-        const owned = capitals.filter(c => c.ownerHouseId === h.id).length;
-        h.money += owned * (5 + (h.id === 'tyrell' ? 2 : 0));
+        h.money += houseIncome(h);
       }
       runBotTurns();
       addEvent('important', `Round ${round} begins. Houses received income from their controlled capitals.`);
