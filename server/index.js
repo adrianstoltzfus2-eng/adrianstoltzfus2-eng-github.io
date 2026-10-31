@@ -58,6 +58,7 @@ let alliances = [];
 let allianceOffers = [];
 let treaties = [];
 let spoils = [];
+let notices = [];
 let publicMessages = [];
 let privateMessages = [];
 let taxLedger = [];
@@ -109,6 +110,7 @@ function resetWorld(keepPlayers = true) {
   allianceOffers.length = 0;
   treaties.length = 0;
   spoils.length = 0;
+  notices.length = 0;
   publicMessages.length = 0;
   privateMessages.length = 0;
   taxLedger.length = 0;
@@ -170,10 +172,10 @@ function scheduleHostDisconnect(roomCode) {
   hostDisconnectTimers.set(roomCode, timer);
 }
 function captureWorld() {
-  return { players, tokenToPlayerId, alliances, allianceOffers, treaties, spoils, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
+  return { players, tokenToPlayerId, alliances, allianceOffers, treaties, spoils, notices, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings };
 }
 function activateWorld(world) {
-  ({ players, tokenToPlayerId, alliances, allianceOffers, treaties, spoils, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
+  ({ players, tokenToPlayerId, alliances, allianceOffers, treaties, spoils, notices, publicMessages, privateMessages, taxLedger, events, houses, capitals, phase, round, hostId, kingPlayerId, handPlayerId, runoff, candidateIds, voterIds, gameSettings } = world);
 }
 const initialWorld = structuredClone(captureWorld());
 function withWorld(roomCode, callback) {
@@ -268,6 +270,7 @@ function viewFor(playerId) {
     myHouse: makePrivateHouseView(myHouse),
     houses: houses.map(currentHouseView),
     players: [...players.values()].map(p => (me && me.id === kingPlayerId ? { ...playerPublic(p), traitor: Boolean(p.traitor) } : playerPublic(p))),
+    notices: myHouse ? notices.filter(n => n.playerIds.includes(me.id) || n.houseIds.includes(myHouse.id)).slice(0, 30).map(n => ({ id: n.id, round: n.round, kind: n.kind, title: n.title, text: n.text, banners: [...n.banners] })) : [],
     decrees: myHouse ? taxLedger.filter(d => d.kingPlayerId === me.id || d.recipients.some(r => r.houseId === myHouse.id)).slice(0, 20).map(d => {
       const issuer = d.kingPlayerId === me.id;
       return { id: d.id, round: d.round, kingName: d.kingName, kingHouseId: d.kingHouseId, message: d.message, gold: d.gold, infantry: d.infantry, navy: d.navy, isIssuer: issuer, myState: d.recipients.find(r => r.houseId === myHouse.id)?.state || null, recipients: issuer ? d.recipients.map(r => ({ ...r })) : undefined };
@@ -359,6 +362,12 @@ function note(h, res, delta, text) {
   h.ledger.unshift({ id: randomUUID(), round, res, delta, text: String(text).slice(0, 160) });
   if (h.ledger.length > 120) h.ledger.length = 120;
 }
+// Pop-up notices (alliances, traitor labels, attacks, battle results) addressed to houses or individual players.
+function capWord(t) { return String(t || '').replace(/^\w/, c => c.toUpperCase()); }
+function notify(kind, houseIds, playerIds, title, text, banners) {
+  notices.unshift({ id: randomUUID(), round, kind, houseIds: [...new Set(houseIds)], playerIds, title, text: String(text).slice(0, 260), banners });
+  if (notices.length > 60) notices.length = 60;
+}
 function forceStrength(u) { return u.infantry + u.navy + u.dragons * 5 + (u.dragons ? 2 : 0); }
 function giveSpoil(s, winnerId, how) {
   const cap = findCapital(s.capitalId);
@@ -381,6 +390,7 @@ function settleSpoils(forced) {
     note(loser, 'infantry', -lost, 'Lost fighting an ally over the spoils');
     const al = alliances.find(x => [x.houseA, x.houseB].includes(a) && [x.houseA, x.houseB].includes(b));
     if (al) alliances.splice(alliances.indexOf(al), 1);
+    notify('alliance-broken', [a, b], [], 'Allies at war', `House ${capWord(winner.name)} won the fight over the spoils; House ${capWord(loser.name)} lost, and the alliance is broken.`, [winner.id, loser.id]);
     giveSpoil(s, winner.id, `after the former allies fought over it (${Math.max(sa, sb)} vs. ${Math.min(sa, sb)}); House ${loser.name} lost ${lost} infantry and the alliance is broken`);
   }
 }
@@ -765,6 +775,7 @@ io.on('connection', socket => {
     if (houseIsBotOnly(target.id)) {
       alliances.push({ id: randomUUID(), houseA: check.id, houseB: target.id, scope, createdRound: round });
       addEvent('important', `House ${target.name} accepted an alliance with House ${check.name}.`);
+      notify('alliance', [check.id, target.id], [], 'An alliance is forged', `House ${capWord(check.name)} and House ${capWord(target.name)} now stand together.`, [check.id, target.id]);
       return ok(`House ${target.name} accepted your alliance.`);
     }
     allianceOffers.unshift({ id: randomUUID(), fromHouseId: check.id, toHouseId: target.id, scope, round });
@@ -781,6 +792,7 @@ io.on('connection', socket => {
     if (payload.accept === true) {
       if (!areAllied(offer.fromHouseId, offer.toHouseId)) alliances.push({ id: randomUUID(), houseA: offer.fromHouseId, houseB: offer.toHouseId, scope: offer.scope, createdRound: round });
       addEvent('important', `House ${check.name} accepted an alliance with House ${houseName(offer.fromHouseId)}.`);
+      notify('alliance', [offer.fromHouseId, offer.toHouseId], [], 'An alliance is forged', `House ${capWord(houseName(offer.fromHouseId))} and House ${capWord(check.name)} now stand together.`, [offer.fromHouseId, offer.toHouseId]);
       return ok('Alliance accepted.');
     }
     addEvent('normal', `House ${check.name} declined an alliance offer from House ${houseName(offer.fromHouseId)}.`);
@@ -795,6 +807,7 @@ io.on('connection', socket => {
     const other = alliance.houseA === check.id ? alliance.houseB : alliance.houseA;
     alliances.splice(alliances.indexOf(alliance), 1);
     addEvent('important', `House ${check.name} broke its alliance with House ${houseName(other)}.`);
+    notify('alliance-broken', [check.id, other], [], 'An alliance is broken', `House ${capWord(check.name)} has broken its alliance with House ${capWord(houseName(other))}.`, [check.id, other]);
     return ok('Alliance broken.');
   });
 
@@ -895,7 +908,7 @@ io.on('connection', socket => {
     const wanted = Array.isArray(payload.targetHouseIds) ? payload.targetHouseIds.map(String) : [];
     const targets = houses.filter(x => x.id !== h.id && houseMembers(x.id).length && (!wanted.length || wanted.includes(x.id)));
     if (!targets.length) return fail('No other house has a player to receive the decree.');
-    taxLedger.unshift({ id: randomUUID(), round, kingPlayerId: player.id, kingName: player.username, kingHouseId: h.id, message, gold, infantry, navy, recipients: targets.map(x => ({ houseId: x.id, state: houseIsBotOnly(x.id) ? 'closed' : 'pending' })) });
+    taxLedger.unshift({ id: randomUUID(), round, kingPlayerId: player.id, kingName: player.username, kingHouseId: h.id, message, gold, infantry, navy, recipients: targets.map(x => ({ houseId: x.id, state: gold + infantry + navy === 0 ? 'noted' : 'pending' })) });
     if (taxLedger.length > 20) taxLedger.length = 20;
     h.commandUsedRound = round;
     addEvent('important', `King ${player.username} issued a royal decree${gold + infantry + navy ? ' with demands' : ''}.`);
@@ -907,7 +920,6 @@ io.on('connection', socket => {
     const d = taxLedger.find(x => x.id === String(payload.decreeId || ''));
     const r = d?.recipients.find(x => x.houseId === h.id && x.state === 'pending');
     if (!r) return fail('That decree is no longer waiting on your house.');
-    if (payload.comply !== true) { r.state = 'closed'; return ok('Decree closed. Nothing was sent.'); }
     if (h.money < d.gold || h.infantry < d.infantry || h.navy < d.navy) return fail(`You cannot meet this demand: you have ${h.money} gold, ${h.infantry} infantry and ${h.navy} ships.`);
     const king = findHouse(d.kingHouseId);
     h.money -= d.gold; h.infantry -= d.infantry; h.navy -= d.navy;
@@ -926,6 +938,7 @@ io.on('connection', socket => {
     const target = players.get(String(payload.playerId || ''));
     if (!target || target.left || target.id === player.id) return fail('Choose another player.');
     target.traitor = payload.traitor === true;
+    if (target.traitor) { const kh = findHouse(player.houseId); notify('traitor', [], [target.id], 'Branded a traitor', `King ${player.username} has named you a traitor to the crown.`, kh ? [kh.id] : []); }
     return ok(target.traitor ? `${target.username} is now labelled a traitor.` : `${target.username} has been pardoned.`);
   });
 
@@ -1017,12 +1030,19 @@ function resolveDueAttacks() {
       if (houseIsBotOnly(allyHouse.id)) claims[allyHouse.id] = attacker.id;
       spoils.unshift(spoil);
       addEvent('battle', `Houses ${attacker.name} and ${allyHouse.name} stormed ${target.name} together (attack ${attackStrength} vs. defense ${defense}) and split ${plunder} gold of plunder. They must agree who will rule it, or fight for it.`);
+      notify('battle-won', [attacker.id, allyHouse.id], [], `Victory at ${target.name}`, `Houses ${capWord(attacker.name)} and ${capWord(allyHouse.name)} took ${target.name}. Agree who will rule it, or fight for it.`, [attacker.id, allyHouse.id]);
+      if (defender) notify('attacked', [defender.id], [], `${target.name} was attacked`, `Houses ${capWord(attacker.name)} and ${capWord(allyHouse.name)} attacked and took ${target.name}.`, [attacker.id, defender.id]);
       settleSpoils(false);
     } else if (attackStrength >= defense) {
       target.ownerHouseId = attacker.id;
+      notify('battle-won', [attacker.id], [], `Victory at ${target.name}`, `House ${capWord(attacker.name)} captured ${target.name}.`, [attacker.id, defender?.id].filter(Boolean));
+      if (defender) notify('attacked', [defender.id], [], `${target.name} was attacked`, `House ${capWord(attacker.name)} attacked and took ${target.name}.`, [attacker.id, defender.id]);
       addEvent('battle', `House ${attacker.name} captured ${target.name} from House ${defender?.name || 'an unknown house'} (attack ${attackStrength} vs. defense ${defense}).`);
     } else {
       addEvent('battle', `House ${attacker.name} failed to capture ${target.name} (attack ${attackStrength} vs. defense ${defense}).`);
+      const lost = [attacker.id, allyHouse?.id].filter(Boolean);
+      notify('battle-lost', lost, [], `Defeat at ${target.name}`, `${lost.length > 1 ? 'Your armies' : 'Your army'} failed to take ${target.name}.`, [attacker.id, defender?.id].filter(Boolean));
+      if (defender) notify('attacked', [defender.id], [], `${target.name} held`, `House ${capWord(attacker.name)} attacked ${target.name}, but your defenders held.`, [attacker.id, defender.id]);
     }
     attacker.pendingAttack = null;
   }

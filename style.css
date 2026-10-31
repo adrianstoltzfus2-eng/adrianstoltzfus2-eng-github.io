@@ -696,3 +696,17 @@ body.house-themed .footer { border-color: var(--line); }
 .decree-card header small { color: var(--muted); font: 400 10px Inter, sans-serif; }
 .decree-pop { text-align: left; } .decree-pop .treaty-card { margin-top: 10px; }
 .decree-pop .announce-hint { display: block; margin-top: 12px; text-align: center; }
+
+.button-icon { width: 15px; height: 15px; object-fit: contain; flex: 0 0 auto; }
+.ledger-icon { width: 15px; height: 15px; vertical-align: -3px; object-fit: contain; }
+#ledgerToggle { margin-top: 8px; }
+.row-who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.treaty-card header .msg-banner, .alliance-row .msg-banner { flex: 0 0 28px; }
+.announce-stage.is-notice { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.announce-stage.is-notice > * { grid-area: auto; }
+.announce-stage.is-notice .notice-banner { width: 104px; height: 127px; }
+.notice-mid { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gold-bright) 50%, transparent)); }
+.notice-text { display: block; max-width: 340px; margin: 0 auto; color: var(--text); font-size: 13px; line-height: 1.6; letter-spacing: 0; }
+.announce-card[data-tone="bad"] { border-color: rgba(210,100,85,.55); border-top-color: #c0584a; }
+.announce-card[data-tone="bad"] h2 { color: #e8a79c; }
+.announce-card[data-tone="good"] h2 { color: var(--gold-bright); }
