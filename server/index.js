@@ -302,6 +302,16 @@ function requireHouse(player) {
   const h = player.houseId ? findHouse(player.houseId) : null;
   return h || fail('Choose a house first.');
 }
+function minorSlots() { return Math.max(0, Number(gameSettings.maxPlayers) - 6); }
+function minorPlayerCount(excludeId) { return [...players.values()].filter(p => !p.left && p.id !== excludeId && findHouse(p.houseId)?.type === 'minor').length; }
+// Returns an error message if `playerId` may not take house `h`, otherwise null.
+function minorHouseError(h, playerId) {
+  if (h.type !== 'minor') return null;
+  if (Number(gameSettings.maxPlayers) < 7) return 'Minor houses unlock when the player limit is 7 or more.';
+  if ([...players.values()].some(p => !p.left && p.houseId === h.id && p.id !== playerId)) return 'That minor house has already been claimed.';
+  if (minorPlayerCount(playerId) >= minorSlots()) return `Only ${minorSlots()} player${minorSlots() === 1 ? '' : 's'} may join minor houses with a limit of ${gameSettings.maxPlayers} (one for each player above 6).`;
+  return null;
+}
 function isHost(player) { return Boolean(player && player.id === hostId); }
 function isCourt() { return phase === 'COURT'; }
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -451,8 +461,7 @@ io.on('connection', socket => {
     const check = requirePlayer(player); if (check.ok === false) return check;
     if (phase !== 'LOBBY') return fail('House selection is closed after the lobby.');
     const h = findHouse(String(payload.houseId || '')); if (!h) return fail('That house does not exist.');
-    if (h.type === 'minor' && Number(gameSettings.maxPlayers) < 7) return fail('Minor houses unlock when the host sets a player limit of 7 or more.');
-    if (h.type === 'minor' && [...players.values()].some(p => !p.left && p.houseId === h.id && p.id !== player.id)) return fail('That minor house has already been claimed.');
+    const houseError = minorHouseError(h, player.id); if (houseError) return fail(houseError);
     const previous = player.houseId;
     player.houseId = h.id;
     player.vote = null;
@@ -470,6 +479,7 @@ io.on('connection', socket => {
     const activeCount = [...players.values()].filter(existing => !existing.left).length;
     if (maxPlayers < activeCount) return fail(`The player limit cannot be lower than the ${activeCount} players already joined.`);
     if (!['CLASSIC', 'LAST_DRAGON'].includes(gameType)) return fail('Choose Classic or Last Dragon.');
+    if (minorPlayerCount(null) > Math.max(0, maxPlayers - 6)) return fail('That limit leaves too few minor-house places for the players already in minor houses.');
     gameSettings = { configured: true, maxPlayers, gameType };
     addEvent('important', `The host set up a ${gameType === 'LAST_DRAGON' ? 'Last Dragon' : 'Classic'} game for ${maxPlayers} players.`);
     return ok('Game setup saved. The hall is open.');
@@ -496,11 +506,7 @@ io.on('connection', socket => {
     const activeMembers = houseId => [...players.values()].filter(existing => !existing.left && existing.houseId === houseId);
     let house;
     if (activeMembers('baratheon').length === 0) house = findHouse('baratheon');
-    else {
-      const openMinor = Number(gameSettings.maxPlayers) >= 7 && houses.find(candidate => candidate.type === 'minor' && activeMembers(candidate.id).length === 0);
-      if (openMinor) house = openMinor;
-      else house = [...houses].filter(candidate => candidate.type === 'major').sort((a, b) => activeMembers(a.id).length - activeMembers(b.id).length)[0];
-    }
+    else house = [...houses].filter(candidate => candidate.type === 'major').sort((a, b) => activeMembers(a.id).length - activeMembers(b.id).length)[0];
     const bot = { id: randomUUID(), username: `Bot ${botNumber}`, token: `bot-${randomUUID()}`, houseId: house.id, vote: null, lastSpyRound: 0, connected: true, left: false, isBot: true, socketId: null };
     players.set(bot.id, bot);
     addEvent('normal', `${bot.username} joined House ${house.name}.`);
@@ -516,8 +522,7 @@ io.on('connection', socket => {
     const name = String(payload.username || '').trim().replace(/\s+/g, ' ');
     if (name.length < 2 || name.length > 22) return fail('Name must be between 2 and 22 characters.');
     const h = findHouse(String(payload.houseId || '')); if (!h) return fail('That house does not exist.');
-    if (h.type === 'minor' && Number(gameSettings.maxPlayers) < 7) return fail('Minor houses unlock when the player limit is 7 or more.');
-    if (h.type === 'minor' && [...players.values()].some(p => !p.left && p.houseId === h.id && p.id !== bot.id)) return fail('That minor house has already been claimed.');
+    const houseError = minorHouseError(h, bot.id); if (houseError) return fail(houseError);
     const previousName = bot.username;
     const previousHouse = bot.houseId;
     bot.username = name;
@@ -548,6 +553,10 @@ io.on('connection', socket => {
     if (connected.some(p => !p.houseId)) return fail('Everyone connected must choose a house before the game begins.');
     const baratheons = connected.filter(p => p.houseId === 'baratheon');
     if (!baratheons.length) return fail('A connected player or bot must join House Baratheon to receive its first-king buff.');
+    if (connected.some(p => findHouse(p.houseId)?.type === 'minor')) {
+      const thin = houses.filter(h => h.type === 'major' && connected.filter(p => p.houseId === h.id).length < 2);
+      if (thin.length) return fail(`With minor houses in play, every major house needs at least 2 players. Still short: ${thin.map(h => h.name).join(', ')}.`);
+    }
     kingPlayerId = baratheons[randomInt(0, baratheons.length - 1)].id;
     const king = players.get(kingPlayerId);
     if (king?.isBot) {
