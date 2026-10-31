@@ -207,7 +207,7 @@ function runBotTurns() {
   for (const bot of players.values()) {
     if (!bot.isBot || bot.left || !bot.houseId) continue;
     const house = findHouse(bot.houseId);
-    if (!house || house.lockedUntilRound >= round) continue;
+    if (!house || house.lockedUntilRound >= round || round === 1) continue;
     const amount = Math.min(2, Math.floor(house.money / house.infantryCost));
     if (amount < 1) continue;
     house.money -= amount * house.infantryCost;
@@ -245,8 +245,7 @@ function makePrivateHouseView(h) {
     pendingAttack: h.pendingAttack ? {
       ...h.pendingAttack,
       targetName: target?.name || h.pendingAttack.targetName,
-      units: { ...h.pendingAttack.units },
-      ally: h.pendingAttack.ally ? { ...h.pendingAttack.ally, units: { ...h.pendingAttack.ally.units } } : null
+      units: { ...h.pendingAttack.units }
     } : null,
     ledger: (h.ledger || []).map(e => ({ ...e })),
     hasAttackedThisRound: h.hasAttackedThisRound,
@@ -289,7 +288,6 @@ function viewFor(playerId) {
     allianceOffers: visibleOffers,
     alliances: visibleAlliances,
     treaties: myHouse ? treaties.filter(t => t.fromHouseId === myHouse.id || t.toHouseId === myHouse.id).map(t => ({ ...t, isOutgoing: t.fromHouseId === myHouse.id })) : [],
-    warInvites: myHouse ? houses.filter(x => x.pendingAttack?.ally?.houseId === myHouse.id && x.pendingAttack.ally.status === 'invited').map(x => ({ leaderHouseId: x.id, targetCapitalId: x.pendingAttack.targetCapitalId, targetName: x.pendingAttack.targetName, units: { ...x.pendingAttack.units }, resolveRound: x.pendingAttack.resolveRound })) : [],
     spoils: myHouse ? spoils.filter(x => [x.houseA, x.houseB].includes(myHouse.id)).slice(0, 10).map(x => ({ ...x, claims: { ...x.claims }, capitalName: findCapital(x.capitalId)?.name || '' })) : [],
     publicMessages: publicMessages.map(m => ({ ...m })),
     privateMessages: privateForMe,
@@ -694,12 +692,27 @@ io.on('connection', socket => {
     if (!Number.isInteger(amount) || amount < 1 || amount > 10) return fail('Choose a whole number of units between 1 and 10.');
     if (!['infantry', 'navy'].includes(unit)) return fail('That unit type is not available.');
     const cost = unit === 'infantry' ? h.infantryCost : h.navyCost;
-    if (h.money < cost * amount) return fail(`This purchase costs ${cost * amount} gold, but your house has ${h.money}.`);
-    h.money -= cost * amount;
+    const total = round === 1 ? 0 : cost * amount;
+    if (h.money < total) return fail(`This purchase costs ${total} gold, but your house has ${h.money}.`);
+    h.money -= total;
     h[unit] += amount;
-    note(h, 'gold', -cost * amount, `Recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}`); note(h, unit, amount, 'Recruited');
+    note(h, 'gold', -total, `Recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}`); note(h, unit, amount, 'Recruited');
     addEvent('normal', `House ${h.name} recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}.`);
     return ok(`Recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}.`);
+  });
+
+  action(socket, 'disband', (player, payload) => {
+    const h = requireHouse(player); if (h.ok === false) return h;
+    if (phase !== 'ACTION') return fail('Units can be disbanded during the action phase.');
+    const unit = String(payload.unit || '');
+    if (!['infantry', 'navy', 'dragons'].includes(unit)) return fail('Choose a unit type to disband.');
+    const amount = Number(payload.amount);
+    if (!Number.isInteger(amount) || amount < 1) return fail('Choose a whole number of units to disband.');
+    if (amount > h[unit]) return fail(`You only have ${h[unit]} ${unit}.`);
+    h[unit] -= amount;
+    note(h, unit, -amount, 'Disbanded');
+    addEvent('normal', `House ${h.name} disbanded some of its troops.`);
+    return ok(`Disbanded ${amount} ${unit === 'navy' ? 'ships' : unit}.`);
   });
 
   action(socket, 'spy', (player, payload) => {
@@ -711,9 +724,10 @@ io.on('connection', socket => {
     if (!target || target.id === h.id) return fail('Choose another house as your target.');
     const spend = Number(payload.spend ?? 8);
     if (!Number.isInteger(spend) || spend < 2 || spend > 20) return fail('Spend between 2 and 20 gold on a spy mission.');
-    if (h.money < spend) return fail(`You chose to spend ${spend} gold, but your house only has ${h.money}.`);
-    h.money -= spend;
-    note(h, 'gold', -spend, `Spy mission against House ${target.name}`);
+    const spendCost = round === 1 ? 0 : spend;
+    if (h.money < spendCost) return fail(`You chose to spend ${spend} gold, but your house only has ${h.money}.`);
+    h.money -= spendCost;
+    note(h, 'gold', -spendCost, `Spy mission against House ${target.name}`);
     player.lastSpyRound = round;
     const odds = spyOdds(spend, target.id);
     const success = Math.random() < odds.success;
@@ -740,13 +754,6 @@ io.on('connection', socket => {
     const target = findCapital(String(payload.targetCapitalId || ''));
     if (!target || target.contested || !target.ownerHouseId || target.ownerHouseId === h.id) return fail('Choose a capital controlled by another house.');
     if (areAllied(h.id, target.ownerHouseId)) return fail(`House ${houseName(target.ownerHouseId)} is your ally. Break the alliance before marching on their capital.`);
-    let allyHouse = null;
-    if (payload.allyHouseId) {
-      allyHouse = findHouse(String(payload.allyHouseId));
-      if (!allyHouse || !areAllied(h.id, allyHouse.id)) return fail('You can only invite a current ally to join your war.');
-      if (allyHouse.id === target.ownerHouseId) return fail('Your ally cannot march against its own capital.');
-      if (allyHouse.pendingAttack || allyHouse.hasAttackedThisRound) return fail(`House ${allyHouse.name} is already committed to another war this round.`);
-    }
     const units = { infantry: Number(payload.infantry), navy: Number(payload.navy), dragons: Number(payload.dragons) };
     if (Object.values(units).some(n => !Number.isInteger(n) || n < 0)) return fail('Committed forces must be whole numbers of zero or greater.');
     if (units.infantry + units.navy + units.dragons < 1) return fail('Commit at least one unit to the attack.');
@@ -755,20 +762,10 @@ io.on('connection', socket => {
     h.navy -= units.navy;
     h.dragons -= units.dragons;
     for (const k of ['infantry', 'navy', 'dragons']) note(h, k, -units[k], `Sent to war on ${target.name}`);
-    h.pendingAttack = { targetCapitalId: target.id, targetName: target.name, orderedRound: round, resolveRound: round + 1, units, ally: allyHouse ? { houseId: allyHouse.id, status: 'invited', units: { infantry: 0, navy: 0, dragons: 0 } } : null };
+    h.pendingAttack = { targetCapitalId: target.id, targetName: target.name, orderedRound: round, resolveRound: round + 1, units };
     h.hasAttackedThisRound = true;
     addEvent('normal', `House ${h.name} secretly committed an attack against a capital.`);
-    if (allyHouse && houseIsBotOnly(allyHouse.id)) {
-      const botUnits = { infantry: Math.min(3, allyHouse.infantry), navy: 0, dragons: 0 };
-      if (botUnits.infantry > 0) {
-        allyHouse.infantry -= botUnits.infantry;
-        note(allyHouse, 'infantry', -botUnits.infantry, `Marched with House ${h.name}`);
-        allyHouse.hasAttackedThisRound = true;
-        h.pendingAttack.ally.status = 'joined';
-        h.pendingAttack.ally.units = botUnits;
-      } else h.pendingAttack.ally.status = 'declined';
-    }
-    return ok(allyHouse ? `War declared. House ${allyHouse.name} has been invited to march with you; resolves after Round ${round + 1} court.` : `Attack order placed. It will resolve after Round ${round + 1} court.`);
+    return ok(`Attack order placed. It will resolve after Round ${round + 1} court.`);
   });
 
   action(socket, 'offer-alliance', (player, payload) => {
@@ -865,30 +862,6 @@ io.on('connection', socket => {
     if (!t || t.status !== 'pending' || t.fromHouseId !== h.id) return fail('That treaty cannot be withdrawn.');
     closeTreaty(t, 'cancelled');
     return ok('Treaty withdrawn. Your offering has returned.');
-  });
-
-  action(socket, 'respond-war', (player, payload) => {
-    const h = requireHouse(player); if (h.ok === false) return h;
-    if (!canDiplomacy()) return fail('War invitations can be answered during the action and court phases.');
-    const leader = houses.find(x => x.id === String(payload.leaderHouseId || '') && x.pendingAttack?.ally?.houseId === h.id && x.pendingAttack.ally.status === 'invited');
-    if (!leader) return fail('That war invitation is no longer open.');
-    const ally = leader.pendingAttack.ally;
-    if (payload.accept !== true) {
-      ally.status = 'declined';
-      addEvent('normal', `House ${h.name} declined to march with House ${leader.name}.`);
-      return ok('You declined the war invitation.');
-    }
-    if (h.pendingAttack || h.hasAttackedThisRound) return fail('Your house is already committed to a war this round.');
-    const units = { infantry: wholeNumber(payload.infantry), navy: wholeNumber(payload.navy), dragons: wholeNumber(payload.dragons) };
-    if (Object.values(units).some(n => n === null)) return fail('Committed forces must be whole numbers of zero or more.');
-    if (units.infantry + units.navy + units.dragons < 1) return fail('Commit at least one unit to join the war.');
-    if (units.infantry > h.infantry || units.navy > h.navy || units.dragons > h.dragons) return fail('Your house does not have enough uncommitted forces.');
-    h.infantry -= units.infantry; h.navy -= units.navy; h.dragons -= units.dragons;
-    for (const k of ['infantry', 'navy', 'dragons']) note(h, k, -units[k], `Marched with House ${leader.name}`);
-    h.hasAttackedThisRound = true;
-    ally.status = 'joined'; ally.units = units;
-    addEvent('important', `House ${h.name} joined House ${leader.name} in a secret war.`);
-    return ok('Your forces march with your ally.');
   });
 
   action(socket, 'claim-spoils', (player, payload) => {
@@ -1025,23 +998,33 @@ io.on('connection', socket => {
   });
 });
 
+// Allies who march on the same capital in the same round fight together automatically.
 function resolveDueAttacks() {
-  for (const attacker of houses) {
+  const due = houses.filter(h => h.pendingAttack && h.pendingAttack.resolveRound <= round);
+  const done = new Set();
+  for (const attacker of due) {
+    if (done.has(attacker.id)) continue;
+    const partner = due.find(o => o !== attacker && !done.has(o.id) && o.pendingAttack && o.pendingAttack.targetCapitalId === attacker.pendingAttack.targetCapitalId && areAllied(attacker.id, o.id)) || null;
+    done.add(attacker.id);
+    if (partner) done.add(partner.id);
+    fightBattle(attacker, partner);
+  }
+}
+function fightBattle(attacker, allyHouse) {
+  {
     const order = attacker.pendingAttack;
-    if (!order || order.resolveRound > round) continue;
     const target = findCapital(order.targetCapitalId);
     if (!target || !target.ownerHouseId || target.ownerHouseId === attacker.id) {
       addEvent('battle', `House ${attacker.name} found no enemy holding at ${order.targetName}; the attack was spent.`);
       attacker.pendingAttack = null;
-      continue;
+      if (allyHouse) allyHouse.pendingAttack = null;
+      return;
     }
     const defender = findHouse(target.ownerHouseId);
     let defense = target.defense + randomInt(0, 3);
     if ((defender?.id === 'stark' && target.id === 'winterfell') || (defender?.id === 'martell' && target.id === 'sunspear') || (defender?.id === 'arryn' && target.id === 'the-eyrie')) defense += 2;
     // Each troop contributes one strength; ships can support an attack, and dragons add five each plus a siege bonus.
-    const allyOrder = order.ally?.status === 'joined' ? order.ally : null;
-    const allyHouse = allyOrder ? findHouse(allyOrder.houseId) : null;
-    if (order.ally && order.ally.status === 'invited') addEvent('battle', `House ${houseName(order.ally.houseId)} never answered House ${attacker.name}'s call to war.`);
+    const allyOrder = allyHouse ? allyHouse.pendingAttack : null;
     const attackStrength = forceStrength(order.units) + (allyOrder ? forceStrength(allyOrder.units) : 0) + randomInt(0, 3);
     if (attackStrength >= defense && allyHouse) {
       const plunder = Math.min(defender?.money || 0, 6);
@@ -1072,6 +1055,7 @@ function resolveDueAttacks() {
       if (defender) notify('attacked', [defender.id], [], `${target.name} held`, `House ${capWord(attacker.name)} attacked ${target.name}, but your defenders held.`, [attacker.id, defender.id]);
     }
     attacker.pendingAttack = null;
+    if (allyHouse) allyHouse.pendingAttack = null;
   }
 }
 

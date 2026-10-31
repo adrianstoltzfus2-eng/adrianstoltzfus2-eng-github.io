@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=34">
+  <link rel="stylesheet" href="./style.css?v=35">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=36" defer></script>
+  <script src="./app.js?v=37" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -39,11 +39,11 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.6.0</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.6.1</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
-    <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=14" title="War of Westeros throne selection"></iframe>
+    <iframe id="throneFrame" src="./throne-photo.html?mode=entry&amp;v=15" title="War of Westeros throne selection"></iframe>
   </section>
 
   <main id="hostSetupScreen" class="realm-screen" hidden>
@@ -162,10 +162,10 @@
         <div class="hub-sheet-body">
           <div id="hubMoney" class="hub-pane" hidden>
             <div class="money-grid">
-              <article class="money-card"><span id="badgeGold" class="note-badge" hidden></span><span>YOUR GOLD</span><strong id="moneyGold">—</strong><small>Available to spend</small></article>
+              <article class="money-card"><span id="badgeGold" class="note-badge" hidden></span><span>YOUR GOLD</span><strong id="moneyGold">—</strong></article>
               <article class="money-card"><span>NET PER ROUND</span><strong id="moneyIncome">—</strong><small id="moneyIncomeNote"></small></article>
             </div>
-            <div><div class="subsection-title">Ledger · gold &amp; troops in and out</div><div id="ledgerTotals" class="ledger-totals"></div><div id="moneyLedger" class="ledger-list"></div><button id="ledgerToggle" class="button button-quiet button-small" type="button" data-action="toggle-ledger" hidden></button></div>
+            <div><div class="subsection-title">Ledger</div><div id="ledgerTotals" class="ledger-totals"></div><div id="moneyLedger" class="ledger-list"></div><button id="ledgerToggle" class="button button-quiet button-small" type="button" data-action="toggle-ledger" hidden></button></div>
             <div><div class="subsection-title">Capitals held</div><div id="moneyCapitals" class="event-list"></div></div>
           </div>
           <div id="hubRelations" class="hub-pane" hidden>
@@ -175,13 +175,13 @@
           <div class="section-head"><div><p class="panel-kicker">THE RED KEEP</p><h2>Court & diplomacy</h2></div><span id="kingBadge" class="subtle-label">No king</span></div>
           <div class="diplomacy-grid">
             <form id="allianceForm" class="action-card">
-              <img class="action-icon-image" src="./assets/game-handshake.png?v=2" alt=""><h3>Propose an alliance</h3><p class="muted small-text">Send a public or secret alliance offer to another house. The other house must accept.</p>
+              <img class="action-icon-image" src="./assets/game-handshake.png?v=2" alt=""><h3>Propose an alliance</h3><p class="muted small-text">Offer a public or secret alliance.</p>
               <label for="allianceTarget">House</label><select id="allianceTarget" required></select>
               <label for="allianceScope">Visibility</label><select id="allianceScope"><option value="public">Public alliance</option><option value="secret">Secret alliance</option></select>
               <button class="button button-secondary button-full" type="submit">Send offer</button>
             </form>
             <form id="treatyForm" class="action-card">
-              <img class="action-icon-image" src="./assets/game-raven.png?v=2" alt=""><h3>Make a treaty</h3><p class="muted small-text">Send gold, soldiers or ships with a message to an ally or any other house. Your offering is held until they answer.</p>
+              <img class="action-icon-image" src="./assets/game-raven.png?v=2" alt=""><h3>Make a treaty</h3><p class="muted small-text">Send gold, troops or ships with a message.</p>
               <label for="treatyTarget">House</label><select id="treatyTarget" required></select>
               <div class="form-columns-3">
                 <div><label for="treatyGold">Gold</label><input id="treatyGold" type="number" min="0" value="0" inputmode="numeric"></div>
@@ -192,7 +192,7 @@
               <button class="button button-secondary button-full" type="submit">Send treaty</button>
             </form>
             <form id="decreeForm" class="action-card" hidden>
-              <span class="royal-seal"><img src="./assets/game-throne.png?v=2" alt=""></span><h3>Royal decree</h3><p class="muted small-text">Send a decree under your seal. You may demand gold or troops; each house chooses to send it, close it, or ignore it. One decree per round.</p>
+              <span class="royal-seal"><img src="./assets/game-throne.png?v=2" alt=""></span><h3>Royal decree</h3><p class="muted small-text">Seal a decree, with optional demands. One per round.</p>
               <label for="decreeTarget">To</label><select id="decreeTarget"></select>
               <div class="form-columns-3">
                 <div><label for="decreeGold">Gold</label><input id="decreeGold" type="number" min="0" value="0" inputmode="numeric"></div>
@@ -237,6 +237,7 @@
                 <tr><td>Dragons</td><td id="armyDragons">—</td><td>Not for sale</td><td>1 gold</td></tr>
               </tbody></table>
               <p id="upkeepNote" class="muted small-text"></p>
+              <form id="disbandForm" class="inline-form"><div class="field-grow"><label for="disbandUnit">Disband units</label><select id="disbandUnit"><option value="infantry">Infantry</option><option value="navy">Navy</option><option value="dragons">Dragons</option></select></div><div class="field-grow"><label for="disbandAmount">Amount</label><input id="disbandAmount" type="number" min="1" value="1" inputmode="numeric"></div><button class="button button-danger" type="submit">Disband</button></form>
             </section>
 
         <section id="actionPanel" class="panel section-panel hub-block">
@@ -249,20 +250,19 @@
               <button class="button button-primary button-full" type="submit">Recruit units</button>
             </form>
             <form id="spyForm" class="action-card">
-              <img class="action-icon-image" src="./assets/game-eye.png?v=2" alt=""><h3>Send spies</h3><p class="muted small-text">Spend as little as 2 gold. The more you spend, the likelier your spies succeed and the less likely they are caught. Caught spies tell the enemy who sent them. A success reveals forces and any pending attack.</p>
+              <img class="action-icon-image" src="./assets/game-eye.png?v=2" alt=""><h3>Send spies</h3><p class="muted small-text">Spend 2–20 gold. More gold means better odds.</p>
               <label for="spyTarget">Target house</label><select id="spyTarget" required></select>
               <label for="spyGold">Gold to spend (2–20)</label><input id="spyGold" type="number" min="2" max="20" value="8" inputmode="numeric">
               <p id="spyOdds" class="muted small-text"></p>
               <button class="button button-secondary button-full" type="submit">Attempt spy mission</button>
             </form>
             <form id="attackForm" class="action-card action-card-wide">
-              <img class="action-icon-image" src="./assets/game-swords.png?v=2" alt=""><h3>Go to war</h3><p class="muted small-text">Pick the capital you will attack on the map, then commit units. Orders are hidden from other houses and resolve after the following round. Attacks unlock after Round 1.</p>
+              <img class="action-icon-image" src="./assets/game-swords.png?v=2" alt=""><h3>Go to war</h3><p class="muted small-text">Pick a target on the map and commit units. Allies who hit the same capital fight together.</p>
               <div class="war-target"><div id="warTargetBox" class="war-target-box is-empty">No target chosen yet</div><button id="pickTargetButton" class="button button-secondary" type="button" data-action="pick-target"><img class="button-icon" src="./assets/game-castle.png?v=2" alt="">Choose target on the map</button></div>
               <div class="form-columns">
                 <div><label for="attackInfantry">Infantry to send</label><input id="attackInfantry" type="number" min="0" value="3" required></div>
                 <div><label for="attackNavy">Navy to send</label><input id="attackNavy" type="number" min="0" value="0" required></div>
                 <div><label for="attackDragons">Dragons to send</label><input id="attackDragons" type="number" min="0" value="0" required></div>
-                <div><label for="attackAlly">March with an ally (optional)</label><select id="attackAlly"></select></div>
               </div>
               <button class="button button-danger button-full" type="submit">Declare war</button>
               <div id="attackOrderStatus" class="small-text muted"></div>

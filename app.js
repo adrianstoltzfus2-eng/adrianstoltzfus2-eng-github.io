@@ -378,7 +378,6 @@
     $('infantryCostLabel').textContent = house.infantryCost;
     $('navyCostLabel').textContent = house.navyCost;
     $('spyTarget').innerHTML = state.houses.filter(h => h.id !== house.id).map(h => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join('');
-    $('attackAlly').innerHTML = '<option value="">No ally — march alone</option>' + alliesOf(house.id).map(id => `<option value="${escapeHtml(id)}">House ${escapeHtml(capName(prettyHouse(id)))}</option>`).join('');
     $('attackInfantry').max = house.infantry;
     $('attackNavy').max = house.navy;
     $('attackDragons').max = house.dragons;
@@ -387,11 +386,10 @@
     const target = state.capitals.find(c => c.id === warTargetId);
     if (!target || warTargetProblem(target)) warTargetId = null;
     renderWarTarget();
-    const ally = house.pendingAttack?.ally;
-    const allyNote = !ally ? '' : ally.status === 'joined' ? ` House ${capName(prettyHouse(ally.houseId))} marches with you (${ally.units.infantry + ally.units.navy + ally.units.dragons} units).` : ally.status === 'declined' ? ` House ${capName(prettyHouse(ally.houseId))} declined to march.` : ` Waiting for House ${capName(prettyHouse(ally.houseId))} to answer your call.`;
-    $('attackOrderStatus').textContent = state.round < 2 ? 'Attacks unlock after Round 1.' : house.pendingAttack ? `Committed against ${house.pendingAttack.targetName}; resolves after Round ${house.pendingAttack.resolveRound}.${allyNote}` : house.hasAttackedThisRound ? 'Your house is already committed to a war this round.' : 'The target and committed forces stay secret until the attack resolves. A winning pair of allies split the plunder.';
+    $('attackOrderStatus').textContent = house.pendingAttack ? `Committed against ${house.pendingAttack.targetName}. Resolves after Round ${house.pendingAttack.resolveRound}.` : '';
     updateAttackLock();
     updateRecruitButton();
+    updateDisbandButton();
     updateSpyForm();
     $('spyReports').innerHTML = state.spyReports.length ? `<div class="subsection-title">Your intelligence reports</div>${state.spyReports.map(r => r.success ? `<article class="spy-report"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · successful${r.spent ? ` · ${r.spent} gold` : ''}</span></div><p>${r.infantry} infantry · ${r.navy} ships · ${r.dragons} dragons</p>${r.pendingTarget ? `<small>Possible planned attack: ${escapeHtml(r.pendingTarget)}</small>` : '<small>No pending attack seen.</small>'}</article>` : `<article class="spy-report spy-failed"><div><b>${escapeHtml(r.targetName)}</b><span>Round ${r.round} · ${r.caught ? 'caught' : 'failed'}${r.spent ? ` · ${r.spent} gold` : ''}</span></div><p>${r.caught ? 'Your agents were captured. The enemy knows who sent them.' : 'Your agents returned without reliable force estimates.'}</p></article>`).join('')}` : '';
   }
@@ -407,13 +405,19 @@
     const valid = Number.isInteger(spend) && spend >= 2 && spend <= 20;
     if (valid) {
       const o = spyOddsFor(spend, $('spyTarget').value);
-      $('spyOdds').textContent = `Chance of success about ${Math.round(o.success * 100)}%. If they fail, about ${Math.round(o.caught * 100)}% are caught and expose you.`;
+      $('spyOdds').textContent = `Success ${Math.round(o.success * 100)}% · caught if failed ${Math.round(o.caught * 100)}%`;
     } else $('spyOdds').textContent = 'Spend between 2 and 20 gold.';
-    lock($('spyForm').querySelector('button'), state.phase !== 'ACTION' ? 'Spies can only be sent during the action phase.' : state.me.lastSpyRound === state.round ? 'You have already sent spies this round.' : !valid ? 'Spend a whole number of gold between 2 and 20.' : house.money < spend ? `You chose to spend ${spend} gold, but your house only has ${house.money}.` : '');
+    lock($('spyForm').querySelector('button'), state.phase !== 'ACTION' ? 'Spies can only be sent during the action phase.' : state.me.lastSpyRound === state.round ? 'You have already sent spies this round.' : !valid ? 'Spend a whole number of gold between 2 and 20.' : state.round > 1 && house.money < spend ? `You chose to spend ${spend} gold, but your house only has ${house.money}.` : '');
   }
   $('spyGold').addEventListener('input', updateSpyForm);
   $('spyTarget').addEventListener('change', updateSpyForm);
 
+  function updateDisbandButton() {
+    const house = state?.myHouse;
+    if (!house) return;
+    const unit = $('disbandUnit').value, amount = Number($('disbandAmount').value);
+    lock($('disbandForm').querySelector('button'), state.phase !== 'ACTION' ? 'Units can be disbanded during the action phase.' : !Number.isInteger(amount) || amount < 1 ? 'Choose how many units to disband.' : amount > house[unit] ? `You only have ${house[unit]} ${unit === 'navy' ? 'ships' : unit}.` : '');
+  }
   function updateRecruitButton() {
     const button = $('recruitForm')?.querySelector('button');
     if (!button) return;
@@ -425,7 +429,7 @@
     lock(button, state.phase !== 'ACTION' ? 'Recruiting is only possible during the action phase.'
       : house.lockedByEmbargo ? 'A royal embargo blocks your recruitment this round.'
       : !Number.isInteger(amount) || amount < 1 || amount > 10 ? 'Choose a whole number of units between 1 and 10.'
-      : cost * amount > house.money ? `That costs ${cost * amount} gold, but your house only has ${house.money}.` : '');
+      : state.round > 1 && cost * amount > house.money ? `That costs ${cost * amount} gold, but your house only has ${house.money}.` : '');
   }
 
   function renderRoundOverview() {
@@ -485,7 +489,7 @@
     const reason = can ? '' : `You cannot meet this demand yet: you have ${h?.money ?? 0} gold, ${h?.infantry ?? 0} infantry and ${h?.navy ?? 0} ships.`;
     const demand = goodsMarkup(d);
     const buttons = d.myState === 'pending' ? `<div class="treaty-actions"><button class="button button-primary button-small ${can ? '' : 'is-locked'}" data-action="respond-decree" data-decree-id="${escapeHtml(d.id)}"${lockAttr(reason)}>Send</button>${popup ? '<button class="button button-quiet button-small" data-action="close-decree-popup">Close</button>' : ''}</div>` : '';
-    return `<article class="treaty-card decree-card" style="--house-color:${escapeHtml(houseColor(d.kingHouseId))}"><header>${bannerOf(d.kingHouseId)}<span class="royal-seal royal-seal-sm"><img src="./assets/game-throne.png?v=2" alt=""></span><strong>Decree of King ${escapeHtml(d.kingName)}<small> · House ${escapeHtml(capName(prettyHouse(d.kingHouseId)))}</small></strong><span class="treaty-status is-${escapeHtml(d.myState === 'sent' ? 'accepted' : d.myState === 'pending' ? 'declined' : 'pending')}">${escapeHtml(DECREE_STATE[d.myState] || '')}</span></header>${d.message ? `<p class="treaty-note">“${escapeHtml(d.message)}”</p>` : ''}${demand ? `<div><small>The crown demands:</small>${demand}</div>` : ''}<small>Round ${d.round}${d.myState === 'pending' ? ' · stays here until it is paid' : ''}</small>${buttons}</article>`;
+    return `<article class="treaty-card decree-card" style="--house-color:${escapeHtml(houseColor(d.kingHouseId))}"><header>${bannerOf(d.kingHouseId)}<span class="royal-seal royal-seal-sm"><img src="./assets/game-throne.png?v=2" alt=""></span><strong>Decree of King ${escapeHtml(d.kingName)}<small> · House ${escapeHtml(capName(prettyHouse(d.kingHouseId)))}</small></strong><span class="treaty-status is-${escapeHtml(d.myState === 'sent' ? 'accepted' : d.myState === 'pending' ? 'declined' : 'pending')}">${escapeHtml(DECREE_STATE[d.myState] || '')}</span></header>${d.message ? `<p class="treaty-note">“${escapeHtml(d.message)}”</p>` : ''}${demand ? `<div><small>The crown demands:</small>${demand}</div>` : ''}<small>Round ${d.round}${d.myState === 'pending' ? '' : ''}</small>${buttons}</article>`;
   }
   // A sealed decree pops up once when it arrives. Backdrop tap = ignore it for now; Send / Close answer it.
   const shownDecrees = new Set();
@@ -503,7 +507,7 @@
     if (!next || !$('announceOverlay').hidden) return;
     shownDecrees.add(next.id);
     $('decreePop').dataset.decree = next.id;
-    $('decreePop').innerHTML = `<p class="eyebrow" id="decreePopTitle">A ROYAL DECREE</p>${decreeCard(next, true)}<small class="announce-hint">It stays under Treaties &amp; subsidies until paid</small>`;
+    $('decreePop').innerHTML = `<p class="eyebrow" id="decreePopTitle">A ROYAL DECREE</p>${decreeCard(next, true)}`;
     $('decreeOverlay').hidden = false;
   }
 
@@ -550,16 +554,9 @@
 
     // War councils: invitations from allies, your own marching orders, and the spoils of won wars.
     let war = '';
-    war += (state.warInvites || []).map(w => {
-      const idp = `warJoin-${w.leaderHouseId}`;
-      const leader = capName(prettyHouse(w.leaderHouseId));
-      const startInf = Math.min(3, mine?.infantry || 0);
-      return `<article class="treaty-card war-card" style="--house-color:${escapeHtml(houseColor(w.leaderHouseId))}"><header>${bannerOf(w.leaderHouseId)}<strong>House ${escapeHtml(leader)} calls you to war</strong><span class="treaty-status">Target: ${escapeHtml(w.targetName)}</span></header><p class="treaty-note">They have committed ${w.units.infantry} infantry, ${w.units.navy} ships and ${w.units.dragons} dragons. Win together and you split the plunder, then agree who rules ${escapeHtml(w.targetName)} or fight for it. Resolves after Round ${w.resolveRound}.</p><div class="join-grid"><div><label for="${idp}-inf">Infantry</label><input id="${idp}-inf" type="number" min="0" value="${startInf}" inputmode="numeric"></div><div><label for="${idp}-nav">Ships</label><input id="${idp}-nav" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="${idp}-dra">Dragons</label><input id="${idp}-dra" type="number" min="0" value="0" inputmode="numeric"></div></div><div class="treaty-actions"><button class="button button-danger button-small ${open ? '' : 'is-locked'}" data-action="join-war" data-leader="${escapeHtml(w.leaderHouseId)}"${lockAttr(open ? '' : closedMsg)}>March with them</button><button class="button button-quiet button-small ${open ? '' : 'is-locked'}" data-action="decline-war" data-leader="${escapeHtml(w.leaderHouseId)}"${lockAttr(open ? '' : closedMsg)}>Decline</button></div></article>`;
-    }).join('');
     if (mine?.pendingAttack) {
       const pa = mine.pendingAttack;
-      const note = !pa.ally ? 'You march alone.' : pa.ally.status === 'joined' ? `House ${capName(prettyHouse(pa.ally.houseId))} marches with you.` : pa.ally.status === 'declined' ? `House ${capName(prettyHouse(pa.ally.houseId))} declined.` : `Waiting for House ${capName(prettyHouse(pa.ally.houseId))} to answer.`;
-      war += `<article class="treaty-card war-card"><header><strong>Your war on ${escapeHtml(pa.targetName)}</strong><span class="treaty-status">Resolves after Round ${pa.resolveRound}</span></header><p class="treaty-note">${escapeHtml(note)}</p></article>`;
+      war += `<article class="treaty-card war-card"><header><strong>Your war on ${escapeHtml(pa.targetName)}</strong><span class="treaty-status">Resolves after Round ${pa.resolveRound}</span></header></article>`;
     }
     war += (state.spoils || []).map(sp => {
       const other = sp.houseA === myId ? sp.houseB : sp.houseA;
@@ -569,7 +566,7 @@
       const claimBtn = id => `<button class="button button-secondary button-small ${myClaim === id ? 'is-mine' : ''}" data-action="claim-spoils" data-spoil-id="${escapeHtml(sp.id)}" data-claim="${escapeHtml(id)}">${myClaim === id ? 'Chosen · ' : ''}House ${escapeHtml(nm(id))} rules</button>`;
       return `<article class="treaty-card war-card" style="--house-color:${escapeHtml(houseColor(other))}"><header>${bannerOf(sp.houseA)}${bannerOf(sp.houseB)}<strong>Spoils: ${escapeHtml(sp.capitalName)}</strong><span class="treaty-status">Decide by the end of Round ${sp.deadlineRound} court</span></header><p class="treaty-note">You and House ${escapeHtml(nm(other))} won it together and split ${sp.plunder} gold of plunder. You must both name the same ruler, or you will fight each other for it.</p><small>Your choice: ${myClaim ? `House ${escapeHtml(nm(myClaim))}` : 'not chosen'} · Their choice: ${theirClaim ? `House ${escapeHtml(nm(theirClaim))}` : 'not chosen'}</small><div class="spoil-claims">${claimBtn(sp.houseA)}${claimBtn(sp.houseB)}</div></article>`;
     }).join('');
-    $('warList').innerHTML = war || '<p class="muted small-text">No wars are being waged. Press “Go to war” to pick a target on the map.</p>';
+    $('warList').innerHTML = war || '<p class="muted small-text">No wars yet.</p>';
   }
 
   const selectedRecipients = new Set();
@@ -647,7 +644,7 @@
     if (!h) return;
     updateBadges();
     const myAlliances = (state.alliances || []).filter(a => a.houseA === h.id || a.houseB === h.id).length;
-    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length + (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing).length + (state.warInvites || []).length + (state.decrees || []).filter(d => !d.isIssuer && d.myState === 'pending').length;
+    const waiting = (state.allianceOffers || []).filter(o => o.canRespond).length + (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing).length + (state.decrees || []).filter(d => !d.isIssuer && d.myState === 'pending').length;
     const total = h.infantry + h.navy + h.dragons;
     // Hub buttons (details are hidden on phones)
     $('hubMoneyGold').textContent = `${h.money} gold`;
@@ -662,8 +659,8 @@
     // Money sheet
     $('moneyGold').textContent = `${h.money} gold`;
     $('moneyIncome').textContent = `${h.incomePerRound - h.upkeepPerRound >= 0 ? '+' : '−'}${Math.abs(h.incomePerRound - h.upkeepPerRound)} gold`;
-    $('moneyIncomeNote').textContent = `Net per round: ${plural(h.capitalCount, 'capital')} × ${h.incomePerCapital} = ${h.incomePerRound} income, minus ${h.upkeepPerRound} army upkeep. Paid when a new round begins.`;
-    $('upkeepNote').textContent = `Each unit costs 1 gold per round, taken automatically after income. Your upkeep is ${h.upkeepPerRound} gold a round. If you cannot pay, unpaid troops desert.`;
+    $('moneyIncomeNote').textContent = `${h.incomePerRound} income − ${h.upkeepPerRound} upkeep`;
+    $('upkeepNote').textContent = `Upkeep: ${h.upkeepPerRound} gold per round (1 per unit).`;
     const led = h.ledger || [];
     const sum = (res, sign) => led.filter(e => e.res === res && Math.sign(e.delta) === sign).reduce((n, e) => n + Math.abs(e.delta), 0);
     $('ledgerTotals').innerHTML = `<span>Gold in <b class="in">+${sum('gold', 1)}</b></span><span>Gold out <b class="out">−${sum('gold', -1)}</b></span><span>Troops in <b class="in">+${sum('infantry', 1) + sum('navy', 1) + sum('dragons', 1)}</b></span><span>Troops out <b class="out">−${sum('infantry', -1) + sum('navy', -1) + sum('dragons', -1)}</b></span>`;
@@ -847,7 +844,7 @@
       offers: (state.allianceOffers || []).filter(o => o.canRespond),
       treaties: (state.treaties || []).filter(t => t.status === 'pending' && !t.isOutgoing),
       decrees: (state.decrees || []).filter(d => !d.isIssuer && d.myState === 'pending'),
-      war: [...(state.warInvites || []).map(w => ({ id: `${w.leaderHouseId}:${w.resolveRound}` })), ...(state.spoils || []).filter(x => x.status === 'open').map(x => ({ id: x.id }))],
+      war: [...(state.spoils || []).filter(x => x.status === 'open').map(x => ({ id: x.id }))],
       battles: (state.events || []).filter(e => e.kind === 'battle')
     };
   }
@@ -1040,7 +1037,7 @@
       }
     }
     updateRecruitButton();
-    if (state.myHouse) { updateAttackLock(); updateSpyForm(); }
+    if (state.myHouse) { updateAttackLock(); updateSpyForm(); updateDisbandButton(); }
     if (wasFocused) {
       const element = $(wasFocused);
       if (element && !element.disabled) {
@@ -1309,11 +1306,6 @@
     }
     else if (action === 'respond-treaty') emitAction('respond-treaty', { treatyId: button.dataset.treatyId, accept: button.dataset.accept === 'true' });
     else if (action === 'cancel-treaty') emitAction('cancel-treaty', { treatyId: button.dataset.treatyId });
-    else if (action === 'decline-war') emitAction('respond-war', { leaderHouseId: button.dataset.leader, accept: false });
-    else if (action === 'join-war') {
-      const idp = `warJoin-${button.dataset.leader}`;
-      emitAction('respond-war', { leaderHouseId: button.dataset.leader, accept: true, infantry: Number($(`${idp}-inf`).value), navy: Number($(`${idp}-nav`).value), dragons: Number($(`${idp}-dra`).value) });
-    }
     else if (action === 'claim-spoils') emitAction('claim-spoils', { spoilId: button.dataset.spoilId, claimHouseId: button.dataset.claim });
   });
 
@@ -1329,6 +1321,15 @@
   $('unitSelect').addEventListener('change', updateRecruitButton);
   $('unitAmount').addEventListener('input', updateRecruitButton);
 
+  $('disbandUnit').addEventListener('change', updateDisbandButton);
+  $('disbandAmount').addEventListener('input', updateDisbandButton);
+  $('disbandForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const unit = $('disbandUnit').value, amount = Number($('disbandAmount').value);
+    if (!window.confirm(`Disband ${amount} ${unit === 'navy' ? 'ships' : unit}? This cannot be undone and nothing is refunded.`)) return;
+    emitAction('disband', { unit, amount });
+  });
+
   $('spyForm').addEventListener('submit', event => {
     event.preventDefault();
     emitAction('spy', { targetHouseId: $('spyTarget').value, spend: Number($('spyGold').value) });
@@ -1338,7 +1339,6 @@
     event.preventDefault();
     emitAction('plan-attack', {
       targetCapitalId: warTargetId,
-      allyHouseId: $('attackAlly').value || undefined,
       infantry: Number($('attackInfantry').value),
       navy: Number($('attackNavy').value),
       dragons: Number($('attackDragons').value)
