@@ -612,6 +612,11 @@
     $('moneyGold').textContent = `${h.money} gold`;
     $('moneyIncome').textContent = `+${h.incomePerRound} gold`;
     $('moneyIncomeNote').textContent = `${plural(h.capitalCount, 'capital')} × ${h.incomePerCapital} gold, paid when a new round begins.`;
+    const led = h.ledger || [];
+    const sum = (res, sign) => led.filter(e => e.res === res && Math.sign(e.delta) === sign).reduce((n, e) => n + Math.abs(e.delta), 0);
+    $('ledgerTotals').innerHTML = `<span>Gold in <b class="in">+${sum('gold', 1)}</b></span><span>Gold out <b class="out">−${sum('gold', -1)}</b></span><span>Troops in <b class="in">+${sum('infantry', 1) + sum('navy', 1) + sum('dragons', 1)}</b></span><span>Troops out <b class="out">−${sum('infantry', -1) + sum('navy', -1) + sum('dragons', -1)}</b></span>`;
+    const RES = { gold: ['🪙', 'gold'], infantry: ['🛡', 'infantry'], navy: ['⚓', 'ships'], dragons: ['🐉', 'dragons'] };
+    $('moneyLedger').innerHTML = led.length ? led.map(e => `<div class="ledger-row ${e.delta > 0 ? 'in' : 'out'}"><span class="ledger-round">R${e.round}</span><span class="ledger-delta">${e.delta > 0 ? '+' : '−'}${Math.abs(e.delta)} ${RES[e.res]?.[1] || e.res}</span><p>${RES[e.res]?.[0] || ''} ${escapeHtml(e.text)}</p></div>`).join('') : '<p class="muted small-text">Nothing has come in or gone out yet.</p>';
     const mine = state.capitals.filter(c => c.ownerHouseId === h.id);
     $('moneyCapitals').innerHTML = mine.length ? mine.map(c => `<div class="resolution-item"><span>+${h.incomePerCapital}</span><p>${escapeHtml(c.name)}</p></div>`).join('') : '<p class="muted small-text">Your house holds no capitals, so it earns no income.</p>';
     // Army sheet

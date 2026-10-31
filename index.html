@@ -13,10 +13,10 @@
   <meta name="description" content="A temporary multiplayer Great Houses strategy game prototype.">
   <title>War of Westeros — Multiplayer Strategy</title>
   <link rel="icon" type="image/png" href="./assets/iron-throne-fire-icon-tab.png?v=1">
-  <link rel="stylesheet" href="./style.css?v=30">
+  <link rel="stylesheet" href="./style.css?v=31">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
   <script src="./config.js?v=17" defer></script>
-  <script src="./app.js?v=32" defer></script>
+  <script src="./app.js?v=33" defer></script>
 </head>
 <body>
   <div class="orientation-lock" role="status" aria-live="polite"><div><strong>Turn your phone upright</strong><span>War of Westeros is designed for portrait play.</span></div></div>
@@ -39,7 +39,7 @@
       <button id="roundPill" class="round-pill" type="button" disabled>LOBBY</button>
     </div>
   </header>
-  <span id="gameVersion" class="version-tag" hidden>v1.3.0</span>
+  <span id="gameVersion" class="version-tag" hidden>v1.3.1</span>
 
   <!-- Step 1: house selection. Step 2: name. Step 3: waiting room. Step 4: game. -->
   <section id="throneScreen" class="throne-screen" aria-label="War of Westeros throne selection">
@@ -165,6 +165,7 @@
               <article class="money-card"><span id="badgeGold" class="note-badge" hidden></span><span>YOUR GOLD</span><strong id="moneyGold">—</strong><small>Available to spend</small></article>
               <article class="money-card"><span>INCOME PER ROUND</span><strong id="moneyIncome">—</strong><small id="moneyIncomeNote"></small></article>
             </div>
+            <div><div class="subsection-title">Ledger · gold &amp; troops in and out</div><div id="ledgerTotals" class="ledger-totals"></div><div id="moneyLedger" class="ledger-list"></div></div>
             <div><div class="subsection-title">Capitals held</div><div id="moneyCapitals" class="event-list"></div></div>
           </div>
           <div id="hubRelations" class="hub-pane" hidden>

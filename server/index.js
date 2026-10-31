@@ -87,7 +87,8 @@ function freshHouses() {
     hasAttackedThisRound: false,
     commandUsedRound: 0,
     lockedUntilRound: 0,
-    spyReports: []
+    spyReports: [],
+    ledger: []
   }));
 }
 function freshCapitals() {
@@ -209,6 +210,7 @@ function runBotTurns() {
     if (amount < 1) continue;
     house.money -= amount * house.infantryCost;
     house.infantry += amount;
+    note(house, 'gold', -amount * house.infantryCost, `Recruited ${amount} infantry`); note(house, 'infantry', amount, 'Recruited');
     addEvent('normal', `${bot.username} recruited ${amount} infantry for House ${house.name}.`);
   }
 }
@@ -222,7 +224,7 @@ function incomePerCapital(h) { return 5 + (h.id === 'tyrell' ? 2 : 0); }
 function houseIncome(h) { return capitals.filter(c => c.ownerHouseId === h.id).length * incomePerCapital(h); }
 function currentHouseView(h) {
   if (!h) return null;
-  const { money, infantry, navy, dragons, infantryCost, navyCost, pendingAttack, hasAttackedThisRound, commandUsedRound, lockedUntilRound, spyReports, ...definition } = h;
+  const { money, infantry, navy, dragons, infantryCost, navyCost, pendingAttack, hasAttackedThisRound, commandUsedRound, lockedUntilRound, spyReports, ledger, ...definition } = h;
   const members = [...players.values()].filter(p => p.houseId === h.id).map(p => ({ id: p.id, username: p.username, connected: p.connected, left: Boolean(p.left) }));
   return { ...definition, players: members, capitalCount: capitals.filter(c => c.ownerHouseId === h.id).length };
 }
@@ -239,6 +241,7 @@ function makePrivateHouseView(h) {
       units: { ...h.pendingAttack.units },
       ally: h.pendingAttack.ally ? { ...h.pendingAttack.ally, units: { ...h.pendingAttack.ally.units } } : null
     } : null,
+    ledger: (h.ledger || []).map(e => ({ ...e })),
     hasAttackedThisRound: h.hasAttackedThisRound,
     commandUsedRound: h.commandUsedRound,
     lockedByEmbargo: h.lockedUntilRound >= round,
@@ -337,11 +340,21 @@ function wholeNumber(value) { const n = Number(value || 0); return Number.isInte
 function closeTreaty(t, status) {
   const from = findHouse(t.fromHouseId), to = findHouse(t.toHouseId);
   const receiver = status === 'accepted' ? to : from;
-  if (receiver) { receiver.money += t.gold; receiver.infantry += t.infantry; receiver.navy += t.navy; }
+  if (receiver) {
+    receiver.money += t.gold; receiver.infantry += t.infantry; receiver.navy += t.navy;
+    const why = status === 'accepted' ? `Treaty from House ${houseName(t.fromHouseId)}` : `Treaty to House ${houseName(t.toHouseId)} ${status === 'declined' ? 'declined' : 'withdrawn'}: returned`;
+    note(receiver, 'gold', t.gold, why); note(receiver, 'infantry', t.infantry, why); note(receiver, 'navy', t.navy, why);
+  }
   t.status = status;
   t.closedRound = round;
   const settled = treaties.filter(x => x.status !== 'pending');
   if (settled.length > 30) for (const old of settled.slice(30)) treaties.splice(treaties.indexOf(old), 1);
+}
+function note(h, res, delta, text) {
+  if (!h || !delta) return;
+  h.ledger = h.ledger || [];
+  h.ledger.unshift({ id: randomUUID(), round, res, delta, text: String(text).slice(0, 160) });
+  if (h.ledger.length > 120) h.ledger.length = 120;
 }
 function forceStrength(u) { return u.infantry + u.navy + u.dragons * 5 + (u.dragons ? 2 : 0); }
 function giveSpoil(s, winnerId, how) {
@@ -362,6 +375,7 @@ function settleSpoils(forced) {
     const winner = sa >= sb ? ha : hb, loser = winner === ha ? hb : ha;
     const lost = Math.ceil(loser.infantry * 0.25);
     loser.infantry -= lost;
+    note(loser, 'infantry', -lost, 'Lost fighting an ally over the spoils');
     const al = alliances.find(x => [x.houseA, x.houseB].includes(a) && [x.houseA, x.houseB].includes(b));
     if (al) alliances.splice(alliances.indexOf(al), 1);
     giveSpoil(s, winner.id, `after the former allies fought over it (${Math.max(sa, sb)} vs. ${Math.min(sa, sb)}); House ${loser.name} lost ${lost} infantry and the alliance is broken`);
@@ -665,6 +679,7 @@ io.on('connection', socket => {
     if (h.money < cost * amount) return fail(`This purchase costs ${cost * amount} gold, but your house has ${h.money}.`);
     h.money -= cost * amount;
     h[unit] += amount;
+    note(h, 'gold', -cost * amount, `Recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}`); note(h, unit, amount, 'Recruited');
     addEvent('normal', `House ${h.name} recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}.`);
     return ok(`Recruited ${amount} ${unit === 'navy' ? 'ships' : 'infantry'}.`);
   });
@@ -678,6 +693,7 @@ io.on('connection', socket => {
     if (!target || target.id === h.id) return fail('Choose another house as your target.');
     if (h.money < 8) return fail('A spy mission costs 8 gold.');
     h.money -= 8;
+    note(h, 'gold', -8, `Spy mission against House ${target.name}`);
     player.lastSpyRound = round;
     const successChance = target.id === 'targaryen' ? 0.48 : 0.65;
     const success = Math.random() < successChance;
@@ -716,6 +732,7 @@ io.on('connection', socket => {
     h.infantry -= units.infantry;
     h.navy -= units.navy;
     h.dragons -= units.dragons;
+    for (const k of ['infantry', 'navy', 'dragons']) note(h, k, -units[k], `Sent to war on ${target.name}`);
     h.pendingAttack = { targetCapitalId: target.id, targetName: target.name, orderedRound: round, resolveRound: round + 1, units, ally: allyHouse ? { houseId: allyHouse.id, status: 'invited', units: { infantry: 0, navy: 0, dragons: 0 } } : null };
     h.hasAttackedThisRound = true;
     addEvent('normal', `House ${h.name} secretly committed an attack against a capital.`);
@@ -723,6 +740,7 @@ io.on('connection', socket => {
       const botUnits = { infantry: Math.min(3, allyHouse.infantry), navy: 0, dragons: 0 };
       if (botUnits.infantry > 0) {
         allyHouse.infantry -= botUnits.infantry;
+        note(allyHouse, 'infantry', -botUnits.infantry, `Marched with House ${h.name}`);
         allyHouse.hasAttackedThisRound = true;
         h.pendingAttack.ally.status = 'joined';
         h.pendingAttack.ally.units = botUnits;
@@ -792,6 +810,8 @@ io.on('connection', socket => {
     if (navy > h.navy) return fail(`You only have ${h.navy} ships available.`);
     if (treaties.some(t => t.status === 'pending' && t.fromHouseId === h.id && t.toHouseId === target.id)) return fail(`You already have a treaty waiting on House ${target.name}.`);
     h.money -= gold; h.infantry -= infantry; h.navy -= navy;
+    const why = `Treaty offered to House ${target.name} (held until they answer)`;
+    note(h, 'gold', -gold, why); note(h, 'infantry', -infantry, why); note(h, 'navy', -navy, why);
     const treaty = { id: randomUUID(), fromHouseId: h.id, toHouseId: target.id, gold, infantry, navy, message, round, status: 'pending' };
     treaties.unshift(treaty);
     addEvent('normal', `House ${h.name} sent a treaty to House ${target.name}.`);
@@ -839,6 +859,7 @@ io.on('connection', socket => {
     if (units.infantry + units.navy + units.dragons < 1) return fail('Commit at least one unit to join the war.');
     if (units.infantry > h.infantry || units.navy > h.navy || units.dragons > h.dragons) return fail('Your house does not have enough uncommitted forces.');
     h.infantry -= units.infantry; h.navy -= units.navy; h.dragons -= units.dragons;
+    for (const k of ['infantry', 'navy', 'dragons']) note(h, k, -units[k], `Marched with House ${leader.name}`);
     h.hasAttackedThisRound = true;
     ally.status = 'joined'; ally.units = units;
     addEvent('important', `House ${h.name} joined House ${leader.name} in a secret war.`);
@@ -872,12 +893,14 @@ io.on('connection', socket => {
         if (other.id === h.id) continue;
         const amount = Math.min(3 + bonus, other.money);
         other.money -= amount;
+        note(other, 'gold', -amount, `Royal levy paid to House ${h.name}`);
         collected += amount;
         payments.push({ houseId: other.id, amount });
       }
       taxLedger.unshift({ id: randomUUID(), round, kind: 'Royal levy', demanded: 3 + bonus, payments });
       if (taxLedger.length > 20) taxLedger.length = 20;
       h.money += collected;
+      note(h, 'gold', collected, 'Royal levy collected');
       h.commandUsedRound = round;
       addEvent('important', `The king issued a royal levy. House ${h.name} collected ${collected} gold from the realm.`);
       return ok(`Royal levy collected ${collected} gold.`);
@@ -941,6 +964,7 @@ io.on('connection', socket => {
       for (const h of houses) {
         h.hasAttackedThisRound = false;
         h.money += houseIncome(h);
+        note(h, 'gold', houseIncome(h), 'Capital income');
       }
       runBotTurns();
       addEvent('important', `Round ${round} begins. Houses received income from their controlled capitals.`);
@@ -980,6 +1004,8 @@ function resolveDueAttacks() {
       if (defender) defender.money -= plunder;
       const share = Math.floor(plunder / 2);
       attacker.money += plunder - share; allyHouse.money += share;
+      note(attacker, 'gold', plunder - share, `Plunder from ${target.name}`); note(allyHouse, 'gold', share, `Plunder from ${target.name}`);
+      if (defender) note(defender, 'gold', -plunder, `Plundered at ${target.name}`);
       target.ownerHouseId = null;
       target.contested = { houseA: attacker.id, houseB: allyHouse.id };
       const claims = { [attacker.id]: null, [allyHouse.id]: null };
